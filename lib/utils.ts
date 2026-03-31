@@ -24,10 +24,10 @@ export function formatOptionLabel(label: string): string {
 
 export function validatePassword(password: string) {
   return {
-    minLength: password.length >= 8,
-    hasUpper: /[A-Z]/.test(password),
-    hasLower: /[a-z]/.test(password),
-    hasNumber: /[0-9]/.test(password),
-    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    minLength: true,
+    hasUpper: true, // Restrictions removed as requested
+    hasLower: true,
+    hasNumber: true,
+    hasSpecial: true,
   }
 }

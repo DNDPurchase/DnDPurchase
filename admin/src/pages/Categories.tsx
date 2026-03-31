@@ -32,6 +32,7 @@ export function Categories() {
     const [newOptionName, setNewOptionName] = useState('');
     const [newOptionBuyerType, setNewOptionBuyerType] = useState<'text' | 'number' | 'dropdown' | 'checkbox' | 'radio' | 'none'>('text');
     const [newOptionSellerType, setNewOptionSellerType] = useState<'text' | 'number' | 'dropdown' | 'checkbox' | 'radio' | 'none'>('none');
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -101,8 +102,9 @@ export function Categories() {
             return;
         }
 
-        // Check if option already exists with the exact same types
-        if (draftOptions.some(opt =>
+        // Check if option already exists with the exact same types (excluding the one being edited)
+        if (draftOptions.some((opt, idx) =>
+            idx !== editingIndex &&
             opt.option_name.toLowerCase() === newOptionName.trim().toLowerCase() &&
             opt.buyer_option_type === newOptionBuyerType &&
             opt.seller_option_type === newOptionSellerType
@@ -119,10 +121,24 @@ export function Categories() {
             seller_option_type: newOptionSellerType,
         };
 
-        setDraftOptions(prev => [...prev, newOption]);
+        if (editingIndex !== null) {
+            setDraftOptions(prev => prev.map((opt, idx) => idx === editingIndex ? newOption : opt));
+            setEditingIndex(null);
+        } else {
+            setDraftOptions(prev => [...prev, newOption]);
+        }
+
         setNewOptionName('');
         setNewOptionBuyerType('text');
         setNewOptionSellerType('none');
+    };
+
+    const handleEditOption = (index: number) => {
+        const opt = draftOptions[index];
+        setNewOptionName(opt.option_name);
+        setNewOptionBuyerType(opt.buyer_option_type);
+        setNewOptionSellerType(opt.seller_option_type);
+        setEditingIndex(index);
     };
 
     const handleRemoveOption = (indexToRemove: number) => {
@@ -270,8 +286,8 @@ export function Categories() {
 
                             <div className="space-y-6">
                                 {/* Form to add new options manually */}
-                                <div className="p-5 border border-primary/20 bg-primary/5 rounded-xl space-y-4">
-                                    <h4 className="font-semibold text-foreground text-sm">Add New Field</h4>
+                                <div className={`p-5 border rounded-xl space-y-4 transition-colors ${editingIndex !== null ? 'border-orange-500/50 bg-orange-500/5' : 'border-primary/20 bg-primary/5'}`}>
+                                    <h4 className="font-semibold text-foreground text-sm">{editingIndex !== null ? 'Edit Field' : 'Add New Field'}</h4>
                                     <div className="flex flex-col md:flex-row gap-4">
                                         <div className="flex-1 space-y-1.5">
                                             <label className="text-xs font-medium text-foreground">Field Name</label>
@@ -313,13 +329,26 @@ export function Categories() {
                                                 <option value="radio">Radio Button</option>
                                             </select>
                                         </div>
-                                        <div className="flex items-end">
+                                        <div className="flex items-end gap-2">
                                             <button
                                                 onClick={handleAddOption}
-                                                className="h-10 px-6 rounded-md bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-colors whitespace-nowrap"
+                                                className={`h-10 px-6 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${editingIndex !== null ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
                                             >
-                                                Add Field
+                                                {editingIndex !== null ? 'Update Field' : 'Add Field'}
                                             </button>
+                                            {editingIndex !== null && (
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingIndex(null);
+                                                        setNewOptionName('');
+                                                        setNewOptionBuyerType('text');
+                                                        setNewOptionSellerType('none');
+                                                    }}
+                                                    className="h-10 px-4 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -340,7 +369,20 @@ export function Categories() {
                                                                 <span className="text-muted-foreground"><span className="font-medium text-foreground/70">Seller:</span> {typeLabels[opt.seller_option_type as keyof typeof typeLabels] || opt.seller_option_type}</span>
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => handleRemoveOption(index)} className="text-sm text-destructive hover:text-destructive/80 font-medium px-2 py-1">Remove</button>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => handleEditOption(index)}
+                                                                className="text-sm text-primary hover:text-primary/80 font-medium px-2 py-1"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRemoveOption(index)}
+                                                                className="text-sm text-destructive hover:text-destructive/80 font-medium px-2 py-1"
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 );
                                             })}

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/auth-context"
-import { Clock, FileText, Gavel, Package, Send, MapPin, Edit, Trash2 } from "lucide-react"
+import { Clock, FileText, Gavel, Package, Send, MapPin, Edit, Trash2, Plus } from "lucide-react"
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import useSWR from "swr"
@@ -26,12 +26,13 @@ interface InquiryItem {
   sub_product?: string
   paymentTerms: string
   options?: Record<string, string | string[]>
+  remarks?: string
 }
 
 interface Inquiry {
   id: string
   buyerId: string
-  buyerName: string
+  buyerAlias: string
   items: InquiryItem[]
   status: string
   biddingDeadline?: string
@@ -43,7 +44,7 @@ interface Inquiry {
 }
 
 export default function SellerPendingPage() {
-  const { user } = useAuth()
+  const { user, allUsers } = useAuth()
   const { data: inquiries, isLoading } = useSWR(
     "open-inquiries",
     () => getOpenInquiries(),
@@ -54,7 +55,12 @@ export default function SellerPendingPage() {
     if (!inquiries || !user) return []
     if (!Array.isArray(inquiries)) return []
 
+    const currentUserBuyerId = allUsers?.find(u => u.role === "buyer")?.id;
+
     return inquiries.filter((inq: Inquiry) => {
+      // 0. EXCLUDE OWN INQUIRIES
+      if (currentUserBuyerId && inq.buyerId === currentUserBuyerId) return false;
+
       // 1. PRODUCT CATEGORY MATCH
       const sellerCategories = user.categories || []
       const matchingItems = inq.items.filter(item => sellerCategories.includes(item.product))
@@ -64,10 +70,10 @@ export default function SellerPendingPage() {
       // 2. LOCATION MATCH
       if (inq.state || inq.district) {
         const sellerLocs = user.availableLocations || {}
-        if (!sellerLocs[inq.state]) return false
+        if (!inq.state || !sellerLocs[inq.state as string]) return false
 
         if (inq.district) {
-          const sellerDistrictsForState = sellerLocs[inq.state]
+          const sellerDistrictsForState = sellerLocs[inq.state as string]
           if (sellerDistrictsForState.length > 0 && !sellerDistrictsForState.includes(inq.district)) {
             return false
           }
@@ -110,11 +116,83 @@ export default function SellerPendingPage() {
   const [quoteComments, setQuoteComments] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [editingOffer, setEditingOffer] = useState<any>(null)
-  const [selectedPdf, setSelectedPdf] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [pdfUploadProgress, setPdfUploadProgress] = useState(false)
   const [sellerProductOptions, setSellerProductOptions] = useState<any[]>([])
   const [sellerOptionsState, setSellerOptionsState] = useState<Record<string, string | string[]>>({})
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [allProductOptions, setAllProductOptions] = useState<Record<string, any[]>>({})
+
+  // Fetch all product options for unique (product, subProduct) pairs in inquiries to determine sort order
+  const productSubProductPairs = useMemo(() => {
+    return Array.from(new Set(inquiries?.flatMap((inq: any) => inq.items.map((item: any) => `${item.product}|${item.sub_product || ""}`)) || [])) as string[]
+  }, [inquiries])
+
+  useEffect(() => {
+    if (productSubProductPairs.length === 0) return
+
+    const fetchAll = async () => {
+      const results: Record<string, any[]> = {}
+      for (const pair of productSubProductPairs) {
+        const [product, subProduct] = pair.split('|')
+        try {
+          const url = `/api/products/options?productName=${encodeURIComponent(product)}${subProduct ? `&subProduct=${encodeURIComponent(subProduct)}` : ""}`
+          const res = await fetch(url)
+          const data = await res.json()
+          if (Array.isArray(data)) {
+            results[pair] = data.map((opt: any) => ({
+              ...opt,
+              buyer_option_type: opt.buyer_option_type || (opt.form_type !== 'seller' ? opt.option_type : 'none'),
+              seller_option_type: opt.seller_option_type || (opt.form_type === 'seller' ? opt.option_type : 'none')
+            })).filter((opt: any) => opt.buyer_option_type !== 'none')
+          }
+        } catch (e) {
+          console.error(`Failed to fetch options for ${pair}`, e)
+        }
+      }
+      setAllProductOptions(results)
+    }
+    fetchAll()
+  }, [productSubProductPairs])
+
+  const sortInquiryOptions = (productName: string, subProduct: string | undefined, options: Record<string, any>) => {
+    const key = `${productName}|${subProduct || ""}`
+    const metadata = allProductOptions[key] || []
+    if (metadata.length === 0) return Object.entries(options)
+
+    return Object.entries(options).sort(([keyA], [keyB]) => {
+      const metaA = metadata.find(m => m.option_name === keyA || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyA)
+      const metaB = metadata.find(m => m.option_name === keyB || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyB)
+
+      const nameA = keyA.toLowerCase().trim().split('(')[0].trim()
+      const nameB = keyB.toLowerCase().trim().split('(')[0].trim()
+
+      // 1. Manufacturer Always First
+      const isManA = nameA === "manufacturer"
+      const isManB = nameB === "manufacturer"
+      if (isManA && !isManB) return -1
+      if (!isManA && isManB) return 1
+
+      // 2. Locked Options (Metadata-driven) Next
+      const isLockedA = metaA ? metaA.seller_option_type !== 'none' : false
+      const isLockedB = metaB ? metaB.seller_option_type !== 'none' : false
+
+      if (isLockedA && !isLockedB) return -1
+      if (!isLockedA && isLockedB) return 1
+
+      // 3. Quantity & Measurement Always Last (Measurement second last)
+      const specialEndOrder = ["quantity measurement", "quantity"]
+      const endIdxA = specialEndOrder.indexOf(nameA)
+      const endIdxB = specialEndOrder.indexOf(nameB)
+
+      if (endIdxA !== -1 && endIdxB !== -1) return endIdxA - endIdxB
+      if (endIdxA !== -1) return 1
+      if (endIdxB !== -1) return -1
+
+      // 4. Alphabetical for others
+      return keyA.localeCompare(keyB)
+    })
+  }
 
   // Dispatch Location mapping
   const [locationSettings, setLocationSettings] = useState<any>(null)
@@ -202,37 +280,39 @@ export default function SellerPendingPage() {
 
     setSubmitting(true)
     try {
-      let finalPdfUrl = editingOffer ? editingOffer.pdfUrl || "" : ""
+      let finalAttachments = editingOffer ? [...(editingOffer.attachments || [])] : []
 
-      if (selectedPdf) {
+      if (selectedFiles.length > 0) {
         setPdfUploadProgress(true)
-        const fileRef = ref(storage, `quotes/${Date.now()}_${selectedInquiry.id}_${quoteItem.id}.pdf`)
-        await uploadBytes(fileRef, selectedPdf, { contentType: "application/pdf" })
-        finalPdfUrl = await getDownloadURL(fileRef)
+        const uploadPromises = selectedFiles.map(async (file) => {
+          const fileRef = ref(storage, `quotes/${Date.now()}_${selectedInquiry.id}_${quoteItem.id}_${file.name}`)
+          await uploadBytes(fileRef, file)
+          return getDownloadURL(fileRef)
+        })
+        const newUrls = await Promise.all(uploadPromises)
+        finalAttachments = [...finalAttachments, ...newUrls]
         setPdfUploadProgress(false)
       }
 
       if (editingOffer) {
-        // Do NOT use API route for updating, we use client SDK!
         await updateOffer(editingOffer.id, {
           pricePerTon: Number(pricePerTon),
           comments: quoteComments,
-          pdfUrl: finalPdfUrl,
+          attachments: finalAttachments,
           contactEmail,
           contactPhone,
           sellerOptions: {},
         })
         toast.success("Quote updated successfully!")
       } else {
-        // Direct Native Creation
         const payload = {
           inquiryId: selectedInquiry.id,
           inquiryItemId: quoteItem.id,
           sellerId: user?.id as string,
-          sellerName: user?.name as string,
           pricePerTon: Number(pricePerTon),
           comments: quoteComments,
-          pdfUrl: finalPdfUrl || "/dummy-quote.pdf", // Simulated PDF if skipped
+          attachments: finalAttachments,
+          pdfUrl: finalAttachments[0] || "/dummy-quote.pdf", // Fallback for old code
           contactEmail,
           contactPhone,
           sellerOptions: {},
@@ -251,7 +331,7 @@ export default function SellerPendingPage() {
       }
       setQuoteItem(null)
       setEditingOffer(null)
-      setSelectedPdf(null)
+      setSelectedFiles([])
       setPdfUploadProgress(false)
       setPricePerTon("")
       setQuoteComments("")
@@ -277,7 +357,7 @@ export default function SellerPendingPage() {
       toast.success("Quote deleted successfully!")
       setQuoteItem(null)
       setEditingOffer(null)
-      setSelectedPdf(null)
+      setSelectedFiles([])
     } catch {
       toast.error("Failed to delete quote")
     } finally {
@@ -323,7 +403,7 @@ export default function SellerPendingPage() {
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />
                         {new Date(inq.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                       <span className="text-foreground/40">|</span>
-                      <span>Buyer: {inq.buyerName || inq.buyerId}</span>
+                      <span>Buyer: {inq.buyerAlias || "Buyer-???"}</span>
                     </div>
                   </div>
                 </div>
@@ -332,6 +412,11 @@ export default function SellerPendingPage() {
                     <BiddingTimer deadline={inq.biddingDeadline} status={inq.status as "open" | "bidding" | "closed"} />
                   )}
                   <div className="flex items-center gap-2">
+                    {inq.status === "active" && (
+                      <Badge className="border border-primary/20 bg-primary/10 text-primary">
+                        <Clock className="mr-1 h-3 w-3" /> Active
+                      </Badge>
+                    )}
                     {inq.status === "bidding" && (
                       <Badge className="border border-[hsl(var(--warning))]/20 bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]">
                         <Gavel className="mr-1 h-3 w-3" /> Bidding
@@ -351,11 +436,14 @@ export default function SellerPendingPage() {
                       </div>
                       <div className="text-muted-foreground/30 mx-1">|</div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-muted-foreground">
-                        {Object.entries(item.options || {}).map(([k, v]) => {
+                        {sortInquiryOptions(item.product, item.sub_product, item.options || {}).map(([k, v]) => {
                           const valStr = Array.isArray(v) ? v.join(", ") : v;
                           if (!valStr) return null;
                           return <span key={k} className="text-xs bg-background/60 shadow-sm border border-border px-2 py-1 rounded-md text-foreground/80"><span className="font-medium text-foreground">{formatOptionLabel(k)}:</span> {valStr}</span>
                         })}
+                        {item.remarks && (
+                          <span className="text-xs bg-primary/10 shadow-sm border border-primary/20 px-2 py-1 rounded-md text-foreground/80 flex items-center gap-1.5"><FileText className="h-3 w-3 text-primary" /><span className="font-medium text-primary">Remarks:</span> <span className="italic max-w-[200px] truncate" title={item.remarks}>{item.remarks}</span></span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -386,7 +474,7 @@ export default function SellerPendingPage() {
       )}
 
       {/* Inquiry Detail Dialog */}
-      <Dialog open={!!selectedInquiry} onOpenChange={() => { setSelectedInquiry(null); setQuoteItem(null); setEditingOffer(null); setSelectedPdf(null); }}>
+      <Dialog open={!!selectedInquiry} onOpenChange={() => { setSelectedInquiry(null); setQuoteItem(null); setEditingOffer(null); setSelectedFiles([]); }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4 border-b border-border">
             <DialogTitle className="font-serif text-xl text-foreground flex flex-wrap items-center gap-3">
@@ -439,7 +527,7 @@ export default function SellerPendingPage() {
                           <TableCell className="text-muted-foreground text-xs pt-4">
                             <div className="flex flex-wrap gap-2">
                               {/* Dynamic Options */}
-                              {Object.entries(item.options || {}).map(([k, v]) => {
+                              {sortInquiryOptions(item.product, item.sub_product, item.options || {}).map(([k, v]) => {
                                 const valStr = Array.isArray(v) ? v.join(", ") : v;
                                 if (!valStr) return null;
                                 return (
@@ -450,6 +538,12 @@ export default function SellerPendingPage() {
                                 )
                               })}
                             </div>
+                            {item.remarks && (
+                              <div className="mt-3 bg-primary/5 border border-primary/10 shadow-sm rounded-md p-2.5">
+                                <span className="text-[10px] uppercase tracking-wider text-primary/80 font-bold block mb-1 flex items-center gap-1.5"><FileText className="h-3 w-3" /> Buyer's Remarks</span>
+                                <span className="font-medium text-foreground text-xs italic leading-relaxed">{item.remarks}</span>
+                              </div>
+                            )}
                           </TableCell>
 
                           <TableCell className="text-right align-top pt-4">
@@ -461,7 +555,7 @@ export default function SellerPendingPage() {
                                 onClick={() => {
                                   setQuoteItem(item)
                                   setEditingOffer(itemOffer)
-                                  setSelectedPdf(null)
+                                  setSelectedFiles([])
                                   setPricePerTon(itemOffer.pricePerTon.toString())
                                   setContactEmail(itemOffer.contactEmail || user?.email || "")
                                   setContactPhone(itemOffer.contactPhone || user?.phone || "")
@@ -481,7 +575,7 @@ export default function SellerPendingPage() {
                               <Button size="sm" className="h-8 gap-1 text-xs whitespace-nowrap" onClick={() => {
                                 setQuoteItem(item)
                                 setEditingOffer(null)
-                                setSelectedPdf(null)
+                                setSelectedFiles([])
                                 setPricePerTon("")
                                 setContactEmail(user?.email || "")
                                 setContactPhone(user?.phone || "")
@@ -521,7 +615,7 @@ export default function SellerPendingPage() {
                   <div className="space-y-1.5">
                     <strong className="text-foreground/80 block text-xs uppercase tracking-wider">Specifications</strong>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {Object.entries(quoteItem.options || {}).map(([k, v]) => {
+                      {sortInquiryOptions(quoteItem.product, quoteItem.sub_product, quoteItem.options || {}).map(([k, v]) => {
                         const valStr = Array.isArray(v) ? v.join(", ") : v;
                         if (!valStr) return null;
                         return (
@@ -577,9 +671,15 @@ export default function SellerPendingPage() {
                       <Label className="text-foreground font-medium">Price per Piece/Ton (INR) <span className="text-red-500">*</span></Label>
                       <Input
                         type="number"
+                        min="0.000001"
+                        step="any"
                         placeholder="e.g. 48500"
                         value={pricePerTon}
-                        onChange={(e) => setPricePerTon(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val.startsWith('-')) return;
+                          setPricePerTon(val);
+                        }}
                         className="h-11 text-lg font-medium"
                         disabled={editingOffer?.status === "accepted"}
                       />
@@ -590,36 +690,7 @@ export default function SellerPendingPage() {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-foreground font-medium">Official Quotation PDF (Max 5MB)</Label>
-                      <div className={`flex h-11 w-full items-center justify-center rounded-md border border-dashed border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground transition-colors ${(editingOffer?.status !== "accepted" && !submitting) ? "hover:bg-muted/50 cursor-pointer" : "opacity-60 cursor-not-allowed"}`}>
-                        <label className={`flex w-full items-center justify-center gap-2 ${(editingOffer?.status !== "accepted" && !submitting) ? "cursor-pointer" : "cursor-not-allowed"}`}>
-                          <FileText className="h-4 w-4 shrink-0 transition-colors" />
-                          <span className="truncate">{selectedPdf ? selectedPdf.name : "Upload PDF Quote"}</span>
-                          <input
-                            type="file"
-                            accept=".pdf"
-                            className="hidden"
-                            disabled={editingOffer?.status === "accepted" || submitting}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                if (file.size > 5 * 1024 * 1024) {
-                                  toast.error("PDF file must be less than 5MB");
-                                  e.target.value = '';
-                                } else {
-                                  setSelectedPdf(file);
-                                  toast.success("PDF attached to quote");
-                                }
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
-                      {editingOffer?.pdfUrl && editingOffer.pdfUrl !== "" && editingOffer.pdfUrl !== "/dummy-quote.pdf" && !selectedPdf && (
-                        <div className="text-xs text-muted-foreground mt-1 text-right">
-                          <a href={editingOffer.pdfUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">View uploaded PDF</a>
-                        </div>
-                      )}
+                      {/* Removed single PDF section as it is replaced by multi-attachment below comments */}
                     </div>
                   </div>
 
@@ -660,8 +731,89 @@ export default function SellerPendingPage() {
                     />
                   </div>
 
+                  {/* Multi-attachment Section */}
+                  <div className="space-y-3">
+                    <Label className="text-foreground font-medium">Attach Quote Document (Max 5 files, 5MB each)</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* File List */}
+                      {((editingOffer?.attachments || []) as string[]).map((url, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-md border border-border bg-muted/30">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <FileText className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="text-xs truncate">Document {idx + 1}</span>
+                          </div>
+                          <a href={url} target="_blank" rel="noreferrer" className="text-[10px] text-primary hover:underline font-medium">View</a>
+                        </div>
+                      ))}
+
+                      {/* Currently selected files for upload */}
+                      {selectedFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-md border border-primary/20 bg-primary/5">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <FileText className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="text-xs truncate">{file.name}</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                            onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+
+                      {/* Add Button */}
+                      {(selectedFiles.length + (editingOffer?.attachments?.length || 0)) < 5 && (
+                        <div className={`flex h-10 w-full items-center justify-center rounded-md border border-dashed border-input bg-muted/20 px-3 py-2 text-xs text-muted-foreground transition-colors ${(editingOffer?.status !== "accepted" && !submitting) ? "hover:bg-muted/50 cursor-pointer" : "opacity-60 cursor-not-allowed"}`}>
+                          <label className={`flex w-full items-center justify-center gap-2 ${(editingOffer?.status !== "accepted" && !submitting) ? "cursor-pointer" : "cursor-not-allowed"}`}>
+                            <Plus className="h-3.5 w-3.5 shrink-0" />
+                            <span>Add Attachment</span>
+                            <input
+                              type="file"
+                              accept=".pdf,.jpeg,.jpg,.png"
+                              multiple
+                              className="hidden"
+                              disabled={editingOffer?.status === "accepted" || submitting}
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                const currentCount = selectedFiles.length + (editingOffer?.attachments?.length || 0);
+                                const availableSlots = 5 - currentCount;
+
+                                const validFiles: File[] = [];
+                                let countError = false;
+                                let sizeError = false;
+
+                                files.slice(0, availableSlots).forEach(file => {
+                                  if (file.size > 5 * 1024 * 1024) {
+                                    sizeError = true;
+                                  } else {
+                                    validFiles.push(file);
+                                  }
+                                });
+
+                                if (files.length > availableSlots) countError = true;
+
+                                if (sizeError) toast.error("Some files exceed the 5MB limit");
+                                if (countError) toast.error("Maximum 5 documents allowed");
+
+                                if (validFiles.length > 0) {
+                                  setSelectedFiles(prev => [...prev, ...validFiles]);
+                                  toast.success(`${validFiles.length} file(s) attached`);
+                                }
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <Button variant="outline" className="flex-1 h-11" onClick={() => { setQuoteItem(null); setEditingOffer(null); setSelectedPdf(null); setShowConfirmDialog(false); }}>
+                    <Button variant="outline" className="flex-1 h-11" onClick={() => { setQuoteItem(null); setEditingOffer(null); setSelectedFiles([]); setShowConfirmDialog(false); }}>
                       Cancel & Back to Items
                     </Button>
                     {editingOffer && editingOffer.status !== "accepted" && (
@@ -672,7 +824,7 @@ export default function SellerPendingPage() {
                     {(!editingOffer || editingOffer.status !== "accepted") ? (
                       <Button className="flex-1 h-11 gap-2" onClick={() => setShowConfirmDialog(true)} disabled={submitting || !pricePerTon || Number(pricePerTon) <= 0}>
                         {!submitting && (editingOffer ? <Edit className="h-4 w-4" /> : <Send className="h-4 w-4" />)}
-                        {submitting ? (pdfUploadProgress ? "Uploading PDF..." : "Processing...") : (editingOffer ? "Proceed to Confirm" : "Proceed to Confirm")}
+                        {submitting ? (pdfUploadProgress ? "Uploading Files..." : "Processing...") : (editingOffer ? "Proceed to Confirm" : "Proceed to Confirm")}
                       </Button>
                     ) : (
                       <div className="flex-1 flex items-center justify-center p-2 bg-green-50 text-green-700 rounded-md border border-green-200 font-medium">

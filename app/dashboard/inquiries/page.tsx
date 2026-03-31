@@ -38,6 +38,86 @@ export default function InquiriesPage() {
     inquiryId: null,
     days: "3"
   })
+  const [allProductOptions, setAllProductOptions] = useState<Record<string, any[]>>({})
+
+  // Fetch all product options for unique (product, subProduct) pairs in inquiries to determine sort order
+  const productSubProductPairs = Array.from(new Set(inquiries?.flatMap((inq: any) => inq.items.map((item: any) => `${item.product}|${item.sub_product || ""}`)) || [])) as string[]
+
+  useSWR(
+    productSubProductPairs.length > 0 ? `options-${productSubProductPairs.join(',')}` : null,
+    async () => {
+      const results: Record<string, any[]> = {}
+      for (const pair of productSubProductPairs) {
+        const [product, subProduct] = pair.split('|')
+        try {
+          const url = `/api/products/options?productName=${encodeURIComponent(product)}${subProduct ? `&subProduct=${encodeURIComponent(subProduct)}` : ""}`
+          const res = await fetch(url)
+          const data = await res.json()
+          if (Array.isArray(data)) {
+            results[pair] = data.map((opt: any) => ({
+              ...opt,
+              buyer_option_type: opt.buyer_option_type || (opt.form_type !== 'seller' ? opt.option_type : 'none'),
+              seller_option_type: opt.seller_option_type || (opt.form_type === 'seller' ? opt.option_type : 'none')
+            })).filter((opt: any) => opt.buyer_option_type !== 'none')
+          }
+        } catch (e) {
+          console.error(`Failed to fetch options for ${pair}`, e)
+        }
+      }
+      setAllProductOptions(results)
+      return results
+    }
+  )
+
+  const sortInquiryOptions = (productName: string, subProduct: string | undefined, options: Record<string, any>) => {
+    const key = `${productName}|${subProduct || ""}`
+    const metadata = allProductOptions[key] || []
+    if (metadata.length === 0) return Object.entries(options)
+
+    return Object.entries(options).sort(([keyA], [keyB]) => {
+      const metaA = metadata.find(m => m.option_name === keyA || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyA)
+      const metaB = metadata.find(m => m.option_name === keyB || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyB)
+
+      const nameA = keyA.toLowerCase().trim().split('(')[0].trim()
+      const nameB = keyB.toLowerCase().trim().split('(')[0].trim()
+
+      // 1. Manufacturer Always First
+      const isManA = nameA === "manufacturer"
+      const isManB = nameB === "manufacturer"
+      if (isManA && !isManB) return -1
+      if (!isManA && isManB) return 1
+
+      // 2. Locked Options (Metadata-driven) Next
+      const isLockedA = metaA ? metaA.seller_option_type !== 'none' : false
+      const isLockedB = metaB ? metaB.seller_option_type !== 'none' : false
+
+      if (isLockedA && !isLockedB) return -1
+      if (!isLockedA && isLockedB) return 1
+
+      // 3. Quantity & Measurement Always Last (Measurement second last)
+      const specialEndOrder = ["quantity measurement", "quantity"]
+      const endIdxA = specialEndOrder.indexOf(nameA)
+      const endIdxB = specialEndOrder.indexOf(nameB)
+
+      if (endIdxA !== -1 && endIdxB !== -1) return endIdxA - endIdxB
+      if (endIdxA !== -1) return 1
+      if (endIdxB !== -1) return -1
+
+      // 4. Alphabetical for others
+      return keyA.localeCompare(keyB)
+    })
+  }
+
+  function formatOptionType(type: string) {
+    switch (type) {
+      case 'radio': return 'Radio';
+      case 'checkbox': return 'Checkbox';
+      case 'dropdown': return 'Dropdown';
+      case 'number': return 'Number';
+      case 'text': return 'Text';
+      default: return type;
+    }
+  }
 
   const openRebidDialog = (inqId: string) => {
     setRebidDialogState({ isOpen: true, inquiryId: inqId, days: "3" })
@@ -77,7 +157,7 @@ export default function InquiriesPage() {
   }
 
   const handleDelete = async (inqId: string) => {
-    if (!confirm("Are you sure you want to delete this closed inquiry? This action cannot be undone.")) return
+    if (!confirm("Are you sure you want to delete this inquiry? This action cannot be undone.")) return
     try {
       await softDeleteInquiry(inqId, user!.id)
       mutate()
@@ -87,7 +167,8 @@ export default function InquiriesPage() {
     }
   }
 
-  const activeInquiries = Array.isArray(inquiries) ? inquiries.filter(inq => inq.status !== "closed") : []
+  const currentInquiries = Array.isArray(inquiries) ? inquiries.filter(inq => inq.status === "active" || inq.status === "open") : []
+  const biddingInquiries = Array.isArray(inquiries) ? inquiries.filter(inq => inq.status === "bidding") : []
   const closedInquiries = Array.isArray(inquiries) ? inquiries.filter(inq => inq.status === "closed") : []
 
   const renderInquiryCard = (inq: any, isClosedTab: boolean) => (
@@ -116,13 +197,16 @@ export default function InquiriesPage() {
                 {item.product} {item.sub_product && <span className="text-muted-foreground font-normal">({item.sub_product})</span>}
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-muted-foreground">
-                {Object.entries(item.options || {}).map(([k, v]) => {
+                {sortInquiryOptions(item.product, item.sub_product, item.options || {}).map(([k, v]) => {
                   const valStr = Array.isArray(v) ? v.join(", ") : String(v);
                   if (!valStr || valStr === 'undefined') return null;
                   return <span key={k} className="text-xs bg-background shadow-sm border border-border/50 px-2 py-1 rounded-md text-foreground/80"><span className="font-medium text-foreground">{formatOptionLabel(k)}:</span> {valStr}</span>
                 })}
                 {item.paymentTerms && (
                   <span className="text-xs bg-background shadow-sm border border-border/50 px-2 py-1 rounded-md text-foreground/80"><span className="font-medium text-foreground">Payment:</span> {item.paymentTerms} Days</span>
+                )}
+                {item.remarks && (
+                  <span className="text-xs bg-primary/10 shadow-sm border border-primary/20 px-2 py-1 rounded-md text-foreground/80 flex items-center gap-1.5"><FileText className="h-3 w-3 text-primary" /><span className="font-medium text-primary">Remarks:</span> <span className="italic max-w-[200px] truncate" title={item.remarks}>{item.remarks}</span></span>
                 )}
               </div>
             </div>
@@ -144,8 +228,8 @@ export default function InquiriesPage() {
           <span className="text-sm text-muted-foreground">{inq.items.length} item(s)</span>
           <div className="flex flex-wrap items-center gap-2">
             {!isClosedTab && (
-              <Button size="sm" variant="destructive" className="gap-1.5 opacity-90 hover:opacity-100" onClick={() => handleClose(inq.id)}>
-                Stop Bidding
+              <Button size="sm" variant="destructive" className="gap-1.5 opacity-90 hover:opacity-100" onClick={() => handleDelete(inq.id)}>
+                Delete Inquiry
               </Button>
             )}
             {isClosedTab && (!inq.rebidCount || inq.rebidCount < 1) && (
@@ -171,7 +255,7 @@ export default function InquiriesPage() {
             )}
             <Link href={`/dashboard/offers?inquiryId=${inq.id}`}>
               <Button size="sm" variant={isClosedTab ? "ghost" : "outline"} className="gap-1 bg-transparent border-input">
-                View Offers <ArrowRight className="h-3.5 w-3.5" />
+                {inq.offersCount && inq.offersCount > 0 ? `View ${inq.offersCount} Offer${inq.offersCount === 1 ? '' : 's'}` : 'View Offers'} <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
           </div>
@@ -207,17 +291,26 @@ export default function InquiriesPage() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs defaultValue="active" className="w-full">
-          <TabsList className="mb-6 grid w-full max-w-[400px] grid-cols-2">
-            <TabsTrigger value="active">Active Bids ({activeInquiries.length})</TabsTrigger>
-            <TabsTrigger value="closed">Closed Bids ({closedInquiries.length})</TabsTrigger>
+        <Tabs defaultValue="current" className="w-full">
+          <TabsList className="mb-6 grid w-full max-w-[600px] grid-cols-3">
+            <TabsTrigger value="current">Current Inquiry ({currentInquiries.length})</TabsTrigger>
+            <TabsTrigger value="bidding">Active Bid ({biddingInquiries.length})</TabsTrigger>
+            <TabsTrigger value="closed">Closed Bid ({closedInquiries.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="active" className="mt-0 space-y-4">
-            {activeInquiries.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground border rounded-xl bg-card">No active inquiries.</div>
+          <TabsContent value="current" className="mt-0 space-y-4">
+            {currentInquiries.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground border rounded-xl bg-card">No current inquiries.</div>
             ) : (
-              activeInquiries.map((inq: any) => renderInquiryCard(inq, false))
+              currentInquiries.map((inq: any) => renderInquiryCard(inq, false))
+            )}
+          </TabsContent>
+
+          <TabsContent value="bidding" className="mt-0 space-y-4">
+            {biddingInquiries.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground border rounded-xl bg-card">No active bids.</div>
+            ) : (
+              biddingInquiries.map((inq: any) => renderInquiryCard(inq, false))
             )}
           </TabsContent>
 

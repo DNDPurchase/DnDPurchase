@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 import {
+  ArrowLeftRight,
   BarChart3,
   FileText,
   LayoutDashboard,
@@ -35,25 +36,35 @@ const BUYER_NAV = [
 
 const SELLER_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/seller/pending", label: "New Bidding Inquiries", icon: ShoppingCart },
+  { href: "/dashboard/seller/pending", label: "New Inquiries", icon: ShoppingCart },
   { href: "/dashboard/seller/my-offers", label: "My Bidding", icon: Tag },
   { href: "/dashboard/seller/my-products", label: "My Products", icon: Package },
   { href: "/dashboard/settings", label: "Profile and Setting", icon: User },
 ]
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth()
+  const { user, allUsers, switchUser, logout } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const handleLogout = () => {
-    logout()
+  const otherUser = allUsers?.find(u => u.id !== user?.id);
+
+  const handleSwitchRole = () => {
+    if (otherUser) {
+      switchUser(otherUser.id);
+      router.push("/dashboard");
+      setSidebarOpen(false);
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
     router.push("/auth/login")
   }
 
-  const isBuyer = user?.role === "buyer" || user?.role === "both"
-  const isSeller = user?.role === "seller" || user?.role === "both"
+  const isBuyer = user?.role === "buyer"
+  const isSeller = user?.role === "seller"
 
   const navItems = [
     ...(isBuyer ? BUYER_NAV : []),
@@ -120,6 +131,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <p className="truncate text-xs text-muted-foreground">{user?.role?.toUpperCase()}</p>
             </div>
           </div>
+          {otherUser && (
+            <Button variant="outline" size="sm" className="mb-2 w-full gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary" onClick={handleSwitchRole}>
+              <ArrowLeftRight className="h-4 w-4" />
+              Switch to {otherUser.role.charAt(0).toUpperCase() + otherUser.role.slice(1)}
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
             Sign Out

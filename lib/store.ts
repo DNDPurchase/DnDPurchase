@@ -22,6 +22,7 @@ export interface User {
   aadhaarNumber?: string
   aadhaarDocumentPath?: string
   displayName: string
+  userCode: string
   verified: boolean
   googleConnected: boolean
   createdAt: string
@@ -30,6 +31,7 @@ export interface User {
   sellerProductOptions?: Record<string, Record<string, any>>
   availableLocations?: Record<string, string[]>
   smsNotificationsEnabled: boolean
+  secondaryEmails?: string[]
 }
 
 export interface InquiryItem {
@@ -38,14 +40,16 @@ export interface InquiryItem {
   sub_product?: string
   paymentTerms: string
   options?: Record<string, string | string[]>
+  remarks?: string
 }
 
 export interface Inquiry {
   id: string
   buyerId: string
-  buyerName: string
+  buyerName?: string
+  buyerAlias: string
   items: InquiryItem[]
-  status: "open" | "bidding" | "closed" | "deleted"
+  status: "active" | "open" | "bidding" | "closed" | "deleted"
   biddingDeadline?: string
   createdAt: string
   deliveryAddress?: string
@@ -53,6 +57,7 @@ export interface Inquiry {
   state?: string
   pinCode?: string
   rebidCount?: number
+  offersCount?: number
 }
 
 export interface Offer {
@@ -60,12 +65,13 @@ export interface Offer {
   inquiryId: string
   inquiryItemId: string
   sellerId: string
-  sellerName: string
+  sellerName?: string
   sellerAlias?: string
   anonymizedSeller?: string
   pricePerTon: number
   comments: string
   pdfUrl?: string
+  attachments?: string[]
   contactEmail?: string
   contactPhone?: string
   status: "pending" | "accepted" | "rejected" | "disqualified" | "deleted"
@@ -76,6 +82,9 @@ export interface Offer {
   sellerOptions?: Record<string, string | string[]>
   requestedQuantity?: number
   createdAt: string
+  updatedAt: string
+  archived?: boolean
+  inquiryStatus?: string
 }
 
 function mapBuyerFromDb(row: any, id: string): User {
@@ -94,10 +103,12 @@ function mapBuyerFromDb(row: any, id: string): User {
     gstin: row.gstin,
     gstCertificatePath: row.gst_certificate_path,
     displayName: row.display_name,
+    userCode: row.user_code || row.display_name,
     verified: Boolean(row.verified),
     googleConnected: Boolean(row.google_connected),
     createdAt: row.created_at,
     smsNotificationsEnabled: row.sms_notifications_enabled !== false, // default to true
+    secondaryEmails: row.secondary_emails || [],
   }
 }
 
@@ -124,6 +135,7 @@ function mapSellerFromDb(row: any, id: string): User {
     aadhaarNumber: row.aadhaar_number,
     aadhaarDocumentPath: row.aadhaar_document_path,
     displayName: row.display_name,
+    userCode: row.user_code || row.display_name,
     verified: Boolean(row.verified),
     googleConnected: Boolean(row.google_connected),
     createdAt: row.created_at,
@@ -132,6 +144,7 @@ function mapSellerFromDb(row: any, id: string): User {
     sellerProductOptions: row.seller_product_options || fallbackOptions,
     availableLocations: row.available_locations || {},
     smsNotificationsEnabled: row.sms_notifications_enabled !== false, // default to true
+    secondaryEmails: row.secondary_emails || [],
   }
 }
 
@@ -147,11 +160,15 @@ async function mapInquiryFromDb(row: any, id: string): Promise<Inquiry> {
       sub_product: item.sub_product,
       paymentTerms: item.payment_terms,
       options: item.options || {},
+      remarks: item.remarks,
     }
   })
 
   const offerQ = query(collection(db, "offers"), where("inquiry_id", "==", row.id || id), where("status", "==", "accepted"), limit(1))
   const offerSnap = await getDocs(offerQ)
+
+  const allOffersQ = query(collection(db, "offers"), where("inquiry_id", "==", row.id || id), where("archived", "==", false))
+  const allOffersSnap = await getCountFromServer(allOffersQ)
 
   const hasAcceptedOffer = !offerSnap.empty
   let derivedStatus = row.status
@@ -169,6 +186,7 @@ async function mapInquiryFromDb(row: any, id: string): Promise<Inquiry> {
     id: row.id || id,
     buyerId: row.buyer_id,
     buyerName: row.buyer_name,
+    buyerAlias: row.buyer_alias || "Buyer-???",
     items: mappedItems,
     status: derivedStatus,
     biddingDeadline: row.bidding_deadline,
@@ -178,6 +196,7 @@ async function mapInquiryFromDb(row: any, id: string): Promise<Inquiry> {
     state: row.state || "",
     pinCode: row.pin_code || "",
     rebidCount: row.rebid_count || 0,
+    offersCount: allOffersSnap.data().count,
   }
 }
 
@@ -187,10 +206,11 @@ function mapOfferFromDb(row: any, id: string): Offer {
     inquiryId: row.inquiry_id,
     inquiryItemId: row.inquiry_item_id,
     sellerId: row.seller_id,
-    sellerName: row.seller_name,
+    sellerName: row.seller_name || "Anonymous Seller",
     pricePerTon: row.price_per_ton,
     comments: row.comments || "",
     pdfUrl: row.pdf_url,
+    attachments: row.attachments || [],
     contactEmail: row.contact_email,
     contactPhone: row.contact_phone,
     status: row.status,
@@ -201,6 +221,8 @@ function mapOfferFromDb(row: any, id: string): Offer {
     sellerOptions: row.seller_options || {},
     sellerAlias: row.seller_alias || null,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    archived: row.archived || false,
   }
 }
 
@@ -222,14 +244,25 @@ async function getNextSellerId(): Promise<string> {
   return `SEL-${String(lastNum + 1).padStart(4, "0")}`
 }
 
-async function generateBuyerDisplayName(): Promise<string> {
-  const snapshot = await getCountFromServer(collection(db, "buyers"))
-  return `buyer${snapshot.data().count + 1}`
+async function generateUserCode(role: "buyer" | "seller"): Promise<string> {
+  const collectionName = role === "buyer" ? "buyers" : "sellers"
+  const prefix = role === "buyer" ? "B" : "S"
+  const snapshot = await getCountFromServer(collection(db, collectionName))
+  const count = snapshot.data().count + 1
+
+  // Logic: 001 - 999 (3 digits), 0001+ (4+ digits)
+  const paddingLength = count <= 999 ? 3 : String(count).length + 1
+  return `${prefix}${String(count).padStart(paddingLength, "0")}`
 }
 
-async function generateSellerDisplayName(): Promise<string> {
-  const snapshot = await getCountFromServer(collection(db, "sellers"))
-  return `seller${snapshot.data().count + 1}`
+async function generatePublicAlias(role: "buyer" | "seller"): Promise<string> {
+  const collectionName = role === "buyer" ? "inquiries" : "offers"
+  const prefix = role === "buyer" ? "Buyer" : "Seller"
+  const snapshot = await getCountFromServer(collection(db, collectionName))
+  const count = snapshot.data().count + 1
+
+  const paddingLength = count <= 999 ? 3 : String(count).length + 1
+  return `${prefix}-${String(count).padStart(paddingLength, "0")}`
 }
 
 async function getNextInquiryId(): Promise<string> {
@@ -262,22 +295,20 @@ async function getNextOfferId(): Promise<string> {
 async function getNextSellerAlias(): Promise<string> {
   const q = query(collection(db, "offers"), orderBy("seller_alias", "desc"), limit(1))
   const snap = await getDocs(q)
-  if (snap.empty) return "Token-0000001"
+  if (snap.empty) return "Seller-001"
 
   const lastAlias = snap.docs[0].data().seller_alias;
-  if (!lastAlias) return "Token-0000001"
+  if (!lastAlias || !lastAlias.includes("-")) return "Seller-001"
 
   const lastNum = parseInt(lastAlias.split("-")[1])
-  if (isNaN(lastNum)) return "Token-0000001"
+  if (isNaN(lastNum)) return "Seller-001"
 
-  let nextNumStr = String(lastNum + 1)
-  if (nextNumStr.length < 7) {
-    nextNumStr = nextNumStr.padStart(7, "0")
-  }
-  return `Token-${nextNumStr}`
+  const nextNum = lastNum + 1
+  const paddingLength = nextNum <= 999 ? 3 : String(nextNum).length + 1
+  return `Seller-${String(nextNum).padStart(paddingLength, "0")}`
 }
 
-export async function registerUser(data: Omit<User, "id" | "verified" | "createdAt" | "displayName">): Promise<User> {
+export async function registerUser(data: Omit<User, "id" | "verified" | "createdAt" | "displayName" | "userCode">): Promise<User[]> {
   const createdAt = new Date().toISOString()
 
   // Create the actual Firebase Auth user FIRST
@@ -292,9 +323,12 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
     }
   }
 
-  if (data.role === "buyer") {
+  const users: User[] = [];
+
+  if (data.role === "buyer" || data.role === "both") {
     const id = await getNextBuyerId()
-    const displayName = await generateBuyerDisplayName()
+    const userCode = await generateUserCode("buyer")
+    const displayName = userCode
 
     await setDoc(doc(db, "buyers", id), {
       id,
@@ -309,6 +343,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       gstin: data.gstin || null,
       gst_certificate_path: data.gstCertificatePath || null,
       display_name: displayName,
+      user_code: userCode,
       verified: false,
       google_connected: false,
       created_at: createdAt,
@@ -316,7 +351,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       sms_notifications_enabled: true,
     })
 
-    return {
+    users.push({
       id,
       name: data.name,
       email: data.email,
@@ -331,14 +366,18 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       aadhaarNumber: data.aadhaarNumber,
       aadhaarDocumentPath: data.aadhaarDocumentPath,
       displayName,
+      userCode,
       verified: false,
       googleConnected: false,
       createdAt,
       smsNotificationsEnabled: true,
-    }
-  } else {
+    })
+  }
+
+  if (data.role === "seller" || data.role === "both") {
     const id = await getNextSellerId()
-    const displayName = await generateSellerDisplayName()
+    const userCode = await generateUserCode("seller")
+    const displayName = userCode
 
     await setDoc(doc(db, "sellers", id), {
       id,
@@ -348,27 +387,29 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       password: data.password,
       company: data.company || "",
       entity_type: data.entityType,
+      verification_type: data.verificationType,
       gstin: data.gstin || null,
       gst_certificate_path: data.gstCertificatePath || null,
       aadhaar_number: data.aadhaarNumber || null,
       aadhaar_document_path: data.aadhaarDocumentPath || null,
       display_name: displayName,
+      user_code: userCode,
       verified: false,
       google_connected: false,
       created_at: createdAt,
       auth_uid: auth.currentUser?.uid || null,
       categories: data.categories || [],
       product_manufacturers: data.productManufacturers || {},
-      smsNotificationsEnabled: true,
+      sms_notifications_enabled: true,
     })
 
-    return {
+    users.push({
       id,
       name: data.name,
       email: data.email,
       phone: data.phone,
       password: data.password,
-      company: data.company,
+      company: data.company || "",
       role: "seller",
       entityType: data.entityType,
       verificationType: data.verificationType,
@@ -377,17 +418,20 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       aadhaarNumber: data.aadhaarNumber,
       aadhaarDocumentPath: data.aadhaarDocumentPath,
       displayName,
+      userCode,
       verified: false,
       googleConnected: false,
       createdAt,
       categories: data.categories || [],
       productManufacturers: data.productManufacturers || {},
       smsNotificationsEnabled: true,
-    }
+    })
   }
+
+  return users;
 }
 
-export async function loginUser(email: string, password: string, role?: UserRole): Promise<User | null> {
+export async function loginUser(email: string, password: string, role?: UserRole): Promise<User[] | null> {
   try {
     await signInWithEmailAndPassword(auth, email, password)
   } catch (error: any) {
@@ -395,23 +439,26 @@ export async function loginUser(email: string, password: string, role?: UserRole
     return null
   }
 
+  const users: User[] = [];
+
   if (role === "buyer" || !role) {
     const q = query(collection(db, "buyers"), where("email", "==", email), limit(1))
     const snap = await getDocs(q)
-    if (!snap.empty) return mapBuyerFromDb(snap.docs[0].data(), snap.docs[0].id)
-    if (role === "buyer") return null
+    if (!snap.empty) users.push(mapBuyerFromDb(snap.docs[0].data(), snap.docs[0].id))
   }
 
   if (role === "seller" || !role) {
     const q = query(collection(db, "sellers"), where("email", "==", email), limit(1))
     const snap = await getDocs(q)
-    if (!snap.empty) return mapSellerFromDb(snap.docs[0].data(), snap.docs[0].id)
+    if (!snap.empty) users.push(mapSellerFromDb(snap.docs[0].data(), snap.docs[0].id))
   }
 
-  return null
+  return users.length > 0 ? users : null
 }
 
-export async function loginUserWithGoogle(email: string): Promise<User | null> {
+export async function loginUserWithGoogle(email: string): Promise<User[] | null> {
+  const users: User[] = [];
+
   const bq = query(collection(db, "buyers"), or(where("email", "==", email), where("google_email", "==", email)), limit(1))
   const bSnap = await getDocs(bq)
   if (!bSnap.empty) {
@@ -422,7 +469,7 @@ export async function loginUserWithGoogle(email: string): Promise<User | null> {
       data.google_connected = true
       data.google_email = email
     }
-    return mapBuyerFromDb(data, docSnap.id)
+    users.push(mapBuyerFromDb(data, docSnap.id))
   }
 
   const sq = query(collection(db, "sellers"), or(where("email", "==", email), where("google_email", "==", email)), limit(1))
@@ -435,30 +482,48 @@ export async function loginUserWithGoogle(email: string): Promise<User | null> {
       data.google_connected = true
       data.google_email = email
     }
-    return mapSellerFromDb(data, docSnap.id)
+    users.push(mapSellerFromDb(data, docSnap.id))
   }
 
-  logger.warn(`Failed Google Login: Email ${email} not found.`)
-  return null
+  if (users.length === 0) {
+    logger.warn(`Failed Google Login: Email ${email} not found.`)
+    return null
+  }
+
+  return users
 }
 
-export async function connectUserWithGoogle(userId: string, email: string): Promise<boolean> {
+export async function connectUserWithGoogle(userId: string, googleEmail: string): Promise<boolean> {
   try {
+    let accountEmail: string | null = null;
+
+    // 1. Find the current user's email to identify the owner
     if (userId.startsWith("BUY-")) {
       const q = query(collection(db, "buyers"), where("id", "==", userId))
       const snaps = await getDocs(q)
-      if (!snaps.empty) {
-        await updateDoc(doc(db, "buyers", snaps.docs[0].id), { google_connected: true, google_email: email })
-        return true;
-      }
+      if (!snaps.empty) accountEmail = snaps.docs[0].data().email;
     } else if (userId.startsWith("SEL-")) {
       const q = query(collection(db, "sellers"), where("id", "==", userId))
       const snaps = await getDocs(q)
-      if (!snaps.empty) {
-        await updateDoc(doc(db, "sellers", snaps.docs[0].id), { google_connected: true, google_email: email })
-        return true;
-      }
+      if (!snaps.empty) accountEmail = snaps.docs[0].data().email;
     }
+
+    if (!accountEmail) return false;
+
+    // 2. Update all records matching this account email in both collections
+    const bq = query(collection(db, "buyers"), where("email", "==", accountEmail))
+    const bSnaps = await getDocs(bq)
+    for (const d of bSnaps.docs) {
+      await updateDoc(d.ref, { google_connected: true, google_email: googleEmail })
+    }
+
+    const sq = query(collection(db, "sellers"), where("email", "==", accountEmail))
+    const sSnaps = await getDocs(sq)
+    for (const d of sSnaps.docs) {
+      await updateDoc(d.ref, { google_connected: true, google_email: googleEmail })
+    }
+
+    return true;
   } catch (e: any) {
     logger.error("Error connecting Google", { error: e.message })
   }
@@ -480,7 +545,7 @@ export async function getUserById(id: string): Promise<User | null> {
 
 export async function createInquiry(
   buyerId: string,
-  buyerName: string,
+  buyerName: string | null | undefined,
   items: Omit<InquiryItem, "id">[],
   deliveryDetails?: {
     deliveryAddress?: string;
@@ -491,8 +556,10 @@ export async function createInquiry(
   biddingDuration?: number
 ): Promise<Inquiry> {
   const inquiryId = await getNextInquiryId()
+  const buyerAlias = await generatePublicAlias("buyer")
   const createdAt = new Date().toISOString()
 
+  // ... rest of validation logic ...
   const isBiddingActive = typeof biddingDuration === 'number' && biddingDuration > 0
   let deadline = null
 
@@ -505,8 +572,9 @@ export async function createInquiry(
   await setDoc(doc(db, "inquiries", inquiryId), {
     id: inquiryId,
     buyer_id: buyerId,
-    buyer_name: buyerName,
-    status: isBiddingActive ? "bidding" : "open",
+    buyer_name: buyerName || "Anonymous Buyer",
+    buyer_alias: buyerAlias,
+    status: isBiddingActive ? "bidding" : "active",
     bidding_deadline: deadline,
     created_at: createdAt,
     delivery_address: deliveryDetails?.deliveryAddress || null,
@@ -525,21 +593,24 @@ export async function createInquiry(
       sub_product: (item as any).sub_product || null,
       payment_terms: item.paymentTerms,
       options: item.options || {},
+      remarks: item.remarks || null,
     })
 
     inquiryItems.push({
       ...item,
       id: itemId,
       options: item.options || {},
+      remarks: item.remarks || undefined,
     })
   }
 
   return {
     id: inquiryId,
     buyerId,
-    buyerName,
+    buyerName: buyerName || "Anonymous Buyer",
+    buyerAlias,
     items: inquiryItems,
-    status: isBiddingActive ? "bidding" : "open",
+    status: isBiddingActive ? "bidding" : "active",
     biddingDeadline: deadline || undefined,
     createdAt,
     deliveryAddress: deliveryDetails?.deliveryAddress || "",
@@ -581,7 +652,7 @@ export async function getAllInquiries(): Promise<Inquiry[]> {
 }
 
 export async function getOpenInquiries(): Promise<Inquiry[]> {
-  const q = query(collection(db, "inquiries"), where("status", "in", ["open", "bidding"]))
+  const q = query(collection(db, "inquiries"), where("status", "in", ["active", "open", "bidding"]))
   const snap = await getDocs(q)
   let mapped = await Promise.all(snap.docs.map(d => mapInquiryFromDb(d.data(), d.id)))
 
@@ -717,9 +788,24 @@ export async function activateBidding(inquiryId: string, durationInDays: number)
   }
 }
 
-export async function createOffer(data: Omit<Offer, "id" | "rank" | "createdAt">): Promise<Offer> {
+export async function startBidding(inquiryId: string, durationInDays: number): Promise<void> {
+  const deadline = new Date()
+  deadline.setDate(deadline.getDate() + durationInDays)
+
+  const q = query(collection(db, "inquiries"), where("id", "==", inquiryId), limit(1))
+  const snap = await getDocs(q)
+  if (!snap.empty) {
+    await updateDoc(doc(db, "inquiries", snap.docs[0].id), {
+      status: "bidding",
+      bidding_deadline: deadline.toISOString()
+    })
+  }
+}
+
+export async function createOffer(data: Omit<Offer, "id" | "rank" | "createdAt" | "updatedAt"> & { sellerName?: string | null }): Promise<Offer> {
   const id = await getNextOfferId()
   const createdAt = new Date().toISOString()
+  const updatedAt = createdAt
 
   let alias = ""
   const qAlias = query(collection(db, "offers"), where("inquiry_id", "==", data.inquiryId), where("seller_id", "==", data.sellerId), limit(1))
@@ -736,19 +822,22 @@ export async function createOffer(data: Omit<Offer, "id" | "rank" | "createdAt">
     inquiry_id: data.inquiryId,
     inquiry_item_id: data.inquiryItemId,
     seller_id: data.sellerId,
-    seller_name: data.sellerName,
+    seller_name: data.sellerName || "Anonymous Seller",
     price_per_ton: data.pricePerTon,
     comments: data.comments || "",
     pdf_url: data.pdfUrl || null,
+    attachments: data.attachments || [],
     contact_email: data.contactEmail || null,
     contact_phone: data.contactPhone || null,
     seller_options: data.sellerOptions || {},
     seller_alias: alias,
     status: data.status,
     created_at: createdAt,
+    updated_at: updatedAt,
+    archived: data.archived || false,
   })
 
-  return { ...data, id, createdAt, sellerAlias: alias }
+  return { ...data, id, createdAt, updatedAt, sellerAlias: alias, sellerName: data.sellerName || "Anonymous Seller" } as Offer
 }
 
 export async function updateOffer(offerId: string, data: Partial<Offer>): Promise<void> {
@@ -756,10 +845,28 @@ export async function updateOffer(offerId: string, data: Partial<Offer>): Promis
   if (data.pricePerTon !== undefined) updateData.price_per_ton = data.pricePerTon
   if (data.comments !== undefined) updateData.comments = data.comments
   if (data.pdfUrl !== undefined) updateData.pdf_url = data.pdfUrl
+  if (data.attachments !== undefined) updateData.attachments = data.attachments
   if (data.contactEmail !== undefined) updateData.contact_email = data.contactEmail
   if (data.contactPhone !== undefined) updateData.contact_phone = data.contactPhone
   if (data.sellerOptions !== undefined) updateData.seller_options = data.sellerOptions
+  if (data.status !== undefined) updateData.status = data.status
+  if (data.archived !== undefined) updateData.archived = data.archived
 
+  updateData.updated_at = new Date().toISOString()
+
+  // 1. Try resolving by document ID first
+  try {
+    const docRef = doc(db, "offers", offerId)
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      await updateDoc(docRef, updateData)
+      return
+    }
+  } catch (e) {
+    console.error("Doc ID lookup failed, trying id field", e)
+  }
+
+  // 2. If not found by doc ID, try resolving by the 'id' field
   const q = query(collection(db, "offers"), where("id", "==", offerId), limit(1))
   const snap = await getDocs(q)
   if (!snap.empty) {
@@ -768,6 +875,19 @@ export async function updateOffer(offerId: string, data: Partial<Offer>): Promis
 }
 
 export async function deleteOffer(offerId: string): Promise<void> {
+  // 1. Try resolving by document ID first
+  try {
+    const docRef = doc(db, "offers", offerId)
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      await deleteDoc(docRef)
+      return
+    }
+  } catch (e) {
+    console.error("Doc ID lookup failed, trying id field", e)
+  }
+
+  // 2. If not found by doc ID, try resolving by the 'id' field
   const q = query(collection(db, "offers"), where("id", "==", offerId), limit(1))
   const snap = await getDocs(q)
   if (!snap.empty) {
@@ -879,14 +999,33 @@ export async function getOffersBySellerId(sellerId: string): Promise<Offer[]> {
 
       if (items.length > 0) {
         const itemQtyMap = new Map<string, number>()
+        const itemToInquiryMap = new Map<string, string>()
         items.forEach(item => {
           const qtyRaw = item.options?.["Quantity"] || item.options?.["Qty"] || item.options?.["quantity"]
           const qty = parseFloat(String(qtyRaw).replace(/[^\d.]/g, '')) || 1
           itemQtyMap.set(item.id, qty)
+          itemToInquiryMap.set(item.id, item.inquiry_id)
         })
+
+        const inquiryIds = [...new Set(items.map(i => i.inquiry_id))]
+        const inquiryStatusMap = new Map<string, string>()
+        if (inquiryIds.length > 0) {
+          for (let i = 0; i < inquiryIds.length; i += 10) {
+            const chunk = inquiryIds.slice(i, i + 10);
+            const inqQ = query(collection(db, "inquiries"), where("id", "in", chunk))
+            const inqSnap = await getDocs(inqQ)
+            inqSnap.docs.forEach(d => {
+              inquiryStatusMap.set(d.id, d.data().status)
+            })
+          }
+        }
 
         offers.forEach(offer => {
           offer.requestedQuantity = itemQtyMap.get(offer.inquiryItemId) || 1
+          const inqId = itemToInquiryMap.get(offer.inquiryItemId)
+          if (inqId) {
+            (offer as any).inquiryStatus = inquiryStatusMap.get(inqId) || "unknown"
+          }
         })
       }
     }
@@ -1027,13 +1166,14 @@ export async function getAcceptedOffersByUserId(userId: string, role: UserRole):
   return []
 }
 
-export async function getProducts(): Promise<{ id: string, name: string, sub_products?: string[] }[]> {
+export async function getProducts(): Promise<{ id: string, name: string, sub_products?: string[], image_url?: string }[]> {
   const q = query(collection(db, "products"), orderBy("name", "asc"))
   const snap = await getDocs(q)
   return snap.docs.map((p) => ({
     id: p.data().product_id?.toString() || p.id,
     name: p.data().name,
-    sub_products: p.data().sub_products || []
+    sub_products: p.data().sub_products || [],
+    image_url: p.data().image_url || null
   }))
 }
 
@@ -1113,6 +1253,7 @@ export interface UpdateUserData {
   sellerProductOptions?: Record<string, Record<string, any>>
   availableLocations?: Record<string, string[]>
   smsNotificationsEnabled?: boolean
+  secondaryEmails?: string[]
 }
 
 export async function updateUser(userId: string, updates: UpdateUserData): Promise<User | null> {
@@ -1127,6 +1268,7 @@ export async function updateUser(userId: string, updates: UpdateUserData): Promi
   if (updates.sellerProductOptions !== undefined) updateData.seller_product_options = updates.sellerProductOptions
   if (updates.availableLocations !== undefined) updateData.available_locations = updates.availableLocations
   if (updates.smsNotificationsEnabled !== undefined) updateData.sms_notifications_enabled = updates.smsNotificationsEnabled
+  if (updates.secondaryEmails !== undefined) updateData.secondary_emails = updates.secondaryEmails
 
   try {
     if (userId.startsWith("BUY-")) {
@@ -1142,5 +1284,30 @@ export async function updateUser(userId: string, updates: UpdateUserData): Promi
     logger.error("Failed to update user profile", { error: error.message, userId })
     throw error
   }
+}
 
+export async function updateUserPasswordByEmail(email: string, newPassword: string): Promise<boolean> {
+  try {
+    // Check buyers
+    const bq = query(collection(db, "buyers"), where("email", "==", email), limit(1))
+    const bSnap = await getDocs(bq)
+    if (!bSnap.empty) {
+      await updateDoc(doc(db, "buyers", bSnap.docs[0].id), { password: newPassword })
+      return true
+    }
+
+    // Check sellers
+    const sq = query(collection(db, "sellers"), where("email", "==", email), limit(1))
+    const sSnap = await getDocs(sq)
+    if (!sSnap.empty) {
+      await updateDoc(doc(db, "sellers", sSnap.docs[0].id), { password: newPassword })
+      return true
+    }
+
+    logger.warn(`Failed to update Firestore password: Email ${email} not found.`)
+    return false
+  } catch (error: any) {
+    logger.error("Failed to update Firestore password", { error: error.message, email })
+    return false
+  }
 }

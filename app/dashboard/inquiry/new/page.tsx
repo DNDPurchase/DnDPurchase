@@ -3,15 +3,15 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Plus, Package, MapPin, Send, Trash2, Clock } from "lucide-react"
+import { MapPin, Package, X, Send, ShoppingCart, Loader2, Lock, Plus } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatOptionType, formatOptionLabel } from "@/lib/utils"
 import { createInquiry } from "@/lib/store"
+import { Textarea } from "@/components/ui/textarea"
 
 export interface CartItem {
   id?: string;
@@ -19,21 +19,29 @@ export interface CartItem {
   sub_product?: string;
   paymentTerms: string;
   options: Record<string, string | string[]>;
+  remarks?: string;
+  groupId?: string;
 }
 
 const emptyItem: CartItem = {
   product: "",
   paymentTerms: "",
   options: {},
+  remarks: "",
 }
 
 export default function NewInquiryPage() {
   const { user } = useAuth()
   const router = useRouter()
 
-  // Local cart state
-  const [addedItems, setAddedItems] = useState<CartItem[]>([])
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalStep, setModalStep] = useState<1 | 2>(1)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+
+  // Single Item Config State
   const [currentItem, setCurrentItem] = useState<CartItem>({ ...emptyItem })
+  const [addedItems, setAddedItems] = useState<CartItem[]>([])
 
   // Submission fields
   const [biddingDuration, setBiddingDuration] = useState("1")
@@ -42,52 +50,30 @@ export default function NewInquiryPage() {
     district: ""
   })
 
-  const [isLoaded, setIsLoaded] = useState(false)
-
-  // Synchronize drafts with LocalStorage perfectly
-  useEffect(() => {
-    try {
-      const savedItems = localStorage.getItem("dnd_draft_items")
-      if (savedItems) setAddedItems(JSON.parse(savedItems))
-
-      const savedBidding = localStorage.getItem("dnd_draft_bidding")
-      if (savedBidding) setBiddingDuration(savedBidding)
-
-      const savedDelivery = localStorage.getItem("dnd_draft_delivery")
-      if (savedDelivery) setDeliveryLocation(JSON.parse(savedDelivery))
-    } catch (e) { }
-    setIsLoaded(true)
-  }, [])
-
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("dnd_draft_items", JSON.stringify(addedItems))
-      localStorage.setItem("dnd_draft_bidding", biddingDuration)
-      localStorage.setItem("dnd_draft_delivery", JSON.stringify(deliveryLocation))
-    }
-  }, [addedItems, biddingDuration, deliveryLocation, isLoaded])
-
   // Data for products
-  const [dynamicProducts, setDynamicProducts] = useState<{ name: string, sub_products: string[] }[]>([])
+  const [dynamicProducts, setDynamicProducts] = useState<{ name: string, sub_products: string[], image_url?: string }[]>([])
   const [productOptions, setProductOptions] = useState<any[]>([])
 
   // Location settings
   const [locationSettings, setLocationSettings] = useState<any>(null)
   const [locations, setLocations] = useState<any[]>([])
-
   const [submitting, setSubmitting] = useState(false)
+  const [loadingProducts, setLoadingProducts] = useState(true)
 
   // Fetch product definitions & options
   useEffect(() => {
     const fetchDynamicProducts = async () => {
       try {
+        setLoadingProducts(true)
         const res = await fetch("/api/products")
         if (res.ok) {
           const data = await res.json()
-          setDynamicProducts(data.map((p: any) => ({ name: p.name, sub_products: p.sub_products || [] })))
+          setDynamicProducts(data.map((p: any) => ({ name: p.name, sub_products: p.sub_products || [], image_url: p.image_url })))
         }
       } catch (err) {
         console.error("Failed to fetch products:", err)
+      } finally {
+        setLoadingProducts(false)
       }
     }
     fetchDynamicProducts()
@@ -114,8 +100,52 @@ export default function NewInquiryPage() {
     })
   }, [])
 
+  const sortOptions = (options: any[]) => {
+    const typeWeights: Record<string, number> = {
+      'radio': 1, 'checkbox': 2, 'dropdown': 3, 'number': 4, 'text': 5
+    };
+
+    const groupWeights: Record<string, number> = {};
+    options.forEach((opt: any) => {
+      const firstWord = opt.option_name.trim().split(' ')[0].toLowerCase();
+      const w = typeWeights[opt.buyer_option_type] ?? 99;
+      if (groupWeights[firstWord] === undefined || w < groupWeights[firstWord]) {
+        groupWeights[firstWord] = w;
+      }
+    });
+
+    return [...options].sort((a, b) => {
+      const isLockedA = a.seller_option_type !== 'none';
+      const isLockedB = b.seller_option_type !== 'none';
+      if (isLockedA && !isLockedB) return -1;
+      if (!isLockedA && isLockedB) return 1;
+
+      const nameA = a.option_name.toLowerCase().trim();
+      const nameB = b.option_name.toLowerCase().trim();
+
+      const specialOrder = ["quantity measurement", "quantity"];
+      const idxA = specialOrder.indexOf(nameA);
+      const idxB = specialOrder.indexOf(nameB);
+
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return 1;
+      if (idxB !== -1) return -1;
+
+      const fwA = a.option_name.trim().split(' ')[0].toLowerCase();
+      const fwB = b.option_name.trim().split(' ')[0].toLowerCase();
+
+      const wA = groupWeights[fwA];
+      const wB = groupWeights[fwB];
+
+      if (wA !== wB) return wA - wB;
+
+      return a.option_name.localeCompare(b.option_name);
+    });
+  };
+
+  // Fetch product definitions & options when selected product changes (in Modal)
   useEffect(() => {
-    if (currentItem.product) {
+    if (currentItem.product && isModalOpen) {
       const url = `/api/products/options?productName=${encodeURIComponent(currentItem.product)}${currentItem.sub_product ? `&subProduct=${encodeURIComponent(currentItem.sub_product)}` : ""}`
       fetch(url)
         .then(r => r.json())
@@ -123,38 +153,12 @@ export default function NewInquiryPage() {
           if (Array.isArray(data)) {
             const mappedOptions = data.map((opt: any) => ({
               ...opt,
-              buyer_option_type: opt.buyer_option_type || (opt.form_type !== 'seller' ? opt.option_type : 'none')
+              buyer_option_type: opt.buyer_option_type || (opt.form_type !== 'seller' ? opt.option_type : 'none'),
+              seller_option_type: opt.seller_option_type || (opt.form_type === 'seller' ? opt.option_type : 'none')
             })).filter((opt: any) => opt.buyer_option_type !== 'none');
 
-            const typeWeights: Record<string, number> = {
-              'radio': 1, 'checkbox': 2, 'dropdown': 3, 'number': 4, 'text': 5
-            };
-
-            const groupWeights: Record<string, number> = {};
-            mappedOptions.forEach((opt: any) => {
-              const firstWord = opt.option_name.trim().split(' ')[0].toLowerCase();
-              const w = typeWeights[opt.buyer_option_type] ?? 99;
-              if (groupWeights[firstWord] === undefined || w < groupWeights[firstWord]) {
-                groupWeights[firstWord] = w;
-              }
-            });
-
-            mappedOptions.sort((a, b) => {
-              const fwA = a.option_name.trim().split(' ')[0].toLowerCase();
-              const fwB = b.option_name.trim().split(' ')[0].toLowerCase();
-
-              const wA = groupWeights[fwA];
-              const wB = groupWeights[fwB];
-
-              if (wA !== wB) return wA - wB;
-
-              if (a.option_name.toLowerCase() === "quantity type" && b.option_name.toLowerCase() === "quantity") return -1;
-              if (a.option_name.toLowerCase() === "quantity" && b.option_name.toLowerCase() === "quantity type") return 1;
-
-              return a.option_name.localeCompare(b.option_name);
-            });
-
-            setProductOptions(mappedOptions);
+            const sorted = sortOptions(mappedOptions);
+            setProductOptions(sorted);
           } else {
             setProductOptions([])
           }
@@ -163,11 +167,8 @@ export default function NewInquiryPage() {
     } else {
       setProductOptions([])
     }
-  }, [currentItem.product, currentItem.sub_product])
+  }, [currentItem.product, currentItem.sub_product, isModalOpen])
 
-  const updateField = (field: keyof CartItem, value: string | number) => {
-    setCurrentItem((prev) => ({ ...prev, [field]: value }))
-  }
 
   const updateOption = (optionName: string, value: string | string[]) => {
     setCurrentItem(prev => ({
@@ -181,19 +182,19 @@ export default function NewInquiryPage() {
 
   const toggleCheckboxOption = (optionName: string, value: string) => {
     setCurrentItem(prev => {
-      const currentOptions = prev.options?.[optionName] as string[] || [];
-      let newOptions;
+      const currentOptions = (prev.options?.[optionName] as string[]) || []
+      let newOptions
       if (currentOptions.includes(value)) {
-        newOptions = currentOptions.filter(v => v !== value);
+        newOptions = currentOptions.filter((v) => v !== value)
       } else {
-        newOptions = [...currentOptions, value];
+        newOptions = [...currentOptions, value]
       }
       return {
         ...prev,
         options: {
           ...(prev.options || {}),
-          [optionName]: newOptions
-        }
+          [optionName]: newOptions,
+        },
       }
     })
   }
@@ -210,20 +211,20 @@ export default function NewInquiryPage() {
         return hasDuplicates ? `${opt.option_name} (${formatOptionType(opt.buyer_option_type)})` : opt.option_name;
       })();
 
-      const val = currentItem.options?.[optionKey];
+      const val = currentItem.options?.[optionKey]
 
-      if (opt.buyer_option_type === 'checkbox') {
+      if (opt.buyer_option_type === "checkbox") {
         if (!val || (Array.isArray(val) && val.length === 0)) {
           toast.error(`Please select at least one value for ${opt.option_name}`)
           return false
         }
-      } else if (opt.buyer_option_type === 'radio') {
-        if (!val || String(val).trim() === '') {
+      } else if (opt.buyer_option_type === "radio") {
+        if (!val || String(val).trim() === "") {
           toast.error(`Please select a value for ${opt.option_name}`)
           return false
         }
       } else {
-        if (!val || String(val).trim() === '') {
+        if (!val || String(val).trim() === "") {
           toast.error(`Please provide a value for ${opt.option_name}`)
           return false
         }
@@ -233,26 +234,47 @@ export default function NewInquiryPage() {
     return true
   }
 
-  const handleAddProduct = () => {
-    if (!validateForm()) return
-
-    const itemToSave = { ...currentItem, id: crypto.randomUUID() }
-    setAddedItems(prev => [...prev, itemToSave])
-    setCurrentItem({ ...emptyItem })
-    toast.success("Product added to inquiry")
+  const handleOpenModal = (product: any) => {
+    setSelectedProduct(product)
+    setCurrentItem({
+      product: product.name,
+      paymentTerms: "",
+      options: {}
+    })
+    setModalStep(1)
+    setIsModalOpen(true)
   }
 
-  const handleKeepData = () => {
-    if (!validateForm()) return
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedProduct(null)
+    setCurrentItem({ ...emptyItem })
+    setAddedItems([])
+  }
 
-    const itemToSave = { ...currentItem, id: crypto.randomUUID() }
-    setAddedItems(prev => [...prev, itemToSave])
-    toast.success("Product added, form data retained")
+  const handleAddItem = () => {
+    if (!validateForm()) return
+    const newAdded = [...addedItems, { ...currentItem }]
+    setAddedItems(newAdded)
+
+    // For "another" entry same product, keep the form values as they are,
+    // so the user can just modify the "unlocked" parts and add again.
+
+    toast.success("Item added to inquiry stack")
+  }
+
+  const handleContinueToStep2 = () => {
+    if (addedItems.length === 0) {
+      toast.error("Please add at least one item to proceed")
+      return
+    }
+    setModalStep(2)
   }
 
   const handleSubmitInquiry = async () => {
+    // Final check for addedItems
     if (addedItems.length === 0) {
-      toast.error("Please add at least one product to the inquiry")
+      toast.error("No items added to inquiry")
       return
     }
 
@@ -264,63 +286,45 @@ export default function NewInquiryPage() {
       }
     }
 
-    const durationDays = parseInt(biddingDuration)
-    if (isNaN(durationDays) || durationDays <= 0) {
-      toast.error("Please enter a valid number of days for bidding duration (e.g. 1, 2, 3...)")
-      return
-    }
-
     setSubmitting(true)
-
     try {
       const delivery = locationSettings?.buyer_option_type !== "none" ? {
         state: deliveryLocation.state,
         district: deliveryLocation.district
       } : undefined
 
-      const itemsPayload = addedItems.map(item => ({
+      const itemPayload = addedItems.map(item => ({
         product: item.product,
         sub_product: item.sub_product,
         paymentTerms: item.paymentTerms,
-        options: item.options
+        options: item.options,
+        remarks: item.remarks
       }))
 
-      for (const item of itemsPayload) {
-        const newInq = await createInquiry(
-          user!.id,
-          user?.name || user?.email || "Unknown",
-          [item],
-          delivery,
-          durationDays
-        )
+      const newInq = await createInquiry(
+        user!.id,
+        null,
+        itemPayload,
+        delivery
+      )
 
-        const res = await fetch("/api/inquiries", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            buyerId: user!.id,
-            inquiryId: newInq.id,
-            items: [item],
-            biddingDuration: durationDays
-          })
+      // Trigger notification flow for this specific inquiry
+      const resp = await fetch("/api/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buyerId: user!.id,
+          inquiryId: newInq.id,
+          items: itemPayload
         })
+      })
 
-        if (!res.ok) {
-          console.error("Failed to trigger notification flow for:", newInq.id)
-        }
+      if (!resp.ok) {
+        console.error("Failed to trigger notification flow for:", newInq.id)
       }
 
-      localStorage.removeItem("dnd_draft_items")
-      localStorage.removeItem("dnd_draft_bidding")
-      localStorage.removeItem("dnd_draft_delivery")
       toast.success("Inquiry submitted successfully!")
-      setAddedItems([])
-      setBiddingDuration("1")
-      setDeliveryLocation({
-        state: "",
-        district: "",
-      })
-      setCurrentItem({ ...emptyItem })
+      handleCloseModal()
       router.push("/dashboard/inquiries")
     } catch (error: any) {
       toast.error(error.message || "Failed to submit inquiry")
@@ -330,267 +334,409 @@ export default function NewInquiryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 md:px-0">
-      <div className="mb-4 md:mb-6 flex items-start justify-between">
-        <div>
-          <h2 className="font-serif text-2xl font-bold text-foreground">Create New Inquiry</h2>
-          <p className="mt-1 text-muted-foreground">
-            Configure product specifications and submit your requirements.
-          </p>
-        </div>
+    <div className="mx-auto max-w-5xl px-4 md:px-6 pb-20">
+      {/* ─── Page Header ─── */}
+      <div className="mb-8 mt-4">
+        <h2 className="font-serif text-3xl font-bold text-foreground tracking-tight">Products</h2>
+        <p className="mt-2 text-muted-foreground text-[15px]">
+          Select a product to configure specifications and submit your inquiry to receive competitive quotes.
+        </p>
       </div>
 
-      <div className="grid gap-4 md:gap-6">
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-serif text-foreground">
-              <Package className="h-5 w-5 text-primary" />
-              Add Product to Inquiry
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 md:gap-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label className="text-foreground">Select Product <span className="text-red-500 ml-1">*</span></Label>
-                <Select value={currentItem.product} onValueChange={(v) => {
-                  updateField("product", v);
-                  updateField("sub_product", "");
-                }}>
-                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select product" /></SelectTrigger>
-                  <SelectContent>
-                    {dynamicProducts.map((p) => (
-                      <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      {/* ─── Product Card Grid ─── */}
+      {loadingProducts ? (
+        <div className="flex flex-col items-center justify-center p-20 text-muted-foreground">
+          <Loader2 className="h-10 w-10 animate-spin mb-4" />
+          <p className="font-medium">Loading Products...</p>
+        </div>
+      ) : dynamicProducts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-20 border border-dashed border-border rounded-xl text-muted-foreground bg-muted/10">
+          <Package className="h-12 w-12 mb-4 opacity-50" />
+          <p className="font-medium text-lg">No Products Available</p>
+          <p className="text-sm">Please check back later.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {dynamicProducts.map((p) => (
+            <div key={p.name} className="flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
+              <div
+                className="aspect-[4/3] bg-white relative overflow-hidden flex items-center justify-center p-4 cursor-pointer"
+                onClick={() => handleOpenModal(p)}
+              >
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.name} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300" />
+                ) : (
+                  <Package className="h-16 w-16 text-muted-foreground/30 group-hover:scale-105 transition-transform duration-300" />
+                )}
               </div>
-
-              {currentItem.product && dynamicProducts.find(p => p.name === currentItem.product)?.sub_products?.length! > 0 && (
-                <div className="col-span-full space-y-2">
-                  <Label className="text-foreground">Select Product Type<span className="text-red-500 ml-1">*</span></Label>
-                  <div className="flex flex-wrap gap-2">
-                    {dynamicProducts.find(p => p.name === currentItem.product)?.sub_products.map((sub) => (
-                      <label
-                        key={sub}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-all ${currentItem.sub_product === sub ? 'bg-primary/10 border-primary text-primary shadow-sm' : 'bg-background border-border hover:border-primary/50'}`}
-                      >
-                        <input
-                          type="radio"
-                          name="subProductInquiry"
-                          value={sub}
-                          checked={currentItem.sub_product === sub}
-                          onChange={(e) => updateField("sub_product", e.target.value)}
-                          className="hidden"
-                        />
-                        <span className="text-sm font-medium">{sub}</span>
-                      </label>
-                    ))}
-                  </div>
+              <div className="p-5 flex flex-col flex-1 border-t border-border/50">
+                <div className="flex items-start justify-between gap-2 mb-4">
+                  <h3 className="font-bold text-lg leading-tight text-card-foreground line-clamp-2" title={p.name}>
+                    {p.name}
+                  </h3>
                 </div>
-              )}
-            </div>
 
-            {productOptions.length > 0 && (
-              <div className="flex flex-col gap-4 md:gap-5 border-t border-b border-border py-4 md:py-6">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Product Requirements</h3>
-                {productOptions.map((opt) => {
-                  const optionKey = (() => {
-                    const hasDuplicates = productOptions.filter(o => o.option_name === opt.option_name).length > 1;
-                    return hasDuplicates ? `${opt.option_name} (${formatOptionType(opt.buyer_option_type)})` : opt.option_name;
-                  })();
-
-                  return (
-                    <div key={opt.id}>
-                      <Label className="text-foreground mb-2 block">
-                        {opt.option_name}
-                        {productOptions.filter(o => o.option_name === opt.option_name).length > 1 && (
-                          <span className="ml-1 text-muted-foreground">({formatOptionType(opt.buyer_option_type)})</span>
-                        )}
-                        <span className="text-red-500 ml-1">*</span>
-                      </Label>
-
-                      {opt.buyer_option_type === 'dropdown' ? (
-                        <Select value={(currentItem.options?.[optionKey] as string) || ""} onValueChange={(v) => updateOption(optionKey, v)}>
-                          <SelectTrigger><SelectValue placeholder={`Select ${opt.option_name.toLowerCase()}`} /></SelectTrigger>
-                          <SelectContent>
-                            {(opt.dropdown_values || []).map((val: string, idx: number) => (
-                              <SelectItem key={idx} value={val}>{val}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : opt.buyer_option_type === 'checkbox' ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 w-full rounded-md border border-input bg-background p-4 min-h-[40px]">
-                          {(opt.dropdown_values || []).length > 0 ? (
-                            (opt.dropdown_values || []).map((val: string, idx: number) => (
-                              <label key={idx} className="flex items-start gap-2 text-sm leading-tight cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={((currentItem.options?.[optionKey] as string[]) || []).includes(val)}
-                                  onChange={() => toggleCheckboxOption(optionKey, val)}
-                                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary"
-                                />
-                                <span>{val}</span>
-                              </label>
-                            ))
-                          ) : (
-                            <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
-                          )}
-                        </div>
-                      ) : opt.buyer_option_type === 'radio' ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 w-full rounded-md border border-input bg-background p-4 min-h-[40px]">
-                          {(opt.dropdown_values || []).length > 0 ? (
-                            (opt.dropdown_values || []).map((val: string, idx: number) => (
-                              <label key={idx} className="flex items-start gap-2 text-sm leading-tight cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={optionKey}
-                                  checked={(currentItem.options?.[optionKey] as string) === val}
-                                  onChange={() => updateOption(optionKey, val)}
-                                  className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-gray-300 text-primary focus:ring-primary"
-                                />
-                                <span>{val}</span>
-                              </label>
-                            ))
-                          ) : (
-                            <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
-                          )}
-                        </div>
-                      ) : (
-                        <Input
-                          type={opt.buyer_option_type === 'number' ? 'number' : 'text'}
-                          min={opt.buyer_option_type === 'number' ? "0" : undefined}
-                          placeholder={`Enter ${opt.option_name.toLowerCase()}`}
-                          value={(currentItem.options?.[optionKey] as string) || ""}
-                          onChange={(e) => updateOption(optionKey, e.target.value)}
-                        />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row items-center gap-3 mt-4 md:mt-2">
-              <Button onClick={handleAddProduct} className="w-full sm:w-auto gap-2">
-                <Plus className="h-4 w-4" /> Add to Inquiry (Clear Form)
-              </Button>
-              <Button onClick={handleKeepData} variant="secondary" className="w-full sm:w-auto gap-2">
-                <Package className="h-4 w-4" /> Keep Data & Add
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {addedItems.length > 0 && (
-          <Card className="border-border border-primary/20">
-            <CardHeader className="bg-primary/5 pb-4 border-b border-border/50">
-              <CardTitle className="text-[17px] font-serif flex items-center gap-2 text-primary">
-                Selected Products
-                <span className="bg-primary text-secondary text-xs h-5 w-5 rounded-full flex items-center justify-center font-bold">{addedItems.length}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-6">
-              {addedItems.map((item, idx) => (
-                <div key={idx} className="flex flex-col sm:flex-row justify-between items-start gap-4 border border-border p-4 rounded-lg bg-background shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex flex-col gap-1.5">
-                    <div className="font-semibold text-[15px]">{item.product} {item.sub_product && <span className="text-muted-foreground font-normal text-sm">({item.sub_product})</span>}</div>
-                    <div className="text-sm text-muted-foreground flex flex-col sm:flex-row flex-wrap gap-x-5 gap-y-1.5 mt-1">
-                      {Object.entries(item.options).map(([k, v]) => (
-                        <span key={k} className="flex items-center gap-1.5">
-                          <span className="h-1 w-1 bg-border rounded-full hidden sm:block"></span>
-                          <span className="font-medium text-foreground/80">{formatOptionLabel(k)}:</span>
-                          <span>{Array.isArray(v) ? v.join(", ") : v}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => setAddedItems(prev => prev.filter((_, i) => i !== idx))} className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0">
-                    <Trash2 className="h-4 w-4" />
+                <div className="mt-auto">
+                  <Button
+                    onClick={() => handleOpenModal(p)}
+                    className="w-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground font-bold rounded-xl transition-colors shadow-none"
+                  >
+                    ADD
                   </Button>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-        {addedItems.length > 0 && (
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle className="text-lg font-serif">Submission Details</CardTitle>
-              <CardDescription>Configure delivery requirements and bidding timeline.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {locationSettings?.buyer_option_type && locationSettings.buyer_option_type !== "none" && (
-                <div className="space-y-4">
-                  <h4 className="font-medium text-[15px] text-foreground flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Delivery Location</h4>
-                  <div className="grid gap-5 sm:grid-cols-2 p-5 bg-muted/20 border border-border rounded-lg">
-                    {locationSettings.buyer_option_type === "dropdown" ? (
-                      <>
-                        <div className="space-y-2">
-                          <Label>State <span className="text-red-500">*</span></Label>
-                          <Select value={deliveryLocation.state} onValueChange={(val) => setDeliveryLocation(p => ({ ...p, state: val, district: "" }))}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select State" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {locations.map(l => (
-                                <SelectItem key={l.id} value={l.state_name}>{l.state_name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>District <span className="text-red-500">*</span></Label>
-                          <Select disabled={!deliveryLocation.state} value={deliveryLocation.district} onValueChange={(val) => setDeliveryLocation(p => ({ ...p, district: val }))}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select District" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {locations.find(l => l.state_name === deliveryLocation.state)?.districts?.map((d: string) => (
-                                <SelectItem key={d} value={d}>{d}</SelectItem>
-                              )) || []}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="space-y-2">
-                          <Label>State <span className="text-red-500">*</span></Label>
-                          <Input value={deliveryLocation.state} onChange={e => setDeliveryLocation(p => ({ ...p, state: e.target.value }))} placeholder="Enter State" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>District <span className="text-red-500">*</span></Label>
-                          <Input value={deliveryLocation.district} onChange={e => setDeliveryLocation(p => ({ ...p, district: e.target.value }))} placeholder="Enter District" />
-                        </div>
-                      </>
-                    )}
-                  </div>
+      {/* ─── Modal Overlay ─── */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/10">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">
+                  {selectedProduct?.name}
+                </h2>
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                  {modalStep === 1 ? ' ' : 'Delivery Details'}
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={handleCloseModal} className="h-8 w-8 rounded-full bg-background/50 hover:bg-muted">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 form-scrollbar">
+              {modalStep === 1 && (
+                <div className="space-y-6">
+                  {/* Sub Products */}
+                  {selectedProduct?.sub_products?.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center">
+                        Product Type <span className="text-primary ml-1">*</span>
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProduct.sub_products.map((sp: string) => (
+                          <Button
+                            key={sp}
+                            variant={currentItem.sub_product === sp ? "default" : "outline"}
+                            size="sm"
+                            disabled={addedItems.length > 0}
+                            onClick={() => {
+                              if (addedItems.length === 0) {
+                                setCurrentItem(prev => ({ ...prev, sub_product: sp, options: {} }))
+                              }
+                            }}
+                            className={`rounded-lg font-medium transition-all duration-200 ${currentItem.sub_product === sp
+                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105"
+                              : "hover:bg-muted"
+                              } ${addedItems.length > 0 ? "opacity-70 cursor-not-allowed" : ""}`}
+                          >
+                            {sp}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Specs */}
+                  {productOptions.length > 0 && (
+                    <div className="space-y-5">
+                      {productOptions.map((opt) => {
+                        const optionKey = (() => {
+                          const hasDuplicates = productOptions.filter(o => o.option_name === opt.option_name).length > 1;
+                          return hasDuplicates ? `${opt.option_name} (${formatOptionType(opt.buyer_option_type)})` : opt.option_name;
+                        })();
+
+                        const isLocked = addedItems.length > 0 && opt.seller_option_type !== 'none';
+
+                        return (
+                          <div key={opt.id} className={isLocked ? "opacity-70" : ""}>
+                            <Label className="text-foreground mb-2 flex items-center text-sm font-semibold">
+                              {opt.option_name}
+                              {productOptions.filter(o => o.option_name === opt.option_name).length > 1 && (
+                                <span className="ml-1 text-muted-foreground text-xs font-normal">({formatOptionType(opt.buyer_option_type)})</span>
+                              )}
+                              <span className="text-primary ml-1">*</span>
+                            </Label>
+
+                            {opt.buyer_option_type === 'dropdown' ? (
+                              <Select
+                                disabled={isLocked}
+                                value={(currentItem.options?.[optionKey] as string) || ""}
+                                onValueChange={(v) => updateOption(optionKey, v)}
+                              >
+                                <SelectTrigger className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground"><SelectValue placeholder={`Select ${opt.option_name.toLowerCase()}`} /></SelectTrigger>
+                                <SelectContent className="z-[200]">
+                                  {(opt.dropdown_values || []).map((val: string, idx: number) => (
+                                    <SelectItem key={idx} value={val} className="font-medium">{val}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : opt.buyer_option_type === 'checkbox' ? (
+                              <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 w-full rounded-lg border border-border/60 bg-muted/20 p-4 ${isLocked ? "pointer-events-none" : ""}`}>
+                                {(opt.dropdown_values || []).length > 0 ? (
+                                  (opt.dropdown_values || []).map((val: string, idx: number) => (
+                                    <label key={idx} className={`flex items-start gap-2 text-sm leading-tight cursor-pointer text-foreground/90 hover:text-foreground font-medium`}>
+                                      <input
+                                        type="checkbox"
+                                        disabled={isLocked}
+                                        checked={((currentItem.options?.[optionKey] as string[]) || []).includes(val)}
+                                        onChange={() => toggleCheckboxOption(optionKey, val)}
+                                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary accent-primary"
+                                      />
+                                      <span>{val}</span>
+                                    </label>
+                                  ))
+                                ) : (
+                                  <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
+                                )}
+                              </div>
+                            ) : opt.buyer_option_type === 'radio' ? (
+                              <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 w-full rounded-lg border border-border/60 bg-muted/20 p-4 ${isLocked ? "pointer-events-none" : ""}`}>
+                                {(opt.dropdown_values || []).length > 0 ? (
+                                  (opt.dropdown_values || []).map((val: string, idx: number) => (
+                                    <label key={idx} className={`flex items-start gap-2 text-sm leading-tight cursor-pointer text-foreground/90 hover:text-foreground font-medium`}>
+                                      <input
+                                        type="radio"
+                                        disabled={isLocked}
+                                        name={optionKey}
+                                        checked={(currentItem.options?.[optionKey] as string) === val}
+                                        onChange={() => updateOption(optionKey, val)}
+                                        className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-gray-300 text-primary focus:ring-primary accent-primary"
+                                      />
+                                      <span>{val}</span>
+                                    </label>
+                                  ))
+                                ) : (
+                                  <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
+                                )}
+                              </div>
+                            ) : (
+                              <Input
+                                disabled={isLocked}
+                                type={opt.buyer_option_type === 'number' ? 'number' : 'text'}
+                                min={opt.buyer_option_type === 'number' ? ((opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty') ? "1" : "0.000001") : undefined}
+                                step={opt.buyer_option_type === 'number' && (opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty') ? "1" : "any"}
+                                placeholder={`Enter ${opt.option_name.toLowerCase()}`}
+                                value={(currentItem.options?.[optionKey] as string) || ""}
+                                onChange={(e) => {
+                                  let val = e.target.value;
+                                  if (val.startsWith('-')) return;
+                                  if (opt.buyer_option_type === 'number' && (opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty')) {
+                                    val = val.replace(/[^\d]/g, '');
+                                    if (val === '0') val = "";
+                                  }
+                                  updateOption(optionKey, val);
+                                }}
+                                className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground"
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Remarks Field */}
+                  {(!selectedProduct?.sub_products?.length || currentItem.sub_product) && (
+                    <div className="space-y-3 pt-4 border-t border-border/50">
+                      <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center">
+                        Additional Remarks / Comments (Optional)
+                      </Label>
+                      <Textarea
+                        placeholder="Add any specific requirements or notes for the sellers..."
+                        value={currentItem.remarks || ""}
+                        onChange={(e) => setCurrentItem(prev => ({ ...prev, remarks: e.target.value }))}
+                        className="resize-none h-20 bg-muted/30 border-border font-medium text-foreground"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="space-y-4 pt-1">
-                <h4 className="font-medium text-[15px] text-foreground flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Bidding Timeline</h4>
-                <div className="space-y-2 max-w-md">
-                  <Label>Bidding Duration (Days) <span className="text-red-500">*</span></Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 1, 2, 3"
-                    value={biddingDuration}
-                    onChange={(e) => setBiddingDuration(e.target.value)}
-                  />
+              {modalStep === 2 && (
+                <div className="space-y-6">
+                  {/* Product Detail Preview for All Items */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                      <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4" /> Added Items ({addedItems.length})
+                      </h3>
+                    </div>
+                    {addedItems.map((item, idx) => (
+                      <div key={idx} className="rounded-xl border border-border/60 bg-secondary/30 overflow-hidden shadow-sm">
+                        <div className="bg-secondary/40 px-4 py-3 border-b border-border/50 flex items-center justify-between">
+                          <h3 className="font-bold text-[15px] text-foreground flex items-center gap-2">
+                            <Package className="h-4 w-4 text-primary" />
+                            {item.product}
+                            {item.sub_product && <span className="text-muted-foreground font-semibold ml-1">({item.sub_product})</span>}
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setAddedItems(prev => prev.filter((_, i) => i !== idx))}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4">
+                          {Object.entries(item.options || {}).map(([k, v]) => (
+                            <div key={k} className="flex flex-col gap-0.5">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/90">{formatOptionLabel(k)}</span>
+                              <span className="text-sm font-bold text-foreground leading-tight">{Array.isArray(v) ? v.join(", ") : v}</span>
+                            </div>
+                          ))}
+                          {item.remarks && (
+                            <div className="flex flex-col gap-0.5 col-span-2 mt-1">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/90">Remarks</span>
+                              <span className="text-sm font-bold text-foreground leading-tight italic">{item.remarks}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {locationSettings?.buyer_option_type && locationSettings.buyer_option_type !== "none" && (
+                    <div className="space-y-4">
+                      <Label className="text-xs border-b border-border/50 pb-2.5 font-bold tracking-[0.1em] text-muted-foreground/80 flex items-center gap-2 uppercase">
+                        <MapPin className="h-4 w-4 text-primary" /> Delivery Location
+                      </Label>
+                      <div className="grid gap-5 sm:grid-cols-2 p-1">
+                        {locationSettings.buyer_option_type === "dropdown" ? (
+                          <>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground font-bold uppercase tracking-wider">State <span className="text-primary">*</span></Label>
+                              <Select value={deliveryLocation.state} onValueChange={(val) => setDeliveryLocation(p => ({ ...p, state: val, district: "" }))}>
+                                <SelectTrigger className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground">
+                                  <SelectValue placeholder="Select State" />
+                                </SelectTrigger>
+                                <SelectContent className="z-[200]">
+                                  {locations.map(l => (
+                                    <SelectItem className="font-medium" key={l.id} value={l.state_name}>{l.state_name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground font-bold uppercase tracking-wider">District <span className="text-primary">*</span></Label>
+                              <Select disabled={!deliveryLocation.state} value={deliveryLocation.district} onValueChange={(val) => setDeliveryLocation(p => ({ ...p, district: val }))}>
+                                <SelectTrigger className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground">
+                                  <SelectValue placeholder="Select District" />
+                                </SelectTrigger>
+                                <SelectContent className="z-[200]">
+                                  {locations.find(l => l.state_name === deliveryLocation.state)?.districts?.map((d: string) => (
+                                    <SelectItem className="font-medium" key={d} value={d}>{d}</SelectItem>
+                                  )) || []}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground font-bold uppercase tracking-wider">State <span className="text-primary">*</span></Label>
+                              <Input className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground" value={deliveryLocation.state} onChange={e => setDeliveryLocation(p => ({ ...p, state: e.target.value }))} placeholder="Enter State" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground font-bold uppercase tracking-wider">District <span className="text-primary">*</span></Label>
+                              <Input className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground" value={deliveryLocation.district} onChange={e => setDeliveryLocation(p => ({ ...p, district: e.target.value }))} placeholder="Enter District" />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-border bg-muted/10">
+              <div className="px-6 py-5 flex items-center justify-between gap-3">
+                <div>
+                  {modalStep === 2 && (
+                    <Button variant="ghost" onClick={() => setModalStep(1)} className="font-medium text-muted-foreground hover:text-foreground">
+                      Back to Requirements
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={handleCloseModal} className="font-medium rounded-xl">Cancel</Button>
+                  {modalStep === 1 ? (
+                    <Button
+                      onClick={handleAddItem}
+                      variant="outline"
+                      className="font-bold rounded-xl border-primary text-primary hover:bg-primary/5 px-6"
+                    >
+                      Add Item
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleSubmitInquiry}
+                      disabled={submitting}
+                      className="font-bold px-8 rounded-xl bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm gap-2"
+                    >
+                      {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      Submit Inquiry
+                    </Button>
+                  )}
                 </div>
               </div>
 
-              <Button onClick={handleSubmitInquiry} className="w-full h-12 text-[15px] gap-2 mt-4" disabled={submitting}>
-                <Send className="h-5 w-5" />
-                {submitting ? "Submitting Inquiry..." : "Submit Complete Inquiry"}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
+              {/* Added Items Preview below buttons - only in Step 1 */}
+              {modalStep === 1 && addedItems.length > 0 && (
+                <div className="px-6 pb-6 pt-0 border-t border-border/40 bg-muted/5">
+                  <div className="mt-4 space-y-3 max-h-[150px] overflow-y-auto pr-2 form-scrollbar">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-muted/50 px-2 py-0.5 rounded">
+                        Inquiry Stack ({addedItems.length})
+                      </span>
+                    </div>
+                    {addedItems.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between gap-3 py-2 px-3 bg-muted/30 border border-border/50 rounded-lg group">
+                        <div className="flex flex-col">
+                          <div className="text-[13px] font-bold text-foreground truncate max-w-[300px]">
+                            {item.product} {item.sub_product && <span className="text-muted-foreground font-normal">({item.sub_product})</span>}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground truncate">
+                            {Object.values(item.options).map(v => Array.isArray(v) ? v.join(", ") : v).join(" · ")}
+                            {item.remarks && ` · Remarks: ${item.remarks}`}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setAddedItems(prev => prev.filter((_, i) => i !== idx))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="pt-2 border-t border-border/20 mt-4">
+                      <Button
+                        onClick={handleContinueToStep2}
+                        className="w-full font-bold h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 gap-2 shadow-sm"
+                      >
+                        Continue to Delivery Details
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+    </div >
   )
 }

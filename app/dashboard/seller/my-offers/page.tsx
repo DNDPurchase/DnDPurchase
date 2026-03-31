@@ -4,12 +4,13 @@ import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AlertCircle, Edit, Mail, Phone, Tag, Trash2, Trophy } from "lucide-react"
+import { AlertCircle, Edit, Mail, Phone, Tag, Trash2, Trophy, Plus, FileText, Clock, Archive } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import useSWR from "swr"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,16 +18,26 @@ import { getOffersBySellerId, updateOffer, deleteOffer } from "@/lib/store"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
 import { storage } from "@/lib/firebase"
 
-function rankBadge(rank?: number) {
+function rankBadge(rank?: number, inquiryStatus?: string) {
+  if (inquiryStatus === "active") return <span className="text-muted-foreground italic text-[10px] leading-tight">Ranking will be shown when Bidding Starts</span>
   if (!rank) return <span className="text-muted-foreground">-</span>
   if (rank === 1) return <Badge className="border-0 bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]"><Trophy className="mr-1 h-3 w-3" /> #{rank}</Badge>
   if (rank <= 3) return <Badge variant="outline" className="text-primary"># {rank}</Badge>
   return <Badge variant="outline">#{rank}</Badge>
 }
 
-function statusBadge(status: string) {
+function statusBadge(status: string, inquiryStatus?: string) {
+  if (status === "accepted") return <Badge className="border-0 bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]">Quote Accepted</Badge>
+  if (status === "rejected") return <Badge variant="destructive">Quote Rejected</Badge>
+  if (inquiryStatus === "deleted") return <Badge className="border-0 bg-black text-white hover:bg-black/90">Inquiry Deleted</Badge>
+
+  if (status === "pending" || !status) {
+    if (inquiryStatus === "active") return <Badge variant="outline">Active</Badge>
+    if (inquiryStatus === "bidding") return <Badge variant="outline">Bidding Started</Badge>
+    if (inquiryStatus === "closed") return <Badge variant="outline">Closed</Badge>
+  }
+
   switch (status) {
-    case "accepted": return <Badge className="border-0 bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]">Accepted</Badge>
     case "disqualified": return <Badge variant="destructive">Disqualified</Badge>
     case "pending": return <Badge variant="outline">Pending</Badge>
     default: return <Badge variant="outline">{status}</Badge>
@@ -47,9 +58,47 @@ export default function SellerMyOffersPage() {
   const [contactPhone, setContactPhone] = useState("")
   const [quoteComments, setQuoteComments] = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const [selectedPdf, setSelectedPdf] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [pdfUploadProgress, setPdfUploadProgress] = useState(false)
-  const [removeExistingPdf, setRemoveExistingPdf] = useState(false)
+
+  const { activeOffers, historyOffers } = useMemo(() => {
+    if (!Array.isArray(offers)) return { activeOffers: [], historyOffers: [] }
+
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000)
+
+    const active: any[] = []
+    const history: any[] = []
+
+    offers.forEach(offer => {
+      const isTerminal = ["accepted", "rejected", "disqualified"].includes(offer.status) || offer.inquiryStatus === "deleted" || offer.inquiryStatus === "closed"
+      const isOld = new Date(offer.createdAt).getTime() < thirtyDaysAgo
+
+      if (offer.archived || (isTerminal && isOld)) {
+        history.push(offer)
+      } else {
+        active.push(offer)
+      }
+    })
+
+    return { activeOffers: active, historyOffers: history }
+  }, [offers])
+
+  const handleArchiveOffer = async (id: string) => {
+    if (!confirm("Remove this offer from your main list? It will still be available in the History tab.")) return
+    try {
+      // Optimistic local update
+      if (offers) {
+        const updatedOffers = offers.map((o: any) => o.id === id ? { ...o, archived: true } : o)
+        mutate(updatedOffers, false)
+      }
+
+      await updateOffer(id, { archived: true })
+      toast.success("Offer moved to history")
+      mutate()
+    } catch (e) {
+      toast.error("Failed to archive offer")
+    }
+  }
 
   const handleUpdateQuote = async () => {
     if (!editingOffer || !pricePerTon) {
@@ -62,40 +111,31 @@ export default function SellerMyOffersPage() {
         throw new Error("Cannot edit an accepted offer")
       }
 
-      let finalPdfUrl = editingOffer.pdfUrl || ""
+      let finalAttachments = [...(editingOffer.attachments || [])]
 
-      // Delete the existing remote PDF if checking the remove box, or replacing it with another
-      if (removeExistingPdf || selectedPdf) {
-        if (finalPdfUrl && finalPdfUrl !== "/dummy-quote.pdf" && finalPdfUrl.includes("firebase")) {
-          try {
-            const oldRef = ref(storage, finalPdfUrl)
-            await deleteObject(oldRef)
-          } catch (e) {
-            console.error("Failed to delete old pdf", e)
-          }
-        }
-        finalPdfUrl = removeExistingPdf ? "" : finalPdfUrl
-      }
-
-      if (selectedPdf) {
+      if (selectedFiles.length > 0) {
         setPdfUploadProgress(true)
-        const fileRef = ref(storage, `quotes/${Date.now()}_${editingOffer.inquiryId}_${editingOffer.inquiryItemId}.pdf`)
-        await uploadBytes(fileRef, selectedPdf, { contentType: "application/pdf" })
-        finalPdfUrl = await getDownloadURL(fileRef)
+        const uploadPromises = selectedFiles.map(async (file) => {
+          const fileRef = ref(storage, `quotes/${Date.now()}_${editingOffer.inquiryId}_${editingOffer.inquiryItemId}_${file.name}`)
+          await uploadBytes(fileRef, file)
+          return getDownloadURL(fileRef)
+        })
+        const newUrls = await Promise.all(uploadPromises)
+        finalAttachments = [...finalAttachments, ...newUrls]
         setPdfUploadProgress(false)
       }
 
       await updateOffer(editingOffer.id, {
         pricePerTon: Number(pricePerTon),
         comments: quoteComments,
-        pdfUrl: finalPdfUrl,
+        attachments: finalAttachments,
+        pdfUrl: finalAttachments[0] || "", // Fallback
         contactEmail,
         contactPhone,
       })
       toast.success("Quote updated successfully!")
       setEditingOffer(null)
-      setSelectedPdf(null)
-      setRemoveExistingPdf(false)
+      setSelectedFiles([])
       mutate()
     } catch (e: any) {
       toast.error(e.message || "Failed to update quote")
@@ -104,6 +144,226 @@ export default function SellerMyOffersPage() {
       setPdfUploadProgress(false)
     }
   }
+
+  const renderOfferTable = (offersList: any[], isCurrent: boolean) => (
+    <>
+      {/* Desktop Table */}
+      <Card className="hidden border-border md:block">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border">
+                <TableHead className="text-muted-foreground">Offer ID</TableHead>
+                <TableHead className="text-muted-foreground">Inquiry</TableHead>
+                <TableHead className="text-muted-foreground">Item</TableHead>
+                <TableHead className="text-muted-foreground">Price/Ton</TableHead>
+                <TableHead className="text-muted-foreground">Total Est.</TableHead>
+                <TableHead className="text-muted-foreground">Rank</TableHead>
+                <TableHead className="text-muted-foreground">Status</TableHead>
+                <TableHead className="text-muted-foreground">Buyer Contact</TableHead>
+                <TableHead className="text-muted-foreground">Date</TableHead>
+                <TableHead className="text-right text-muted-foreground">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {offersList.map((offer: any) => (
+                <TableRow key={offer.id} className="border-border">
+                  <TableCell className="font-medium text-foreground">{offer.id}</TableCell>
+                  <TableCell className="text-foreground">{offer.inquiryId}</TableCell>
+                  <TableCell className="text-muted-foreground">{offer.inquiryItemId}</TableCell>
+                  <TableCell className="font-semibold text-foreground">
+                    {"₹"}{offer.pricePerTon.toLocaleString("en-IN")}
+                  </TableCell>
+                  <TableCell className="font-bold text-primary">
+                    {"₹"}{((offer.pricePerTon || 0) * (offer.requestedQuantity || 1)).toLocaleString("en-IN")}
+                  </TableCell>
+                  <TableCell>{rankBadge(offer.rank, offer.inquiryStatus)}</TableCell>
+                  <TableCell>{statusBadge(offer.status, offer.inquiryStatus)}</TableCell>
+                  <TableCell>
+                    {offer.status === "accepted" ? (
+                      <div className="flex flex-col space-y-1 text-xs">
+                        {offer.buyerAlias && <div className="font-medium text-foreground">{offer.buyerAlias}</div>}
+                        {offer.buyerEmail && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Mail className="h-3 w-3" /> {offer.buyerEmail}
+                          </div>
+                        )}
+                        {offer.buyerPhone && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Phone className="h-3 w-3" /> {offer.buyerPhone}
+                          </div>
+                        )}
+                      </div>
+                    ) : offer.inquiryStatus === "deleted" ? (
+                      <span className="text-[10px] text-muted-foreground italic leading-tight block max-w-[150px]">
+                        Inquiry is deleted
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground italic leading-tight block max-w-[150px]">
+                        Buyer contact will be shared after quote is Accepted
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(offer.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {isCurrent && offer.status !== "accepted" && offer.inquiryStatus !== "deleted" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-primary hover:bg-primary/10"
+                          onClick={() => {
+                            setEditingOffer(offer)
+                            setSelectedFiles([])
+                            setPricePerTon(offer.pricePerTon.toString())
+                            setContactEmail(offer.contactEmail || user?.email || "")
+                            setContactPhone(offer.contactPhone || user?.phone || "")
+                            setQuoteComments(offer.comments || "")
+                          }}
+                          title="Edit Offer"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+
+                      {isCurrent && (["accepted", "rejected", "disqualified"].includes(offer.status) || offer.inquiryStatus === "deleted" || offer.inquiryStatus === "closed") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:bg-muted/50"
+                          onClick={() => handleArchiveOffer(offer.id)}
+                          title="Move to History"
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      )}
+
+                      {isCurrent && offer.status !== "accepted" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteOffer(offer.id)}
+                          title="Delete Offer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Mobile Card View */}
+      <div className="flex flex-col gap-4 md:hidden">
+        {offersList.map((offer: any) => (
+          <Card key={offer.id} className="border-border">
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground">Offer ID: {offer.id}</div>
+                    <div className="text-sm font-semibold text-foreground">Inquiry: {offer.inquiryId}</div>
+                    <div className="text-xs text-muted-foreground">Item: {offer.inquiryItemId}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {statusBadge(offer.status, offer.inquiryStatus)}
+                    {rankBadge(offer.rank, offer.inquiryStatus)}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-t border-b border-border py-4">
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Price/Ton</div>
+                    <div className="text-sm font-bold text-foreground">₹{offer.pricePerTon.toLocaleString("en-IN")}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-2">Total Est.</div>
+                    <div className="text-base font-bold text-primary">₹{((offer.pricePerTon || 0) * (offer.requestedQuantity || 1)).toLocaleString("en-IN")}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Date</div>
+                    <div className="text-sm text-foreground">{new Date(offer.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-muted/30 p-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Buyer Contact</div>
+                  {offer.status === "accepted" ? (
+                    <div className="flex flex-col gap-1.5 ">
+                      {offer.buyerAlias && <div className="text-sm font-bold text-foreground">{offer.buyerAlias}</div>}
+                      {offer.buyerEmail && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3" /> {offer.buyerEmail}
+                        </div>
+                      )}
+                      {offer.buyerPhone && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" /> {offer.buyerPhone}
+                        </div>
+                      )}
+                    </div>
+                  ) : offer.inquiryStatus === "deleted" ? (
+                    <div className="text-[11px] text-muted-foreground italic leading-tight">
+                      Inquiry is deleted
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-muted-foreground italic leading-tight">
+                      Buyer contact will be shared after quote is Accepted
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  {isCurrent && offer.status !== "accepted" && offer.inquiryStatus !== "deleted" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 gap-2 h-9"
+                      onClick={() => {
+                        setEditingOffer(offer)
+                        setSelectedFiles([])
+                        setPricePerTon(offer.pricePerTon.toString())
+                        setContactEmail(offer.contactEmail || user?.email || "")
+                        setContactPhone(offer.contactPhone || user?.phone || "")
+                        setQuoteComments(offer.comments || "")
+                      }}
+                    >
+                      <Edit className="h-3.5 w-3.5" /> Edit
+                    </Button>
+                  )}
+                  {isCurrent && (["accepted", "rejected", "disqualified"].includes(offer.status) || offer.inquiryStatus === "deleted") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 gap-2 h-9"
+                      onClick={() => handleArchiveOffer(offer.id)}
+                    >
+                      <Archive className="h-3.5 w-3.5" /> History
+                    </Button>
+                  )}
+                  {isCurrent && offer.status !== "accepted" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 gap-2 h-9 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteOffer(offer.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </>
+  )
 
   const handleDeleteOffer = async (id: string) => {
     if (!confirm("Are you sure you want to delete this offer?")) return
@@ -151,184 +411,38 @@ export default function SellerMyOffersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {/* Desktop Table */}
-          <Card className="hidden border-border md:block">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border">
-                    <TableHead className="text-muted-foreground">Offer ID</TableHead>
-                    <TableHead className="text-muted-foreground">Inquiry</TableHead>
-                    <TableHead className="text-muted-foreground">Item</TableHead>
-                    <TableHead className="text-muted-foreground">Price/Ton</TableHead>
-                    <TableHead className="text-muted-foreground">Total Est.</TableHead>
-                    <TableHead className="text-muted-foreground">Rank</TableHead>
-                    <TableHead className="text-muted-foreground">Status</TableHead>
-                    <TableHead className="text-muted-foreground">Buyer Contact</TableHead>
-                    <TableHead className="text-muted-foreground">Date</TableHead>
-                    <TableHead className="text-right text-muted-foreground">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {offers.map((offer: any) => (
-                    <TableRow key={offer.id} className="border-border">
-                      <TableCell className="font-medium text-foreground">{offer.id}</TableCell>
-                      <TableCell className="text-foreground">{offer.inquiryId}</TableCell>
-                      <TableCell className="text-muted-foreground">{offer.inquiryItemId}</TableCell>
-                      <TableCell className="font-semibold text-foreground">
-                        {"₹"}{offer.pricePerTon.toLocaleString("en-IN")}
-                      </TableCell>
-                      <TableCell className="font-bold text-primary">
-                        {"₹"}{((offer.pricePerTon || 0) * (offer.requestedQuantity || 1)).toLocaleString("en-IN")}
-                      </TableCell>
-                      <TableCell>{rankBadge(offer.rank)}</TableCell>
-                      <TableCell>{statusBadge(offer.status)}</TableCell>
-                      <TableCell>
-                        {offer.status === "accepted" ? (
-                          <div className="flex flex-col space-y-1 text-xs">
-                            {offer.buyerName && <div className="font-medium text-foreground">{offer.buyerName}</div>}
-                            {offer.buyerEmail && (
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Mail className="h-3 w-3" /> {offer.buyerEmail}
-                              </div>
-                            )}
-                            {offer.buyerPhone && (
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Phone className="h-3 w-3" /> {offer.buyerPhone}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(offer.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {offer.status !== "accepted" && (
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-primary hover:bg-primary/10"
-                              onClick={() => {
-                                setEditingOffer(offer)
-                                setSelectedPdf(null)
-                                setRemoveExistingPdf(false)
-                                setPricePerTon(offer.pricePerTon.toString())
-                                setContactEmail(offer.contactEmail || user?.email || "")
-                                setContactPhone(offer.contactPhone || user?.phone || "")
-                                setQuoteComments(offer.comments || "")
-                              }}
-                              title="Edit Offer"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:bg-destructive/10"
-                              onClick={() => handleDeleteOffer(offer.id)}
-                              title="Delete Offer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="current" className="space-y-4">
+          <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+            <TabsTrigger value="current">Current Bidding ({activeOffers.length})</TabsTrigger>
+            <TabsTrigger value="history">History ({historyOffers.length})</TabsTrigger>
+          </TabsList>
 
-          {/* Mobile Card View */}
-          <div className="flex flex-col gap-4 md:hidden">
-            {offers.map((offer: any) => (
-              <Card key={offer.id} className="border-border">
-                <CardContent className="p-4">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-xs font-medium text-muted-foreground">Offer ID: {offer.id}</div>
-                        <div className="text-sm font-semibold text-foreground">Inquiry: {offer.inquiryId}</div>
-                        <div className="text-xs text-muted-foreground">Item: {offer.inquiryItemId}</div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {statusBadge(offer.status)}
-                        {rankBadge(offer.rank)}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 border-t border-b border-border py-4">
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Price/Ton</div>
-                        <div className="text-sm font-bold text-foreground">₹{offer.pricePerTon.toLocaleString("en-IN")}</div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-2">Total Est.</div>
-                        <div className="text-base font-bold text-primary">₹{((offer.pricePerTon || 0) * (offer.requestedQuantity || 1)).toLocaleString("en-IN")}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Date</div>
-                        <div className="text-sm text-foreground">{new Date(offer.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</div>
-                      </div>
-                    </div>
-
-                    {offer.status === "accepted" && (
-                      <div className="rounded-lg bg-muted/30 p-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Buyer Contact</div>
-                        <div className="flex flex-col gap-1.5 ">
-                          {offer.buyerName && <div className="text-sm font-bold text-foreground">{offer.buyerName}</div>}
-                          {offer.buyerEmail && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Mail className="h-3 w-3" /> {offer.buyerEmail}
-                            </div>
-                          )}
-                          {offer.buyerPhone && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Phone className="h-3 w-3" /> {offer.buyerPhone}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {offer.status !== "accepted" && (
-                      <div className="flex gap-2 pt-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 gap-2 h-9"
-                          onClick={() => {
-                            setEditingOffer(offer)
-                            setSelectedPdf(null)
-                            setRemoveExistingPdf(false)
-                            setPricePerTon(offer.pricePerTon.toString())
-                            setContactEmail(offer.contactEmail || user?.email || "")
-                            setContactPhone(offer.contactPhone || user?.phone || "")
-                            setQuoteComments(offer.comments || "")
-                          }}
-                        >
-                          <Edit className="h-3.5 w-3.5" /> Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 gap-2 h-9 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteOffer(offer.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" /> Delete
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+          <TabsContent value="current" className="space-y-4">
+            {activeOffers.length === 0 ? (
+              <Card className="border-border">
+                <CardContent className="flex flex-col items-center gap-3 py-16">
+                  <Tag className="h-10 w-10 text-muted-foreground/30" />
+                  <p className="text-muted-foreground">No active offers.</p>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </div>
+            ) : (
+              renderOfferTable(activeOffers, true)
+            )}
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4">
+            {historyOffers.length === 0 ? (
+              <Card className="border-border">
+                <CardContent className="flex flex-col items-center gap-3 py-16">
+                  <Clock className="h-10 w-10 text-muted-foreground/30" />
+                  <p className="text-muted-foreground">History is empty.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              renderOfferTable(historyOffers, false)
+            )}
+          </TabsContent>
+        </Tabs>
       )}
 
       {/* Competitive Intelligence Note */}
@@ -348,7 +462,7 @@ export default function SellerMyOffersPage() {
 
       {/* Edit Offer Dialog */}
       <Dialog open={!!editingOffer} onOpenChange={(open) => {
-        if (!open) { setEditingOffer(null); setSelectedPdf(null); setRemoveExistingPdf(false); }
+        if (!open) { setEditingOffer(null); setSelectedFiles([]); }
       }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -365,61 +479,102 @@ export default function SellerMyOffersPage() {
                 <Input
                   id="pricePerTon"
                   type="number"
+                  min="0.00001"
+                  step="any"
                   value={pricePerTon}
-                  onChange={(e) => setPricePerTon(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.startsWith('-')) return;
+                    setPricePerTon(val);
+                  }}
                   placeholder="e.g. 48500"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Official Quotation PDF</Label>
-
-                {editingOffer?.pdfUrl && editingOffer.pdfUrl !== "" && editingOffer.pdfUrl !== "/dummy-quote.pdf" && !selectedPdf && !removeExistingPdf ? (
-                  <div className="flex flex-col gap-2 rounded-md border border-input p-3 bg-muted/20">
-                    <p className="text-sm font-medium">Current PDF Uploaded</p>
-                    <div className="flex gap-2">
-                      <a href={editingOffer.pdfUrl} target="_blank" rel="noreferrer" className="flex-1">
-                        <Button type="button" variant="outline" size="sm" className="w-full">
-                          View PDF
+                <Label>Attach Quote Document (Max 5 files, 5MB each)</Label>
+                <div className="grid grid-cols-1 gap-3">
+                  {/* Existing Attachments */}
+                  {((editingOffer?.attachments || []) as string[]).map((url, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-md border border-border bg-muted/30">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="text-xs truncate">Document {idx + 1}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a href={url} target="_blank" rel="noreferrer" className="text-[10px] text-primary hover:underline font-medium">View</a>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            const newAttachments = editingOffer.attachments.filter((_: any, i: number) => i !== idx);
+                            setEditingOffer({ ...editingOffer, attachments: newAttachments });
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </Button>
-                      </a>
-                      <Button type="button" variant="destructive" size="sm" onClick={() => setRemoveExistingPdf(true)}>
-                        <Trash2 className="h-4 w-4" />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* New files to upload */}
+                  {selectedFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-md border border-primary/20 bg-primary/5">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="text-xs truncate">{file.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                        onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <div className={`flex h-11 w-full items-center justify-center rounded-md border border-dashed border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground transition-colors ${!submitting ? "hover:bg-muted/50 cursor-pointer" : "opacity-60 cursor-not-allowed"}`}>
+                  ))}
+
+                  {/* Add Button */}
+                  {(selectedFiles.length + (editingOffer?.attachments?.length || 0)) < 5 && (
+                    <div className={`flex h-10 w-full items-center justify-center rounded-md border border-dashed border-input bg-muted/20 px-3 py-2 text-xs text-muted-foreground transition-colors ${!submitting ? "hover:bg-muted/50 cursor-pointer" : "opacity-60 cursor-not-allowed"}`}>
                       <label className={`flex w-full items-center justify-center gap-2 ${!submitting ? "cursor-pointer" : "cursor-not-allowed"}`}>
-                        <span className="truncate">{selectedPdf ? selectedPdf.name : (removeExistingPdf ? "Upload New PDF instead" : "Upload New PDF (Optional)")}</span>
+                        <Plus className="h-3.5 w-3.5 shrink-0" />
+                        <span>Add Attachment</span>
                         <input
                           type="file"
-                          accept=".pdf"
+                          accept=".pdf,.jpeg,.jpg,.png"
+                          multiple
                           className="hidden"
                           disabled={submitting}
                           onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              if (file.size > 5 * 1024 * 1024) {
-                                toast.error("PDF file must be less than 5MB");
-                                e.target.value = '';
+                            const files = Array.from(e.target.files || []);
+                            const currentCount = selectedFiles.length + (editingOffer?.attachments?.length || 0);
+                            const availableSlots = 5 - currentCount;
+
+                            const validFiles: File[] = [];
+                            files.slice(0, availableSlots).forEach(file => {
+                              if (file.size <= 5 * 1024 * 1024) {
+                                validFiles.push(file);
                               } else {
-                                setSelectedPdf(file);
-                                setRemoveExistingPdf(false);
-                                toast.success("PDF attached to quote");
+                                toast.error(`${file.name} exceeds 5MB limit`);
                               }
+                            });
+
+                            if (files.length > availableSlots) toast.error("Maximum 5 documents allowed");
+
+                            if (validFiles.length > 0) {
+                              setSelectedFiles(prev => [...prev, ...validFiles]);
                             }
+                            e.target.value = '';
                           }}
                         />
                       </label>
                     </div>
-                    {(selectedPdf || removeExistingPdf) && editingOffer?.pdfUrl && editingOffer.pdfUrl !== "" && editingOffer.pdfUrl !== "/dummy-quote.pdf" && (
-                      <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => { setSelectedPdf(null); setRemoveExistingPdf(false); }}>
-                        Cancel Changes & Keep Original File
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
@@ -453,9 +608,9 @@ export default function SellerMyOffersPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditingOffer(null); setSelectedPdf(null); setRemoveExistingPdf(false); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setEditingOffer(null); setSelectedFiles([]); }}>Cancel</Button>
             <Button onClick={handleUpdateQuote} disabled={submitting}>
-              {submitting ? (pdfUploadProgress ? "Uploading PDF..." : "Saving...") : "Save Changes"}
+              {submitting ? (pdfUploadProgress ? "Uploading Files..." : "Saving...") : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

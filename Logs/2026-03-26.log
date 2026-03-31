@@ -1,0 +1,4 @@
+[2026-03-26T17:06:25.891Z] INFO New offer submitted {"inquiryId":"INQ-0003"}
+[2026-03-26T17:06:25.963Z] ERROR Failed to send notification for new offer {"error":"Missing or insufficient permissions."}
+[2026-03-26T17:25:19.712Z] INFO Accepted offer routine started {"offerId":"OFR-0001"}
+[2026-03-26T17:25:19.741Z] ERROR Failed to send notification for acceptance {"error":"Missing or insufficient permissions."}

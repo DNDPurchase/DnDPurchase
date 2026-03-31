@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/auth-context"
 import { logger } from "@/lib/logger"
-import { Loader2, Package, X, Save, MapPin } from "lucide-react"
+import { Loader2, Package, X, Save, MapPin, Pencil, ChevronDown, ChevronRight, CheckCircle2, Circle, ShieldCheck, Layers, Globe } from "lucide-react"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { updateUser } from "@/lib/store"
@@ -16,7 +16,15 @@ import { Input } from "@/components/ui/input"
 export default function MyProductsPage() {
     const { user, updateUserData } = useAuth()
     const [loading, setLoading] = useState(false)
-    const [isEditing, setIsEditing] = useState(false)
+    const [editingProduct, setEditingProduct] = useState<string | null>(null)
+    const [editingLocation, setEditingLocation] = useState<string | null>(null)
+    const [expandedProducts, setExpandedProducts] = useState<string[]>([])
+    const [expandedLocations, setExpandedLocations] = useState<string[]>([])
+
+    // We maintain a local copy of the data for the item being edited
+    const [tempProductOptions, setTempProductOptions] = useState<Record<string, any>>({})
+    const [tempLocationDistricts, setTempLocationDistricts] = useState<string[]>([])
+
     const [formData, setFormData] = useState({
         categories: user?.categories || [] as string[],
         sellerProductOptions: user?.sellerProductOptions || {} as Record<string, Record<string, any>>,
@@ -49,51 +57,192 @@ export default function MyProductsPage() {
     }, [])
 
     useEffect(() => {
-        if (!isEditing && user) {
+        if (user) {
             setFormData({
                 categories: user.categories || [],
                 sellerProductOptions: user.sellerProductOptions || {},
                 availableLocations: user.availableLocations || {},
             })
         }
-    }, [user, isEditing])
+    }, [user])
 
-    const handleSave = async () => {
+    const toggleProductExpand = (catName: string) => {
+        const isCurrentlyExpanded = expandedProducts.includes(catName);
+        const isActive = formData.categories.includes(catName);
+
+        if (!isCurrentlyExpanded && !isActive) {
+            // If expanding a new product, initialize its options from empty
+            setTempProductOptions({});
+        }
+
+        setExpandedProducts(prev =>
+            prev.includes(catName) ? prev.filter(c => c !== catName) : [...prev, catName]
+        )
+    }
+
+    const toggleLocationExpand = (stateName: string) => {
+        const isCurrentlyExpanded = expandedLocations.includes(stateName);
+        const isActive = !!formData.availableLocations[stateName];
+
+        if (!isCurrentlyExpanded && !isActive) {
+            // If expanding a new location, initialize its districts from empty
+            setTempLocationDistricts([]);
+        }
+
+        setExpandedLocations(prev =>
+            prev.includes(stateName) ? prev.filter(s => s !== stateName) : [...prev, stateName]
+        )
+    }
+
+    const validateProduct = (catName: string, options: Record<string, any>) => {
+        const productObj = availableProducts.find(p => p.name === catName)
+        if (!productObj) return null
+
+        // Check sub-products
+        if (productObj.sub_products && productObj.sub_products.length > 0) {
+            const subs = options["Sub-Products"]
+            if (!subs || (Array.isArray(subs) && subs.length === 0)) {
+                return `Please select at least one sub-product for ${catName}`
+            }
+        }
+
+        // Check other options
+        const pOptions = allOptions[productObj.id] || []
+        for (const opt of pOptions) {
+            if (opt.seller_option_type !== "none") {
+                const val = options[opt.option_name]
+                if (!val || (Array.isArray(val) && val.length === 0)) {
+                    return `Please select at least one ${opt.option_name} for ${catName}`
+                }
+            }
+        }
+        return null
+    }
+
+    const saveProduct = async (catName: string) => {
         if (!user) return
+
+        const error = validateProduct(catName, tempProductOptions)
+        if (error) {
+            toast.error(error)
+            return
+        }
 
         setLoading(true)
         try {
+            const newCategories = formData.categories.includes(catName)
+                ? formData.categories
+                : [...formData.categories, catName]
+
+            const newOptions = {
+                ...formData.sellerProductOptions,
+                [catName]: tempProductOptions
+            }
+
             const data = await updateUser(user.id, {
-                categories: formData.categories,
-                sellerProductOptions: formData.sellerProductOptions,
-                availableLocations: formData.availableLocations,
+                categories: newCategories,
+                sellerProductOptions: newOptions,
             })
 
-            if (!data) {
-                throw new Error("Failed to update products")
-            }
+            if (!data) throw new Error("Failed to update product")
 
-            if (updateUserData) {
-                updateUserData(data)
+            if (updateUserData) updateUserData(data)
+            toast.success(`${catName} updated successfully`)
+            setEditingProduct(null)
+            if (!expandedProducts.includes(catName)) {
+                setExpandedProducts(prev => [...prev, catName])
             }
-
-            toast.success("Products updated successfully")
-            setIsEditing(false)
         } catch (error) {
-            logger.error("Failed to update products", { error: (error as Error)?.message })
-            toast.error(error instanceof Error ? error.message : "Failed to update products")
+            toast.error("Failed to save product")
         } finally {
             setLoading(false)
         }
     }
 
-    const handleCancel = () => {
-        setFormData({
-            categories: user?.categories || [],
-            sellerProductOptions: user?.sellerProductOptions || {},
-            availableLocations: user?.availableLocations || {},
-        })
-        setIsEditing(false)
+    const deleteProduct = async (catName: string) => {
+        if (!user) return
+        if (!confirm(`Are you sure you want to remove ${catName}?`)) return
+
+        setLoading(true)
+        try {
+            const newCategories = formData.categories.filter(c => c !== catName)
+            const newOptions = { ...formData.sellerProductOptions }
+            delete newOptions[catName]
+
+            const data = await updateUser(user.id, {
+                categories: newCategories,
+                sellerProductOptions: newOptions,
+            })
+
+            if (!data) throw new Error("Failed to remove product")
+
+            if (updateUserData) updateUserData(data)
+            toast.success(`${catName} removed`)
+            setExpandedProducts(prev => prev.filter(c => c !== catName))
+        } catch (error) {
+            toast.error("Failed to remove product")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const saveLocation = async (stateName: string) => {
+        if (!user) return
+
+        if (tempLocationDistricts.length === 0) {
+            toast.error("Please select at least one district")
+            return
+        }
+
+        setLoading(true)
+        try {
+            const newLocs = {
+                ...formData.availableLocations,
+                [stateName]: tempLocationDistricts
+            }
+
+            const data = await updateUser(user.id, {
+                availableLocations: newLocs,
+            })
+
+            if (!data) throw new Error("Failed to update location")
+
+            if (updateUserData) updateUserData(data)
+            toast.success(`${stateName} updated successfully`)
+            setEditingLocation(null)
+            if (!expandedLocations.includes(stateName)) {
+                setExpandedLocations(prev => [...prev, stateName])
+            }
+        } catch (error) {
+            toast.error("Failed to save location")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const deleteLocation = async (stateName: string) => {
+        if (!user) return
+        if (!confirm(`Are you sure you want to remove ${stateName}?`)) return
+
+        setLoading(true)
+        try {
+            const newLocs = { ...formData.availableLocations }
+            delete newLocs[stateName]
+
+            const data = await updateUser(user.id, {
+                availableLocations: newLocs,
+            })
+
+            if (!data) throw new Error("Failed to remove location")
+
+            if (updateUserData) updateUserData(data)
+            toast.success(`${stateName} removed`)
+            setExpandedLocations(prev => prev.filter(s => s !== stateName))
+        } catch (error) {
+            toast.error("Failed to remove location")
+        } finally {
+            setLoading(false)
+        }
     }
 
     if (user?.role !== "seller" && user?.role !== "both") {
@@ -104,438 +253,432 @@ export default function MyProductsPage() {
         )
     }
 
+    const activeProductCount = formData.categories.length
+    const activeLocationCount = Object.keys(formData.availableLocations).length
+
     return (
-        <div className="mx-auto max-w-4xl">
-            <div className="mb-8 flex items-center justify-between">
-                <div>
-                    <h2 className="font-serif text-2xl font-bold text-foreground">My Products</h2>
-                    <p className="mt-1 text-muted-foreground">
-                        Manage the products and manufacturers you supply. You will only receive inquiries for these products.
-                    </p>
+        <div className="mx-auto max-w-4xl pb-20 px-4 md:px-0">
+            {/* Page Header */}
+            <div className="mb-10">
+                <h2 className="font-serif text-3xl font-bold text-foreground tracking-tight">My Products & Locations</h2>
+                <p className="mt-2 text-muted-foreground text-[15px]">
+                    Configure the products you supply and the regions you deliver to.
+                </p>
+                {/* Summary Stats */}
+                <div className="mt-5 flex flex-wrap gap-3">
+                    <div className="flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary">
+                        <Package className="h-3.5 w-3.5" />
+                        {activeProductCount} Product{activeProductCount !== 1 ? "s" : ""} Active
+                    </div>
+                    <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-4 py-1.5 text-sm font-medium text-emerald-500">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {activeLocationCount} Location{activeLocationCount !== 1 ? "s" : ""} Covered
+                    </div>
                 </div>
-                {!isEditing && (
-                    <Button onClick={() => setIsEditing(true)}>
-                        <Package className="mr-2 h-4 w-4" />
-                        Edit Products
-                    </Button>
-                )}
             </div>
 
-            <Card className="border-border">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Package className="h-5 w-5 text-primary" />
-                        Products I Sell
-                    </CardTitle>
-                    <CardDescription>
-                        {isEditing
-                            ? "Add or remove products, and select the specific options you deal in."
-                            : "The list of products and supply parameters you currently accept."}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {isEditing ? (
-                        <div className="space-y-6">
-                            <div className="space-y-4">
-                                <div className="pb-6 mb-4 border-b">
-                                    <Label htmlFor="add-product" className="text-sm font-semibold text-foreground mb-2 block">Add a New Product</Label>
-                                    <p className="text-xs text-muted-foreground mb-3">Select a product category from the list to add it to your portfolio.</p>
-                                    <div className="max-w-md">
-                                        <select
-                                            id="add-product"
-                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                            onChange={(e) => {
-                                                const val = e.target.value
-                                                if (val && !formData.categories.includes(val)) {
-                                                    setFormData({
-                                                        ...formData,
-                                                        categories: [...formData.categories, val]
-                                                    })
-                                                }
-                                                e.target.value = "" // Reset select
-                                            }}
-                                        >
-                                            <option value="">-- Choose a product to add --</option>
-                                            {availableProducts
-                                                .filter(p => !formData.categories.includes(p.name))
-                                                .map(p => (
-                                                    <option key={p.id} value={p.name}>{p.name}</option>
-                                                ))
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center justify-between border-b pb-2">
-                                    <Label className="text-sm font-semibold text-muted-foreground">Selected Products</Label>
-                                    <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">
-                                        {formData.categories.length} product(s)
-                                    </span>
-                                </div>
-
-                                <div className="space-y-4">
-                                    {formData.categories.map((catName) => {
-                                        const productObj = availableProducts.find(p => p.name === catName)
-                                        const pOptions = productObj ? allOptions[productObj.id] : []
-                                        const selectedOptions = formData.sellerProductOptions[catName] || {}
-
-                                        return (
-                                            <div
-                                                key={catName}
-                                                className="flex flex-col gap-3 p-4 rounded-xl border bg-card text-card-foreground shadow-sm relative overflow-hidden group"
-                                            >
-                                                <div className="absolute top-0 left-0 w-1 h-full bg-primary/50 group-hover:bg-primary transition-colors"></div>
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex items-center gap-2 font-medium text-lg text-foreground pl-2">
-                                                        <Package className="h-5 w-5 text-muted-foreground" />
-                                                        {catName}
-                                                    </div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            const newOptMap = { ...formData.sellerProductOptions }
-                                                            delete newOptMap[catName]
-                                                            setFormData({
-                                                                ...formData,
-                                                                categories: formData.categories.filter(c => c !== catName),
-                                                                sellerProductOptions: newOptMap
-                                                            })
-                                                        }}
-                                                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2"
-                                                        title="Remove product entirely"
-                                                    >
-                                                        <X className="h-4 w-4 mr-1" /> Remove
-                                                    </Button>
-                                                </div>
-
-                                                {productObj?.sub_products && productObj.sub_products.length > 0 && (
-                                                    <div className="mt-2 pl-2 border-b pb-4 mb-2">
-                                                        <Label className="text-xs font-semibold text-muted-foreground mb-3 block">Sub-Products you supply for this product:</Label>
-                                                        <div className="flex flex-wrap gap-2.5">
-                                                            {productObj.sub_products.map(sub => {
-                                                                const currentOptVals = selectedOptions["Sub-Products"] || []
-                                                                const isChecked = Array.isArray(currentOptVals) && currentOptVals.includes(sub)
-                                                                return (
-                                                                    <label key={sub} className={`flex items-center gap-2 text-sm cursor-pointer transition-colors px-3 py-1.5 rounded-lg border ${isChecked ? 'bg-primary/5 border-primary/30 text-foreground font-medium' : 'bg-muted/30 border-transparent hover:border-border text-foreground'}`}>
-                                                                        <Checkbox
-                                                                            checked={isChecked}
-                                                                            onCheckedChange={(checked: boolean) => {
-                                                                                setFormData(prev => {
-                                                                                    const prevSelected = prev.sellerProductOptions[catName]?.[`Sub-Products`] || []
-                                                                                    const newSelected = checked
-                                                                                        ? [...prevSelected, sub]
-                                                                                        : prevSelected.filter((m: string) => m !== sub)
-                                                                                    return {
-                                                                                        ...prev,
-                                                                                        sellerProductOptions: {
-                                                                                            ...prev.sellerProductOptions,
-                                                                                            [catName]: {
-                                                                                                ...(prev.sellerProductOptions[catName] || {}),
-                                                                                                [`Sub-Products`]: newSelected
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                })
-                                                                            }}
-                                                                            className="h-4 w-4 rounded-sm"
-                                                                        />
-                                                                        {sub}
-                                                                    </label>
-                                                                )
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {pOptions && pOptions.length > 0 && (
-                                                    <div className="mt-2 pl-2 space-y-6">
-                                                        {pOptions.map(opt => {
-                                                            const isMulti = opt.seller_option_type === "dropdown" || opt.seller_option_type === "checkbox"
-                                                            const isText = opt.seller_option_type === "text" || opt.seller_option_type === "number"
-
-                                                            if (isMulti && opt.dropdown_values && opt.dropdown_values.length > 0) {
-                                                                const currentOptVals = selectedOptions[opt.option_name] || []
-                                                                return (
-                                                                    <div key={opt.id}>
-                                                                        <Label className="text-xs font-semibold text-muted-foreground mb-3 block">{opt.option_name}:</Label>
-                                                                        <div className="flex flex-wrap gap-2.5">
-                                                                            {opt.dropdown_values.map(val => {
-                                                                                const isChecked = Array.isArray(currentOptVals) && currentOptVals.includes(val)
-                                                                                return (
-                                                                                    <label key={val} className={`flex items-center gap-2 text-sm cursor-pointer transition-colors px-3 py-1.5 rounded-lg border ${isChecked ? 'bg-primary/5 border-primary/30 text-foreground font-medium' : 'bg-muted/30 border-transparent hover:border-border text-foreground'}`}>
-                                                                                        <Checkbox
-                                                                                            checked={isChecked}
-                                                                                            onCheckedChange={(checked: boolean) => {
-                                                                                                setFormData(prev => {
-                                                                                                    const prevSelected = prev.sellerProductOptions[catName]?.[opt.option_name] || []
-                                                                                                    const newSelected = checked
-                                                                                                        ? [...prevSelected, val]
-                                                                                                        : prevSelected.filter((m: string) => m !== val)
-
-                                                                                                    return {
-                                                                                                        ...prev,
-                                                                                                        sellerProductOptions: {
-                                                                                                            ...prev.sellerProductOptions,
-                                                                                                            [catName]: {
-                                                                                                                ...(prev.sellerProductOptions[catName] || {}),
-                                                                                                                [opt.option_name]: newSelected
-                                                                                                            }
-                                                                                                        }
-                                                                                                    }
-                                                                                                })
-                                                                                            }}
-                                                                                            className="h-4 w-4 rounded-sm"
-                                                                                        />
-                                                                                        {val}
-                                                                                    </label>
-                                                                                )
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                )
-                                                            } else if (isText) {
-                                                                const currentVal = selectedOptions[opt.option_name] || ""
-                                                                return (
-                                                                    <div key={opt.id} className="max-w-md">
-                                                                        <Label className="text-xs font-semibold text-muted-foreground mb-2 block">{opt.option_name}:</Label>
-                                                                        <Input
-                                                                            type={opt.seller_option_type === "number" ? "number" : "text"}
-                                                                            value={currentVal}
-                                                                            onChange={(e) => {
-                                                                                setFormData(prev => ({
-                                                                                    ...prev,
-                                                                                    sellerProductOptions: {
-                                                                                        ...prev.sellerProductOptions,
-                                                                                        [catName]: {
-                                                                                            ...(prev.sellerProductOptions[catName] || {}),
-                                                                                            [opt.option_name]: e.target.value
-                                                                                        }
-                                                                                    }
-                                                                                }))
-                                                                            }}
-                                                                            placeholder={`Enter supported ${opt.option_name.toLowerCase()}`}
-                                                                        />
-                                                                    </div>
-                                                                )
-                                                            }
-                                                            return null
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                    {formData.categories.length === 0 && (
-                                        <div className="text-center py-8 bg-muted/20 rounded-lg border border-dashed">
-                                            <Package className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-50" />
-                                            <p className="text-sm font-medium text-foreground">No products selected yet</p>
-                                            <p className="text-xs text-muted-foreground mt-1">Please add the products you deal in below.</p>
-                                        </div>
-                                    )}
-                                </div>
-
-
-                            </div>
-
+            <div className="space-y-14">
+                {/* ═══════════════════════ Products Section ═══════════════════════ */}
+                <section>
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
+                            <Layers className="h-4.5 w-4.5 text-primary" />
                         </div>
-                    ) : (
-                        <div className="flex flex-col gap-4">
-                            {user?.categories && user.categories.length > 0 ? (
-                                <div className="flex flex-col gap-4">
-                                    {user.categories.map((cat) => (
-                                        <div key={cat} className="p-4 rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow">
-                                            <div className="font-semibold text-lg text-foreground flex items-center gap-2 mb-3 border-b pb-2">
-                                                <Package className="h-5 w-5 text-primary" />
-                                                {cat}
+                        <div>
+                            <h3 className="text-lg font-bold text-foreground">Products I Sell</h3>
+                            <p className="text-xs text-muted-foreground">Click a product to configure or add it to your catalog.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {availableProducts.map((product) => {
+                            const catName = product.name
+                            const isActive = formData.categories.includes(catName)
+                            const isEditing = editingProduct === catName
+                            const isExpanded = expandedProducts.includes(catName)
+                            const isConfiguring = isEditing || (isExpanded && !isActive)
+                            const currentOptions = isConfiguring ? tempProductOptions : (formData.sellerProductOptions[catName] || {})
+                            const pOptions = allOptions[product.id] || []
+                            const savedOptionCount = Object.values(formData.sellerProductOptions[catName] || {}).filter(v => Array.isArray(v) ? v.length > 0 : !!v).length
+
+                            return (
+                                <div
+                                    key={product.id}
+                                    className={`rounded-xl border transition-all duration-200 ${isActive
+                                        ? 'border-primary/30 bg-card shadow-sm'
+                                        : 'border-border/60 bg-card/50 hover:border-border'
+                                        } ${isEditing || (isExpanded && !isActive) ? 'ring-2 ring-primary/20' : ''}`}
+                                >
+                                    {/* Product Header Row */}
+                                    <div
+                                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer select-none group"
+                                        onClick={() => toggleProductExpand(catName)}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            {/* Status Indicator */}
+                                            {isActive ? (
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15">
+                                                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                                                </div>
+                                            ) : (
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60">
+                                                    <Circle className="h-4 w-4 text-muted-foreground/50" />
+                                                </div>
+                                            )}
+                                            <div className="min-w-0">
+                                                <div className={`font-semibold text-lg truncate ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                                    {catName}
+                                                </div>
                                             </div>
-                                            <div className="space-y-4">
-                                                {user.sellerProductOptions?.[cat] && Object.keys(user.sellerProductOptions[cat]).length > 0 ? (
-                                                    Object.entries(user.sellerProductOptions[cat]).map(([optName, optVals]) => {
-                                                        const isArray = Array.isArray(optVals);
-                                                        const holdsData = isArray ? optVals.length > 0 : Boolean(optVals);
-                                                        if (!holdsData) return null;
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <div onClick={(e) => e.stopPropagation()}>
+                                                {(isEditing || (isExpanded && !isActive)) ? (
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
+                                                            onClick={() => {
+                                                                setEditingProduct(null)
+                                                                if (!isActive) setExpandedProducts(prev => prev.filter(c => c !== catName))
+                                                            }}
+                                                            disabled={loading}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                        {(() => {
+                                                            const isValid = validateProduct(catName, tempProductOptions) === null;
+                                                            return (
+                                                                <Button
+                                                                    size="sm"
+                                                                    className={`h-8 px-4 text-xs font-medium gap-1.5 ${isValid ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
+                                                                    onClick={() => saveProduct(catName)}
+                                                                    disabled={loading}
+                                                                >
+                                                                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Save className="h-3.5 w-3.5" /> Save</>}
+                                                                </Button>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                ) : (
+                                                    isActive && (
+                                                        <div className="flex gap-1.5">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                                onClick={() => {
+                                                                    setEditingProduct(catName)
+                                                                    setTempProductOptions(formData.sellerProductOptions[catName] || {})
+                                                                }}
+                                                                disabled={loading}
+                                                                title="Edit product"
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                                onClick={() => deleteProduct(catName)}
+                                                                disabled={loading}
+                                                                title="Remove product"
+                                                            >
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    )
+                                                )}
+                                            </div>
+                                            <div className="ml-1 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
+                                                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Product Content */}
+                                    {(isEditing || isExpanded) && (
+                                        <div className="border-t border-border/50">
+                                            {(isEditing || (isExpanded && !isActive)) ? (
+                                                <div className="p-5 space-y-5">
+                                                    {/* Sub-Products */}
+                                                    {product.sub_products && product.sub_products.length > 0 && (
+                                                        <div className="space-y-2.5">
+                                                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                                Sub-Products <span className="text-primary">*</span>
+                                                            </Label>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {product.sub_products.map(sub => {
+                                                                    const checked = (tempProductOptions["Sub-Products"] || []).includes(sub)
+                                                                    return (
+                                                                        <label
+                                                                            key={sub}
+                                                                            className={`inline-flex items-center gap-2 text-sm cursor-pointer transition-all duration-150 px-3.5 py-2 rounded-lg border ${checked
+                                                                                ? 'bg-primary border-primary text-primary-foreground font-medium shadow-sm'
+                                                                                : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
+                                                                                }`}
+                                                                        >
+                                                                            <Checkbox
+                                                                                checked={checked}
+                                                                                className={checked ? "border-primary-foreground/50 bg-primary-foreground/20 data-[state=checked]:bg-primary-foreground/20 data-[state=checked]:text-primary-foreground" : ""}
+                                                                                onCheckedChange={(c: boolean) => {
+                                                                                    const prev = tempProductOptions["Sub-Products"] || []
+                                                                                    const next = c ? [...prev, sub] : prev.filter((s: string) => s !== sub)
+                                                                                    setTempProductOptions({ ...tempProductOptions, "Sub-Products": next })
+                                                                                }}
+                                                                            />
+                                                                            {sub}
+                                                                        </label>
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Dynamic Options */}
+                                                    {pOptions.map(opt => {
+                                                        const isMulti = opt.seller_option_type === "dropdown" || opt.seller_option_type === "checkbox"
+                                                        if (!isMulti || !opt.dropdown_values) return null
+
+                                                        const currentVals = tempProductOptions[opt.option_name] || []
                                                         return (
-                                                            <div key={optName}>
-                                                                <Label className="text-xs text-muted-foreground mb-2 block">{optName}:</Label>
+                                                            <div key={opt.id} className="space-y-2.5">
+                                                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                                    {opt.option_name} <span className="text-primary">*</span>
+                                                                </Label>
                                                                 <div className="flex flex-wrap gap-2">
-                                                                    {isArray ? (optVals as string[]).map((val: string) => (
-                                                                        <span key={val} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-foreground border border-border">
-                                                                            {val}
-                                                                        </span>
-                                                                    )) : (
-                                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-foreground border border-border">
-                                                                            {String(optVals)}
-                                                                        </span>
-                                                                    )}
+                                                                    {opt.dropdown_values.map(val => {
+                                                                        const checked = currentVals.includes(val)
+                                                                        return (
+                                                                            <label
+                                                                                key={val}
+                                                                                className={`inline-flex items-center gap-2 text-sm cursor-pointer transition-all duration-150 px-3.5 py-2 rounded-lg border ${checked
+                                                                                    ? 'bg-primary border-primary text-primary-foreground font-medium shadow-sm'
+                                                                                    : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
+                                                                                    }`}
+                                                                            >
+                                                                                <Checkbox
+                                                                                    checked={checked}
+                                                                                    className={checked ? "border-primary-foreground/50 bg-primary-foreground/20 data-[state=checked]:bg-primary-foreground/20 data-[state=checked]:text-primary-foreground" : ""}
+                                                                                    onCheckedChange={(c: boolean) => {
+                                                                                        const next = c ? [...currentVals, val] : currentVals.filter((v: string) => v !== val)
+                                                                                        setTempProductOptions({ ...tempProductOptions, [opt.option_name]: next })
+                                                                                    }}
+                                                                                />
+                                                                                {val}
+                                                                            </label>
+                                                                        )
+                                                                    })}
                                                                 </div>
                                                             </div>
                                                         )
-                                                    })
-                                                ) : (
-                                                    <div>
-                                                        <Label className="text-xs text-muted-foreground mb-2 block">Configurations:</Label>
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-secondary/50 text-secondary-foreground border border-border/50 italic">
-                                                            No restrictions defined
-                                                        </span>
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                /* Read-Only Summary */
+                                                <div className="px-5 py-4 space-y-3">
+                                                    {Object.entries(currentOptions).map(([optName, optVals]) => {
+                                                        const isArray = Array.isArray(optVals)
+                                                        if (isArray && optVals.length === 0) return null
+                                                        return (
+                                                            <div key={optName}>
+                                                                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 mb-1.5">{optName}</div>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {isArray ? (optVals as string[]).map(v => (
+                                                                        <span key={v} className="inline-flex items-center bg-primary/8 text-primary border border-primary/15 px-2.5 py-1 rounded-md text-xs font-medium">{v}</span>
+                                                                    )) : <span className="inline-flex items-center bg-primary/8 text-primary border border-primary/15 px-2.5 py-1 rounded-md text-xs font-medium">{String(optVals)}</span>}
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                    {Object.keys(currentOptions).length === 0 && (
+                                                        <p className="text-xs text-muted-foreground/60 italic py-1">No specifications configured. Click Edit to set up.</p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </section>
+
+                {/* ═══════════════════════ Locations Section ═══════════════════════ */}
+                <section>
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                            <Globe className="h-4.5 w-4.5 text-emerald-500" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-foreground">Delivery Locations</h3>
+                            <p className="text-xs text-muted-foreground">Select the states and districts you deliver to.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {locations.map((loc) => {
+                            const stateName = loc.state_name
+                            const isActive = !!formData.availableLocations[stateName]
+                            const isEditing = editingLocation === stateName
+                            const isExpanded = expandedLocations.includes(stateName)
+                            const isConfiguring = isEditing || (isExpanded && !isActive)
+                            const currentDistricts = isConfiguring ? tempLocationDistricts : (formData.availableLocations[stateName] || [])
+                            const districtCount = (formData.availableLocations[stateName] || []).length
+
+                            return (
+                                <div
+                                    key={loc.id}
+                                    className={`rounded-xl border transition-all duration-200 ${isActive
+                                        ? 'border-emerald-500/30 bg-card shadow-sm'
+                                        : 'border-border/60 bg-card/50 hover:border-border'
+                                        } ${isEditing || (isExpanded && !isActive) ? 'ring-2 ring-emerald-500/20' : ''}`}
+                                >
+                                    {/* Location Header Row */}
+                                    <div
+                                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer select-none group"
+                                        onClick={() => toggleLocationExpand(stateName)}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            {isActive ? (
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15">
+                                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                                </div>
+                                            ) : (
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60">
+                                                    <Circle className="h-4 w-4 text-muted-foreground/50" />
+                                                </div>
+                                            )}
+                                            <div className="min-w-0">
+                                                <div className={`font-semibold text-[15px] truncate ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                                    {stateName}
+                                                </div>
+                                                {isActive && districtCount > 0 && !isEditing && (
+                                                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                                                        {districtCount} district{districtCount !== 1 ? "s" : ""} covered
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-12 bg-muted/10 rounded-xl border border-dashed">
-                                    <Package className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-40" />
-                                    <h3 className="text-lg font-medium text-foreground mb-1">No products added yet</h3>
-                                    <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-                                        You haven't added any products to your portfolio. Click "Edit Products" to start receiving inquiries.
-                                    </p>
-                                    <Button onClick={() => setIsEditing(true)}>
-                                        <Package className="mr-2 h-4 w-4" /> Add Your First Product
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
 
-            {/* Service Areas Card */}
-            <Card className="border-border mt-8">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-primary" />
-                        Available Delivery Locations
-                    </CardTitle>
-                    <CardDescription>
-                        {isEditing
-                            ? "Select the states and districts you can deliver your products to."
-                            : "The geographic regions where you currently provide delivery services."}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {isEditing ? (
-                        <div className="space-y-6">
-                            {locations.length > 0 ? locations.map((loc) => {
-                                const isStateChecked = !!formData.availableLocations[loc.state_name]
-                                const selectedDistricts = formData.availableLocations[loc.state_name] || []
-                                return (
-                                    <div key={loc.id} className="p-4 rounded-xl border bg-muted/10">
-                                        <label className="flex items-center gap-3 font-semibold text-foreground cursor-pointer mb-3">
-                                            <Checkbox
-                                                checked={isStateChecked}
-                                                onCheckedChange={(checked: boolean) => {
-                                                    setFormData(prev => {
-                                                        const newLocs = { ...prev.availableLocations }
-                                                        if (checked) {
-                                                            newLocs[loc.state_name] = []
-                                                        } else {
-                                                            delete newLocs[loc.state_name]
-                                                        }
-                                                        return { ...prev, availableLocations: newLocs }
-                                                    })
-                                                }}
-                                                className="h-5 w-5"
-                                            />
-                                            {loc.state_name}
-                                        </label>
-
-                                        {isStateChecked && loc.districts && loc.districts.length > 0 && (
-                                            <div className="ml-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                {loc.districts.map((dist: string) => {
-                                                    const isDistChecked = selectedDistricts.includes(dist)
-                                                    return (
-                                                        <label key={dist} className={`flex items-center gap-2 text-sm cursor-pointer transition-colors px-3 py-2 rounded-lg border ${isDistChecked ? 'bg-primary/5 border-primary/30 text-foreground font-medium' : 'bg-background hover:border-border text-foreground'}`}>
-                                                            <Checkbox
-                                                                checked={isDistChecked}
-                                                                onCheckedChange={(checked: boolean) => {
-                                                                    setFormData(prev => {
-                                                                        const prevDist = prev.availableLocations[loc.state_name] || []
-                                                                        const newDist = checked
-                                                                            ? [...prevDist, dist]
-                                                                            : prevDist.filter(d => d !== dist)
-                                                                        return {
-                                                                            ...prev,
-                                                                            availableLocations: {
-                                                                                ...prev.availableLocations,
-                                                                                [loc.state_name]: newDist
-                                                                            }
-                                                                        }
-                                                                    })
+                                        <div className="flex items-center gap-2">
+                                            <div onClick={(e) => e.stopPropagation()}>
+                                                {(isEditing || (isExpanded && !isActive)) ? (
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
+                                                            onClick={() => {
+                                                                setEditingLocation(null)
+                                                                if (!isActive) setExpandedLocations(prev => prev.filter(s => s !== stateName))
+                                                            }}
+                                                            disabled={loading}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => saveLocation(stateName)}
+                                                            disabled={loading || tempLocationDistricts.length === 0}
+                                                            className={`h-8 px-4 text-xs font-medium gap-1.5 ${tempLocationDistricts.length > 0 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
+                                                        >
+                                                            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Save className="h-3.5 w-3.5" /> Save</>}
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    isActive && (
+                                                        <>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
+                                                                onClick={() => {
+                                                                    setEditingLocation(stateName)
+                                                                    setTempLocationDistricts(formData.availableLocations[stateName] || [])
                                                                 }}
-                                                                className="h-4 w-4 rounded-sm"
-                                                            />
-                                                            {dist}
-                                                        </label>
+                                                                disabled={loading}
+                                                                title="Edit location"
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                                onClick={() => deleteLocation(stateName)}
+                                                                disabled={loading}
+                                                                title="Remove location"
+                                                            >
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </>
                                                     )
-                                                })}
-                                            </div>
-                                        )}
-                                        {isStateChecked && (!loc.districts || loc.districts.length === 0) && (
-                                            <p className="ml-8 text-sm text-muted-foreground italic">Entire state active.</p>
-                                        )}
-                                    </div>
-                                )
-                            }) : (
-                                <p className="text-muted-foreground text-sm">No locations configured by admin yet.</p>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-4">
-                            {user?.availableLocations && Object.keys(user.availableLocations).length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {Object.entries(user.availableLocations).map(([state, districts]) => (
-                                        <div key={state} className="p-4 rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow">
-                                            <div className="font-semibold text-lg text-foreground flex items-center gap-2 mb-3 border-b pb-2">
-                                                <MapPin className="h-5 w-5 text-primary" />
-                                                {state}
-                                            </div>
-                                            <div className="space-y-4">
-                                                {districts.length > 0 ? (
-                                                    <div>
-                                                        <Label className="text-xs text-muted-foreground mb-2 block">Covered Districts:</Label>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {districts.map((val: string) => (
-                                                                <span key={val} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-foreground border border-border">
-                                                                    {val}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div>
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-secondary/50 text-secondary-foreground border border-border/50 italic">
-                                                            All Districts Covered
-                                                        </span>
-                                                    </div>
                                                 )}
                                             </div>
+                                            <div className="ml-1 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
+                                                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-10 bg-muted/10 rounded-xl border border-dashed">
-                                    <MapPin className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-40" />
-                                    <h3 className="text-lg font-medium text-foreground mb-1">No locations selected</h3>
-                                    <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-                                        You haven't specified your delivery boundaries. Click "Edit Products" to define your coverage map.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                                    </div>
 
-            {isEditing && (
-                <div className="flex w-full justify-end gap-3 mt-8">
-                    <Button variant="outline" onClick={handleCancel} disabled={loading} className="px-6">Cancel</Button>
-                    <Button onClick={handleSave} disabled={loading} className="px-6">
-                        {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Changes</>}
-                    </Button>
-                </div>
-            )}
+                                    {/* Location Content */}
+                                    {(isEditing || isExpanded) && (
+                                        <div className="border-t border-border/50">
+                                            {(isEditing || (isExpanded && !isActive)) ? (
+                                                <div className="p-5 space-y-3">
+                                                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                        Select Districts
+                                                    </Label>
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                                        {loc.districts?.map((dist: string) => {
+                                                            const checked = currentDistricts.includes(dist)
+                                                            return (
+                                                                <label
+                                                                    key={dist}
+                                                                    className={`inline-flex items-center gap-2 text-sm cursor-pointer transition-all duration-150 px-3.5 py-2 rounded-lg border ${checked
+                                                                        ? 'bg-emerald-600 border-emerald-600 text-white font-medium shadow-sm'
+                                                                        : 'bg-muted/30 border-border text-muted-foreground hover:border-emerald-500/40 hover:bg-muted/50'
+                                                                        }`}
+                                                                >
+                                                                    <Checkbox
+                                                                        checked={checked}
+                                                                        className={checked ? "border-white/50 bg-white/20 data-[state=checked]:bg-white/20 data-[state=checked]:text-white" : ""}
+                                                                        onCheckedChange={(c: boolean) => {
+                                                                            const next = c ? [...currentDistricts, dist] : currentDistricts.filter(d => d !== dist)
+                                                                            setTempLocationDistricts(next)
+                                                                        }}
+                                                                    />
+                                                                    {dist}
+                                                                </label>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                    {(!loc.districts || loc.districts.length === 0) && (
+                                                        <p className="text-sm text-muted-foreground italic">No districts defined for this state.</p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                /* Read-Only Summary */
+                                                <div className="px-5 py-4">
+                                                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 mb-2">Covered Districts</div>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {currentDistricts.length > 0 ? currentDistricts.map(d => (
+                                                            <span key={d} className="inline-flex items-center bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 px-2.5 py-1 rounded-md text-xs font-medium">{d}</span>
+                                                        )) : <span className="text-xs text-muted-foreground/60 italic">All Districts Covered</span>}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </section>
+            </div>
         </div>
     )
 }

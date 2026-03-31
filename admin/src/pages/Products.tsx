@@ -1,19 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Package, X } from 'lucide-react';
+import { Plus, Trash2, Package, X, ImagePlus, Loader2 } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../lib/firebase';
 
 type Product = {
   product_id: number;
   name: string;
   sub_products?: string[];
   created_at: string;
+  image_url?: string | null;
 };
 
 export function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [newProductName, setNewProductName] = useState('');
+  const [newProductImage, setNewProductImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingImageId, setUploadingImageId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -29,7 +33,8 @@ export function Products() {
           product_id: parseInt(d.id) || data.product_id,
           name: data.name,
           sub_products: data.sub_products || [],
-          created_at: data.created_at || new Date().toISOString()
+          created_at: data.created_at || new Date().toISOString(),
+          image_url: data.image_url || null
         }
       });
       prods.sort((a, b) => a.name.localeCompare(b.name));
@@ -47,15 +52,25 @@ export function Products() {
 
     try {
       const idStr = String(Date.now());
+      let imageUrl = null;
+
+      if (newProductImage) {
+        const fileRef = ref(storage, `products/${idStr}_${newProductImage.name}`);
+        await uploadBytes(fileRef, newProductImage);
+        imageUrl = await getDownloadURL(fileRef);
+      }
+
       const newD = {
         product_id: parseInt(idStr),
         name: newProductName.trim(),
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        image_url: imageUrl
       };
       await setDoc(doc(db, 'products', idStr), newD);
 
       setProducts([...products, newD].sort((a, b) => a.name.localeCompare(b.name)));
       setNewProductName('');
+      setNewProductImage(null);
     } catch (error: any) {
       console.error('Error adding product:', error);
       alert(error.message || 'Failed to add product');
@@ -70,6 +85,27 @@ export function Products() {
       setProducts(products.filter(p => p.product_id !== product_id));
     } catch (error) {
       console.error('Error deleting product:', error);
+    }
+  };
+
+  const handleUpdateProductImage = async (product: Product, file: File) => {
+    try {
+      setUploadingImageId(product.product_id);
+      const fileRef = ref(storage, `products/${product.product_id}_${file.name}`);
+      await uploadBytes(fileRef, file);
+      const imageUrl = await getDownloadURL(fileRef);
+
+      await setDoc(doc(db, 'products', String(product.product_id)), {
+        ...product,
+        image_url: imageUrl
+      }, { merge: true });
+
+      setProducts(prev => prev.map(p => p.product_id === product.product_id ? { ...p, image_url: imageUrl } : p));
+    } catch (error: any) {
+      console.error('Error updating product image:', error);
+      alert(error.message || 'Failed to update image');
+    } finally {
+      setUploadingImageId(null);
     }
   };
 
@@ -130,6 +166,15 @@ export function Products() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Product Image (Optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setNewProductImage(e.target.files?.[0] || null)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground file:border-0 file:bg-transparent file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
           </div>
           <button
             type="submit"
@@ -151,17 +196,40 @@ export function Products() {
               {products.map((product) => (
                 <div key={product.product_id} className="flex flex-col p-4 hover:bg-accent/30 transition-colors group gap-4 border-b last:border-0 border-border">
                   <div className="flex justify-between items-center w-full">
-                    <div className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                      <Package className="h-5 w-5 text-primary" />
-                      {product.name}
+                    <div className="flex items-center gap-4">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded-md object-cover border border-border" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center border border-border">
+                          <Package className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
+                      <div className="text-lg font-semibold text-foreground">
+                        {product.name}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteProduct(product.product_id)}
-                      className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-destructive hover:text-destructive-foreground h-9 w-9 text-muted-foreground hover:shadow-sm shrink-0"
-                      title="Delete Product"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <label className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-9 w-9 text-muted-foreground hover:shadow-sm shrink-0 ${uploadingImageId === product.product_id ? 'opacity-50 pointer-events-none' : ''}`} title="Update Image">
+                        {uploadingImageId === product.product_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleUpdateProductImage(product, e.target.files[0]);
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={() => handleDeleteProduct(product.product_id)}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-destructive hover:text-destructive-foreground h-9 w-9 text-muted-foreground hover:shadow-sm shrink-0"
+                        title="Delete Product"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Sub-Products Section */}

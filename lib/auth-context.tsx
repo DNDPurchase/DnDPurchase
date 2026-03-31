@@ -16,6 +16,7 @@ interface AuthUser {
   entityType: "company" | "individual"
   verificationType: "gst" | "aadhar"
   displayName: string
+  userCode: string
   gstCertificateName?: string
   verified: boolean
   googleConnected: boolean
@@ -25,6 +26,7 @@ interface AuthUser {
   sellerProductOptions?: Record<string, Record<string, any>>
   availableLocations?: Record<string, string[]>
   smsNotificationsEnabled: boolean;
+  secondaryEmails?: string[];
 }
 
 interface AuthContextType {
@@ -34,8 +36,8 @@ interface AuthContextType {
   loginWithGoogle: (email: string) => Promise<boolean>
   connectGoogle: (email: string) => Promise<boolean>
   register: (data: Record<string, string> | FormData) => Promise<boolean>
-  logout: () => void
-  logoutAll: () => void
+  logout: () => Promise<void>
+  logoutAll: () => Promise<void>
   switchUser: (userId: string) => void
   updateUserData: (userData: Partial<AuthUser>) => void
 }
@@ -108,10 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // 2. Fetch the rich user profile & trigger backend routines (Email/SMS)
-    let userData;
+    let userDatas: AuthUser[];
     try {
-      userData = await storeLoginUser(email, password, role)
-      if (!userData) {
+      userDatas = await storeLoginUser(email, password, role) as any
+      if (!userDatas || userDatas.length === 0) {
         return false
       }
     } catch (e: any) {
@@ -123,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: userData.phone, email: userData.email, name: userData.name }),
+        body: JSON.stringify({ phone: userDatas[0].phone, email: userDatas[0].email, name: userDatas[0].name }),
       })
     } catch (e) {
       // Notification error (Email/SMS)
@@ -131,20 +133,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Update allUsers and set current user
     setAllUsers(prev => {
-      const existingIndex = prev.findIndex(u => u.id === userData.id)
-      let updatedUsers: AuthUser[]
-
-      if (existingIndex >= 0) {
-        // Update existing user
-        updatedUsers = [...prev]
-        updatedUsers[existingIndex] = userData
-      } else {
-        // Add new user
-        updatedUsers = [...prev, userData]
+      let updatedUsers = [...prev]
+      for (const userData of userDatas) {
+        const existingIndex = updatedUsers.findIndex(u => u.id === userData.id)
+        if (existingIndex >= 0) {
+          updatedUsers[existingIndex] = userData
+        } else {
+          updatedUsers.push(userData)
+        }
       }
 
       // Set the newly logged in user as active
-      setUser(userData)
+      const buyerUser = userDatas.find(u => u.role === "buyer" || u.role === "both") || userDatas[0]
+      setUser(buyerUser)
 
       return updatedUsers
     })
@@ -177,28 +178,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false
     }
 
-    let userData;
+    let userDatas: AuthUser[];
     try {
       // 2. Natively create Firestore Profile
-      userData = await registerUser({
+      userDatas = await registerUser({
         name: payload.name,
         email: payload.email,
         phone: payload.phone,
         password: payload.password,
         company: payload.company || payload.name,
-        role: payload.role as "buyer" | "seller",
-        entityType: payload.entityType as "company" | "individual",
-        verificationType: payload.verificationType as "gst" | "aadhar",
-        gstin: payload.entityType === "company" ? payload.gstin : undefined,
-        gstCertificatePath: payload.entityType === "company" ? payload.documentPath : undefined,
-        aadhaarNumber: payload.entityType === "individual" ? payload.aadhaarNumber : undefined,
-        aadhaarDocumentPath: payload.entityType === "individual" ? payload.documentPath : undefined,
+        role: payload.role as "buyer" | "seller" | "both",
+        entityType: payload.entityType as "company" | "individual" | "both",
+        verificationType: payload.verificationType as "gst" | "aadhar" | "both",
+        gstin: (payload.entityType === "company" || payload.entityType === "both") ? payload.gstin : undefined,
+        gstCertificatePath: (payload.entityType === "company" || payload.entityType === "both") ? payload.documentPath : undefined,
+        aadhaarNumber: (payload.entityType === "individual" || payload.entityType === "both") ? payload.aadhaarNumber : undefined,
+        aadhaarDocumentPath: (payload.entityType === "individual" || payload.entityType === "both") ? payload.documentPath : undefined,
         googleConnected: false,
         categories: payload.categories
           ? (typeof payload.categories === 'string' ? JSON.parse(payload.categories) : payload.categories)
           : undefined,
         smsNotificationsEnabled: true,
-      })
+      } as any) as any
     } catch (e: any) {
       logger.error("Native Firestore profile creation failed", { error: e.message })
       return false
@@ -209,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: userData.phone, email: userData.email, name: userData.name }),
+        body: JSON.stringify({ phone: userDatas[0].phone, email: userDatas[0].email, name: userDatas[0].name }),
       })
     } catch (e) {
       // Background process, not critical to block UI
@@ -217,8 +218,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Add new user to allUsers and set as active
     setAllUsers(prev => {
-      const updated = [...prev, userData]
-      setUser(userData)
+      const updated = [...prev, ...userDatas]
+      const buyerUser = userDatas.find(u => u.role === "buyer" || u.role === "both") || userDatas[0]
+      setUser(buyerUser)
       return updated
     })
 
@@ -227,19 +229,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = useCallback(async (email: string) => {
     try {
-      const data = await storeLoginUserWithGoogle(email)
-      if (!data) return false
+      const datas = await storeLoginUserWithGoogle(email) as any[]
+      if (!datas || datas.length === 0) return false
 
       setAllUsers(prev => {
-        const existingIndex = prev.findIndex(u => u.id === data.id)
-        let updatedUsers: AuthUser[]
-        if (existingIndex >= 0) {
-          updatedUsers = [...prev]
-          updatedUsers[existingIndex] = data
-        } else {
-          updatedUsers = [...prev, data]
+        let updatedUsers = [...prev]
+        for (const data of datas) {
+          const existingIndex = updatedUsers.findIndex(u => u.id === data.id)
+          if (existingIndex >= 0) {
+            updatedUsers[existingIndex] = data
+          } else {
+            updatedUsers.push(data)
+          }
         }
-        setUser(data)
+
+        const buyerUser = datas.find(u => u.role === "buyer" || u.role === "both") || datas[0]
+        setUser(buyerUser)
         return updatedUsers
       })
 
@@ -257,10 +262,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const success = await storeConnectUserWithGoogle(user.id, email)
       if (!success) return false
 
-      // Update active user state to reflect google connection
+      // Update active user state and all roles sharing the same email to reflect google connection
       const updated = { ...user, googleConnected: true }
       setUser(updated)
-      setAllUsers(prev => prev.map(u => u.id === user.id ? updated : u))
+      setAllUsers(prev => prev.map(u => u.email === user.email ? { ...u, googleConnected: true } : u))
 
       return true
     } catch (e: any) {
@@ -269,12 +274,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     if (!user) return
 
-    // Remove current user from allUsers and switch to another if available
+    try {
+      await auth.signOut()
+    } catch (e: any) {
+      logger.error("Firebase Auth sign out failed", { error: e.message })
+    }
+
+    // Remove all users with the same email from allUsers and switch to another if available
     setAllUsers(prev => {
-      const remainingUsers = prev.filter(u => u.id !== user.id)
+      const remainingUsers = prev.filter(u => u.email !== user.email)
 
       // Switch to first remaining user or set to null
       if (remainingUsers.length > 0) {
@@ -287,7 +298,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [user])
 
-  const logoutAll = useCallback(() => {
+  const logoutAll = useCallback(async () => {
+    try {
+      await auth.signOut()
+    } catch (e: any) {
+      logger.error("Firebase Auth sign out all failed", { error: e.message })
+    }
     setAllUsers([])
     setUser(null)
   }, [])

@@ -11,10 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/lib/auth-context"
 import { AlertCircle, ArrowUpDown, CheckCircle, Clock, FileText, Gavel, Lock, Mail, Phone, Tag, Trash2, Trophy, RotateCcw, ArrowLeft } from "lucide-react"
 import { useSearchParams } from "next/navigation"
-import { Suspense, useState } from "react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Suspense, useState, useMemo, useEffect } from "react"
 import { toast } from "sonner"
 import useSWR from "swr"
-import { getInquiryById, getOffersByInquiryId, getInquiriesByBuyerId, acceptOffer, disqualifyOffer, closeInquiry, revertOfferToPending, activateBidding } from "@/lib/store"
+import { getInquiryById, getOffersByInquiryId, getInquiriesByBuyerId, acceptOffer, disqualifyOffer, closeInquiry, revertOfferToPending, activateBidding, startBidding } from "@/lib/store"
 import { formatOptionLabel } from "@/lib/utils"
 
 function rankBadge(rank?: number) {
@@ -28,7 +31,6 @@ function OffersContent() {
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const inquiryId = searchParams.get("inquiryId")
-  const [sortAsc, setSortAsc] = useState(true)
 
   const { data: inquiry, mutate: mutateInquiry } = useSWR(
     inquiryId ? `inquiry-${inquiryId}` : null,
@@ -40,7 +42,93 @@ function OffersContent() {
     { refreshInterval: 3000 }
   )
 
-  // If no inquiryId, show all buyer inquiries with offers
+  const [sortAsc, setSortAsc] = useState(true)
+  const [isStartBiddingDialogOpen, setIsStartBiddingDialogOpen] = useState(false)
+  const [biddingDuration, setBiddingDuration] = useState("3")
+  const [isSubmittingBidding, setIsSubmittingBidding] = useState(false)
+  const [allProductOptions, setAllProductOptions] = useState<Record<string, any[]>>({})
+
+  // Fetch all product options for unique (product, subProduct) pairs in inquiry to determine sort order
+  const productSubProductPairs = useMemo(() => {
+    return Array.from(new Set(inquiry?.items?.map((item: any) => `${item.product}|${item.sub_product || ""}`)) || []) as string[]
+  }, [inquiry])
+
+  useEffect(() => {
+    if (productSubProductPairs.length === 0) return
+
+    const fetchAll = async () => {
+      const results: Record<string, any[]> = {}
+      for (const pair of productSubProductPairs) {
+        const [product, subProduct] = pair.split('|')
+        try {
+          const url = `/api/products/options?productName=${encodeURIComponent(product)}${subProduct ? `&subProduct=${encodeURIComponent(subProduct)}` : ""}`
+          const res = await fetch(url)
+          const data = await res.json()
+          if (Array.isArray(data)) {
+            results[pair] = data.map((opt: any) => ({
+              ...opt,
+              buyer_option_type: opt.buyer_option_type || (opt.form_type !== 'seller' ? opt.option_type : 'none'),
+              seller_option_type: opt.seller_option_type || (opt.form_type === 'seller' ? opt.option_type : 'none')
+            })).filter((opt: any) => opt.buyer_option_type !== 'none')
+          }
+        } catch (e) {
+          console.error(`Failed to fetch options for ${pair}`, e)
+        }
+      }
+      setAllProductOptions(results)
+    }
+    fetchAll()
+  }, [productSubProductPairs])
+
+  const sortInquiryOptions = (productName: string, subProduct: string | undefined, options: Record<string, any>) => {
+    const key = `${productName}|${subProduct || ""}`
+    const metadata = allProductOptions[key] || []
+    if (metadata.length === 0) return Object.entries(options)
+
+    return Object.entries(options).sort(([keyA], [keyB]) => {
+      const metaA = metadata.find(m => m.option_name === keyA || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyA)
+      const metaB = metadata.find(m => m.option_name === keyB || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyB)
+
+      const nameA = keyA.toLowerCase().trim().split('(')[0].trim()
+      const nameB = keyB.toLowerCase().trim().split('(')[0].trim()
+
+      // 1. Manufacturer Always First
+      const isManA = nameA === "manufacturer"
+      const isManB = nameB === "manufacturer"
+      if (isManA && !isManB) return -1
+      if (!isManA && isManB) return 1
+
+      // 2. Locked Options (Metadata-driven) Next
+      const isLockedA = metaA ? metaA.seller_option_type !== 'none' : false
+      const isLockedB = metaB ? metaB.seller_option_type !== 'none' : false
+
+      if (isLockedA && !isLockedB) return -1
+      if (!isLockedA && isLockedB) return 1
+
+      // 3. Quantity & Measurement Always Last (Measurement second last)
+      const specialEndOrder = ["quantity measurement", "quantity"]
+      const endIdxA = specialEndOrder.indexOf(nameA)
+      const endIdxB = specialEndOrder.indexOf(nameB)
+
+      if (endIdxA !== -1 && endIdxB !== -1) return endIdxA - endIdxB
+      if (endIdxA !== -1) return 1
+      if (endIdxB !== -1) return -1
+
+      // 4. Alphabetical for others
+      return keyA.localeCompare(keyB)
+    })
+  }
+
+  function formatOptionType(type: string) {
+    switch (type) {
+      case 'radio': return 'Radio';
+      case 'checkbox': return 'Checkbox';
+      case 'dropdown': return 'Dropdown';
+      case 'number': return 'Number';
+      case 'text': return 'Text';
+      default: return type;
+    }
+  }
   const { data: buyerInquiries } = useSWR(
     !inquiryId && user ? `buyer-inquiries-${user.id}` : null,
     () => getInquiriesByBuyerId(user!.id)
@@ -92,6 +180,29 @@ function OffersContent() {
       toast.success(offerId ? "Bidding resumed for 3 days. The accepted offer has been moved back to pending." : "Bidding resumed for 3 days.")
     } catch (error) {
       toast.error("Failed to resume bidding")
+    }
+  }
+
+  const handleStartBidding = async () => {
+    const duration = parseInt(biddingDuration)
+    if (isNaN(duration) || duration <= 0) {
+      toast.error("Please enter a valid number of days")
+      return
+    }
+
+    setIsSubmittingBidding(true)
+    try {
+      if (inquiryId) {
+        await startBidding(inquiryId, duration)
+        toast.success(`Bidding started for ${duration} days!`)
+        setIsStartBiddingDialogOpen(false)
+        mutate()
+        if (mutateInquiry) mutateInquiry()
+      }
+    } catch (error) {
+      toast.error("Failed to start bidding")
+    } finally {
+      setIsSubmittingBidding(false)
     }
   }
 
@@ -174,7 +285,11 @@ function OffersContent() {
           </p>
         </div>
         <div className="flex gap-2">
-
+          {displayStatus === "active" && (
+            <Button onClick={() => setIsStartBiddingDialogOpen(true)} className="gap-2">
+              <Gavel className="h-4 w-4" /> Start Bidding
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setSortAsc(!sortAsc)} className="gap-2">
             <ArrowUpDown className="h-4 w-4" /> {sortAsc ? "Low to High" : "High to Low"}
           </Button>
@@ -196,7 +311,7 @@ function OffersContent() {
             ))}
           </TabsList>
 
-          {inquiry.items?.map((item: { id: string; product: string }) => {
+          {inquiry.items?.map((item: { id: string; product: string; sub_product?: string }) => {
             const itemOffers = sortedOffers.filter((o: any) => o.inquiryItemId === item.id)
 
             return (
@@ -229,39 +344,39 @@ function OffersContent() {
                         <Table>
                           <TableHeader>
                             <TableRow className="border-border">
-                              <TableHead className="whitespace-nowrap text-muted-foreground">Seller</TableHead>
-                              <TableHead className="whitespace-nowrap text-muted-foreground">Price/Ton</TableHead>
-                              <TableHead className="text-muted-foreground">Total Est.</TableHead>
-                              <TableHead className="whitespace-nowrap text-muted-foreground">Rank</TableHead>
-                              <TableHead className="whitespace-nowrap text-muted-foreground">Specs</TableHead>
-                              <TableHead className="whitespace-nowrap text-muted-foreground">Comments</TableHead>
-                              <TableHead className="whitespace-nowrap text-muted-foreground">Document</TableHead>
-                              <TableHead className="whitespace-nowrap text-muted-foreground">Contact Info</TableHead>
-                              <TableHead className="whitespace-nowrap text-muted-foreground">Status</TableHead>
-                              <TableHead className="whitespace-nowrap text-right text-muted-foreground">Actions</TableHead>
+                              <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Seller</TableHead>
+                              <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Price/Ton</TableHead>
+                              <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Total Est.</TableHead>
+                              <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Rank</TableHead>
+                              <TableHead className="text-muted-foreground px-2 py-3 text-xs">Specs</TableHead>
+                              <TableHead className="text-muted-foreground px-2 py-3 text-xs">Comments</TableHead>
+                              <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Document</TableHead>
+                              <TableHead className="text-muted-foreground px-2 py-3 text-xs">Contact Info</TableHead>
+                              <TableHead className="text-muted-foreground px-2 py-3 text-xs">Status</TableHead>
+                              <TableHead className="text-right text-muted-foreground px-2 py-3 text-xs">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {itemOffers.map((offer: any) => (
                               <TableRow key={offer.id} className="border-border hover:bg-muted/30">
-                                <TableCell className="whitespace-nowrap font-medium text-foreground">
-                                  {offer.anonymizedSeller || "Unknown Seller"}
+                                <TableCell className="whitespace-nowrap font-medium text-foreground px-2 py-4">
+                                  {offer.sellerAlias || "Seller-???"}
                                 </TableCell>
-                                <TableCell className="whitespace-nowrap font-semibold text-foreground">
+                                <TableCell className="whitespace-nowrap font-semibold text-foreground px-2 py-4">
                                   {"₹"}{offer.pricePerTon.toLocaleString("en-IN")}
                                 </TableCell>
-                                <TableCell className="whitespace-nowrap font-bold text-primary">
+                                <TableCell className="whitespace-nowrap font-bold text-primary px-2 py-4">
                                   {(() => {
                                     const requestedQuantityRaw = (item as any)?.options?.["Quantity"] || (item as any)?.options?.["Qty"] || (item as any)?.options?.["quantity"];
                                     const requestedQuantity = parseFloat(String(requestedQuantityRaw).replace(/[^\d.]/g, '')) || 1;
                                     return "₹" + (offer.pricePerTon * requestedQuantity).toLocaleString("en-IN");
                                   })()}
                                 </TableCell>
-                                <TableCell className="whitespace-nowrap">{rankBadge(offer.rank)}</TableCell>
-                                <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                                <TableCell className="whitespace-nowrap px-2 py-4">{rankBadge(offer.rank)}</TableCell>
+                                <TableCell className="max-w-[150px] text-muted-foreground px-2 py-4">
                                   {offer.sellerOptions && Object.keys(offer.sellerOptions).length > 0 ? (
-                                    <div className="flex flex-col gap-1 text-xs whitespace-normal">
-                                      {Object.entries(offer.sellerOptions).map(([k, v]) => {
+                                    <div className="flex flex-col gap-1 text-[11px] whitespace-normal">
+                                      {sortInquiryOptions(item.product, item.sub_product, offer.sellerOptions).map(([k, v]) => {
                                         const valStr = Array.isArray(v) ? v.join(", ") : v;
                                         if (!valStr) return null;
                                         return <span key={k}><strong className="font-medium text-foreground">{formatOptionLabel(k)}:</strong> {String(valStr)}</span>
@@ -269,53 +384,64 @@ function OffersContent() {
                                     </div>
                                   ) : "-"}
                                 </TableCell>
-                                <TableCell className="max-w-[200px] truncate text-muted-foreground whitespace-normal">{offer.comments || "-"}</TableCell>
-                                <TableCell className="whitespace-nowrap">
-                                  {offer.pdfUrl ? (
-                                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs text-primary" onClick={() => window.open(offer.pdfUrl, '_blank')}>
-                                      <FileText className="h-3.5 w-3.5" /> View PDF
-                                    </Button>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground">-</span>
-                                  )}
+                                <TableCell className="max-w-[150px] text-muted-foreground whitespace-normal text-xs px-2 py-4">{offer.comments || "-"}</TableCell>
+                                <TableCell className="whitespace-nowrap px-2 py-4">
+                                  <div className="flex flex-col gap-1">
+                                    {offer.attachments && offer.attachments.length > 0 ? (
+                                      offer.attachments.map((url: string, idx: number) => (
+                                        <Button key={idx} variant="ghost" size="sm" className="h-6 gap-1 text-[10px] text-primary py-0" onClick={() => window.open(url, '_blank')}>
+                                          <FileText className="h-3 w-3" /> Doc {idx + 1}
+                                        </Button>
+                                      ))
+                                    ) : offer.pdfUrl && offer.pdfUrl !== "/dummy-quote.pdf" ? (
+                                      <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-primary py-0" onClick={() => window.open(offer.pdfUrl, '_blank')}>
+                                        <FileText className="h-3.5 w-3.5" /> View PDF
+                                      </Button>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">-</span>
+                                    )}
+                                  </div>
                                 </TableCell>
-                                <TableCell className="whitespace-nowrap">
+                                <TableCell className="px-2 py-4">
                                   {offer.status === "accepted" ? (
-                                    <div className="flex flex-col text-xs">
+                                    <div className="flex flex-col text-[11px]">
                                       {offer.contactEmail && (
-                                        <div className="flex items-center gap-1.5 text-foreground">
-                                          <Mail className="h-3 w-3 text-muted-foreground" /> {offer.contactEmail}
+                                        <div className="flex items-center gap-1 text-foreground break-all">
+                                          <Mail className="h-3 w-3 text-muted-foreground shrink-0" /> {offer.contactEmail}
                                         </div>
                                       )}
                                       {offer.contactPhone && (
-                                        <div className="flex items-center gap-1.5 text-foreground mt-1">
-                                          <Phone className="h-3 w-3 text-muted-foreground" /> {offer.contactPhone}
+                                        <div className="flex items-center gap-1 text-foreground mt-1">
+                                          <Phone className="h-3 w-3 text-muted-foreground shrink-0" /> {offer.contactPhone}
                                         </div>
                                       )}
                                       {!offer.contactEmail && !offer.contactPhone && <span className="text-muted-foreground">-</span>}
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
-                                      <Lock className="h-3 w-3" />
+                                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground italic">
+                                      <Lock className="h-3 w-3 shrink-0" />
                                       Accept to view
                                     </div>
                                   )}
                                 </TableCell>
-                                <TableCell className="whitespace-nowrap">
-                                  <Badge variant={offer.status === "accepted" ? "default" : offer.status === "disqualified" ? "destructive" : "outline"}>
+                                <TableCell className="px-2 py-4">
+                                  <Badge variant={offer.status === "accepted" ? "default" : offer.status === "disqualified" ? "destructive" : "outline"} className="text-[10px] px-1.5 py-0 h-5">
                                     {offer.status}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="whitespace-nowrap text-right">
-                                  {offer.status === "pending" && (
+                                <TableCell className="text-right px-2 py-4">
+                                  {offer.status === "pending" && displayStatus === "bidding" && (
                                     <div className="flex justify-end gap-1">
-                                      <Button size="sm" variant="outline" className="h-8 gap-1 text-xs bg-transparent" onClick={() => handleAcceptOffer(offer.id)}>
+                                      <Button size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs bg-transparent" onClick={() => handleAcceptOffer(offer.id)}>
                                         <CheckCircle className="h-3.5 w-3.5" /> Accept
                                       </Button>
-                                      <Button size="sm" variant="outline" className="h-8 gap-1 text-xs text-destructive hover:text-destructive bg-transparent" onClick={() => handleDisqualifyOffer(offer.id)}>
+                                      <Button size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs text-destructive hover:text-destructive bg-transparent" onClick={() => handleDisqualifyOffer(offer.id)}>
                                         <Trash2 className="h-3.5 w-3.5" /> Disqualify
                                       </Button>
                                     </div>
+                                  )}
+                                  {offer.status === "pending" && displayStatus === "active" && (
+                                    <span className="text-[11px] text-muted-foreground italic leading-tight block max-w-[120px] ml-auto">Start Bidding to Accept or Reject the Offer</span>
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -330,7 +456,7 @@ function OffersContent() {
                           <div key={offer.id} className="flex flex-col gap-3 rounded-xl border border-border p-4 shadow-sm bg-card relative overflow-hidden">
                             <div className="flex items-center justify-between">
                               <span className="font-semibold text-foreground text-sm flex items-center gap-2">
-                                {offer.anonymizedSeller || "Unknown Seller"}
+                                {offer.sellerAlias || "Seller-???"}
                               </span>
                               <div className="flex flex-col items-end gap-1">
                                 <div className="flex flex-col items-end">
@@ -358,18 +484,26 @@ function OffersContent() {
                               <Badge variant={offer.status === "accepted" ? "default" : offer.status === "disqualified" ? "destructive" : "outline"} className="text-xs">
                                 {offer.status}
                               </Badge>
-                              {offer.pdfUrl && (
-                                <Button variant="outline" size="sm" className="h-6 px-2 gap-1 text-xs text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => window.open(offer.pdfUrl, '_blank')}>
-                                  <FileText className="h-3 w-3" /> View Doc
-                                </Button>
-                              )}
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {offer.attachments && offer.attachments.length > 0 ? (
+                                  offer.attachments.map((url: string, idx: number) => (
+                                    <Button key={idx} variant="outline" size="sm" className="h-6 px-2 gap-1 text-[10px] text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => window.open(url, '_blank')}>
+                                      <FileText className="h-3 w-3" /> Doc {idx + 1}
+                                    </Button>
+                                  ))
+                                ) : offer.pdfUrl && offer.pdfUrl !== "/dummy-quote.pdf" ? (
+                                  <Button variant="outline" size="sm" className="h-6 px-2 gap-1 text-xs text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => window.open(offer.pdfUrl, '_blank')}>
+                                    <FileText className="h-3 w-3" /> View PDF
+                                  </Button>
+                                ) : null}
+                              </div>
                             </div>
 
                             {offer.sellerOptions && Object.keys(offer.sellerOptions).length > 0 && (
                               <div className="bg-muted/20 p-2.5 rounded-md mt-1 border border-border/30">
                                 <div className="text-xs font-semibold text-foreground/80 mb-1 uppercase tracking-wider">Specs</div>
                                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                                  {Object.entries(offer.sellerOptions).map(([k, v]) => {
+                                  {sortInquiryOptions(item.product, item.sub_product, offer.sellerOptions).map(([k, v]) => {
                                     const valStr = Array.isArray(v) ? v.join(", ") : v;
                                     if (!valStr) return null;
                                     return <span key={k}><strong className="font-medium text-foreground">{formatOptionLabel(k)}:</strong> {String(valStr)}</span>
@@ -413,13 +547,21 @@ function OffersContent() {
 
                             {/* Actions */}
                             {offer.status === "pending" && (
-                              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/60 mt-2">
-                                <Button size="sm" variant="outline" className="h-9 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20 bg-transparent w-full" onClick={() => handleDisqualifyOffer(offer.id)}>
-                                  <Trash2 className="h-4 w-4" /> Disqualify
-                                </Button>
-                                <Button size="sm" className="h-9 gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 w-full shadow-sm" onClick={() => handleAcceptOffer(offer.id)}>
-                                  <CheckCircle className="h-4 w-4" /> Accept Offer
-                                </Button>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-3 border-t border-border/60 mt-2">
+                                {displayStatus === "bidding" ? (
+                                  <>
+                                    <Button size="sm" variant="outline" className="h-9 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20 bg-transparent w-full" onClick={() => handleDisqualifyOffer(offer.id)}>
+                                      <Trash2 className="h-4 w-4" /> Disqualify
+                                    </Button>
+                                    <Button size="sm" className="h-9 gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 w-full shadow-sm" onClick={() => handleAcceptOffer(offer.id)}>
+                                      <CheckCircle className="h-4 w-4" /> Accept Offer
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <div className="text-center py-2 text-xs text-muted-foreground italic bg-muted/20 rounded-md">
+                                    Start Bidding to Accept or Reject the Offer
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -455,8 +597,40 @@ function OffersContent() {
             )
           })}
         </Tabs>
-      )
-      }
+      )}
+
+      {/* Start Bidding Dialog */}
+      <Dialog open={isStartBiddingDialogOpen} onOpenChange={setIsStartBiddingDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Start Bidding</DialogTitle>
+            <DialogDescription>
+              Enter the duration for the bidding phase. Sellers will see their rankings during this period.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="duration">Bidding Duration (Days)</Label>
+              <Input
+                id="duration"
+                type="number"
+                min="1"
+                value={biddingDuration}
+                onChange={(e) => setBiddingDuration(e.target.value)}
+                placeholder="e.g. 3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStartBiddingDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleStartBidding} disabled={isSubmittingBidding}>
+              {isSubmittingBidding ? "Starting..." : "Confirm & Start Bidding"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div >
   )
 }

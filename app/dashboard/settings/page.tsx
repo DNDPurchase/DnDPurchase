@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/auth-context"
 import { logger } from "@/lib/logger"
-import { Loader2, Pencil, Save, X, BadgeCheck, Link as LinkIcon, Package, Plus } from "lucide-react"
+import { Loader2, Pencil, Save, X, BadgeCheck, Link as LinkIcon, Package, Plus, Trash2 } from "lucide-react"
 import { auth } from "@/lib/firebase"
 import { linkWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { useState, useEffect } from "react"
@@ -20,12 +20,13 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
         name: user?.name || "",
-        displayName: user?.displayName || "",
+        userCode: user?.userCode || "",
         email: user?.email || "",
         phone: user?.phone || "",
         company: user?.company || "",
         categories: user?.categories || [] as string[],
         productManufacturers: user?.productManufacturers || {} as Record<string, string[]>,
+        secondaryEmails: user?.secondaryEmails || [] as string[],
         // smsNotificationsEnabled: user?.smsNotificationsEnabled ?? true,
     })
     const [availableProducts, setAvailableProducts] = useState<{ id: string, name: string }[]>([])
@@ -48,12 +49,13 @@ export default function SettingsPage() {
     const handleEdit = () => {
         setFormData({
             name: user?.name || "",
-            displayName: user?.displayName || "",
+            userCode: user?.userCode || "",
             email: user?.email || "",
             phone: user?.phone || "",
             company: user?.company || "",
             categories: user?.categories || [],
             productManufacturers: user?.productManufacturers || {},
+            secondaryEmails: user?.secondaryEmails || [],
             //smsNotificationsEnabled: user?.smsNotificationsEnabled ?? true,
         })
         setIsEditing(!isEditing)
@@ -62,15 +64,37 @@ export default function SettingsPage() {
     const handleCancel = () => {
         setFormData({
             name: user?.name || "",
-            displayName: user?.displayName || "",
+            userCode: user?.userCode || "",
             email: user?.email || "",
             phone: user?.phone || "",
             company: user?.company || "",
             categories: user?.categories || [],
             productManufacturers: user?.productManufacturers || {},
-            //smsNotificationsEnabled: user?.smsNotificationsEnabled ?? true,
+            secondaryEmails: user?.secondaryEmails || [],
         })
         setIsEditing(false)
+    }
+
+    const addSecondaryEmail = () => {
+        setFormData(prev => ({
+            ...prev,
+            secondaryEmails: [...prev.secondaryEmails, ""]
+        }))
+    }
+
+    const removeSecondaryEmail = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            secondaryEmails: prev.secondaryEmails.filter((_, i) => i !== index)
+        }))
+    }
+
+    const updateSecondaryEmail = (index: number, value: string) => {
+        setFormData(prev => {
+            const newEmails = [...prev.secondaryEmails]
+            newEmails[index] = value
+            return { ...prev, secondaryEmails: newEmails }
+        })
     }
 
     const handleSave = async () => {
@@ -190,6 +214,51 @@ export default function SettingsPage() {
                                     />
                                 </div>
 
+                                <div className="col-span-2 space-y-4 border-t pt-4">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-base font-semibold">Secondary Emails (for notifications)</Label>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={addSecondaryEmail}
+                                        >
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Add Email
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {formData.secondaryEmails.map((email, index) => (
+                                            <div key={index} className="flex gap-2 items-end">
+                                                <div className="flex-1 space-y-2">
+                                                    <Label htmlFor={`secondaryEmail-${index}`}>Secondary Email {index + 1}</Label>
+                                                    <Input
+                                                        id={`secondaryEmail-${index}`}
+                                                        type="email"
+                                                        value={email}
+                                                        onChange={(e) => updateSecondaryEmail(index, e.target.value)}
+                                                        placeholder="Enter secondary email"
+                                                    />
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => removeSecondaryEmail(index)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        {formData.secondaryEmails.length === 0 && (
+                                            <p className="text-sm text-muted-foreground italic col-span-2">
+                                                No secondary emails added.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
 
                             </div>
 
@@ -223,13 +292,13 @@ export default function SettingsPage() {
 
                             <div className="grid grid-cols-2 gap-4 border-t pt-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="displayName">Display Name (Read-only)</Label>
+                                    <Label htmlFor="userCode">{user?.role === 'buyer' ? 'Buyer Code' : 'Seller Code'} (Read-only)</Label>
                                     <Input
-                                        id="displayName"
-                                        value={formData.displayName}
+                                        id="userCode"
+                                        value={formData.userCode}
                                         readOnly
                                         className="bg-muted cursor-not-allowed"
-                                        placeholder="Enter display name"
+                                        placeholder="User code"
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -263,8 +332,8 @@ export default function SettingsPage() {
                                 <p className="font-medium text-foreground">{user?.name}</p>
                             </div>
                             <div>
-                                <label className="text-sm font-medium text-muted-foreground">Display Name</label>
-                                <p className="font-medium text-foreground">{user?.displayName}</p>
+                                <label className="text-sm font-medium text-muted-foreground">{user?.role === 'buyer' ? 'Buyer Code' : 'Seller Code'}</label>
+                                <p className="font-medium text-foreground">{user?.userCode}</p>
                             </div>
                             <div>
                                 <label className="text-sm font-medium text-muted-foreground">Email</label>
@@ -273,6 +342,20 @@ export default function SettingsPage() {
                             <div>
                                 <label className="text-sm font-medium text-muted-foreground">Phone</label>
                                 <p className="font-medium text-foreground">{user?.phone}</p>
+                            </div>
+                            <div className="col-span-2">
+                                <label className="text-sm font-medium text-muted-foreground">Secondary Emails</label>
+                                <div className="mt-1 flex flex-wrap gap-2">
+                                    {user?.secondaryEmails && user.secondaryEmails.length > 0 ? (
+                                        user.secondaryEmails.map((email, i) => (
+                                            <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                                {email}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm font-medium text-foreground italic">Not set</p>
+                                    )}
+                                </div>
                             </div>
                             <div>
                                 <label className="text-sm font-medium text-muted-foreground">Role</label>

@@ -392,7 +392,7 @@ export default function SellerPendingPage() {
         <div className="flex flex-col gap-4">
           {filteredInquiries.map((inq: Inquiry) => (
             <Card key={inq.id} className="border-border transition-all hover:border-primary/20">
-              <CardHeader className="flex flex-row items-start justify-between pb-3 border-b border-border/50">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-3 border-b border-border/50">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
                     <FileText className="h-5 w-5 text-primary" />
@@ -462,7 +462,7 @@ export default function SellerPendingPage() {
 
                 <Button
                   size="sm"
-                  className="gap-1 shadow-sm"
+                  className="gap-1 shadow-sm w-full sm:w-auto"
                   onClick={() => setSelectedInquiry(inq)}
                 >
                   <Send className="h-3.5 w-3.5" /> View Details & Quote
@@ -503,8 +503,8 @@ export default function SellerPendingPage() {
                 </div>
               )}
 
-              <div className="rounded-md border border-border overflow-hidden">
-                <Table>
+              <div className="rounded-md border border-border overflow-x-auto">
+                <Table className="min-w-[600px]">
                   <TableHeader className="bg-muted/50">
                     <TableRow>
                       <TableHead className="text-foreground font-semibold">Product</TableHead>

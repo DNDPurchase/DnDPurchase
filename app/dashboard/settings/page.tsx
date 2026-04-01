@@ -174,7 +174,7 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                     {isEditing ? (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="name">Name *</Label>
                                     <Input
@@ -290,7 +290,7 @@ export default function SettingsPage() {
                             </div>
                             */}
 
-                            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="userCode">{user?.role === 'buyer' ? 'Buyer Code' : 'Seller Code'} (Read-only)</Label>
                                     <Input
@@ -326,7 +326,7 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                                 <label className="text-sm font-medium text-muted-foreground">Name</label>
                                 <p className="font-medium text-foreground">{user?.name}</p>

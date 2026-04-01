@@ -318,12 +318,12 @@ export default function SellerMyOffersPage() {
                   )}
                 </div>
 
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-col gap-2 pt-2">
                   {isCurrent && offer.status !== "accepted" && offer.inquiryStatus !== "deleted" && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 gap-2 h-9"
+                      className="w-full gap-2 h-10"
                       onClick={() => {
                         setEditingOffer(offer)
                         setSelectedFiles([])
@@ -333,27 +333,27 @@ export default function SellerMyOffersPage() {
                         setQuoteComments(offer.comments || "")
                       }}
                     >
-                      <Edit className="h-3.5 w-3.5" /> Edit
+                      <Edit className="h-4 w-4" /> Edit Offer
                     </Button>
                   )}
                   {isCurrent && (["accepted", "rejected", "disqualified"].includes(offer.status) || offer.inquiryStatus === "deleted") && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 gap-2 h-9"
+                      className="w-full gap-2 h-10"
                       onClick={() => handleArchiveOffer(offer.id)}
                     >
-                      <Archive className="h-3.5 w-3.5" /> History
+                      <Archive className="h-4 w-4" /> Move to History
                     </Button>
                   )}
                   {isCurrent && offer.status !== "accepted" && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 gap-2 h-9 text-destructive hover:text-destructive"
+                      className="w-full gap-2 h-10 text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => handleDeleteOffer(offer.id)}
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                      <Trash2 className="h-4 w-4" /> Delete Offer
                     </Button>
                   )}
                 </div>

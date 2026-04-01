@@ -224,37 +224,37 @@ export default function InquiriesPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <span className="text-sm text-muted-foreground">{inq.items.length} item(s)</span>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 w-full sm:w-auto">
             {!isClosedTab && (
-              <Button size="sm" variant="destructive" className="gap-1.5 opacity-90 hover:opacity-100" onClick={() => handleDelete(inq.id)}>
+              <Button size="sm" variant="destructive" className="w-full sm:w-auto gap-1.5 opacity-90 hover:opacity-100" onClick={() => handleDelete(inq.id)}>
                 Delete Inquiry
               </Button>
             )}
             {isClosedTab && (!inq.rebidCount || inq.rebidCount < 1) && (
-              <div className="flex flex-col items-center gap-0.5">
-                <Button size="sm" variant="outline" className="gap-1.5 text-primary hover:text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => openRebidDialog(inq.id)}>
+              <div className="flex flex-col items-center w-full sm:w-auto gap-0.5">
+                <Button size="sm" variant="outline" className="w-full gap-1.5 text-primary hover:text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => openRebidDialog(inq.id)}>
                   <RotateCcw className="h-3.5 w-3.5" /> Re-bid
                 </Button>
                 <span className="text-[10px] text-muted-foreground font-medium leading-none mt-0.5">(Chances: 1/1 remaining)</span>
               </div>
             )}
             {isClosedTab && inq.rebidCount >= 1 && (
-              <div className="flex flex-col items-center gap-0.5">
-                <Button size="sm" variant="outline" disabled className="gap-1.5" title="Re-bid limit reached">
+              <div className="flex flex-col items-center w-full sm:w-auto gap-0.5">
+                <Button size="sm" variant="outline" disabled className="w-full gap-1.5" title="Re-bid limit reached">
                   <RotateCcw className="h-3.5 w-3.5" /> Re-bid Limit Reached
                 </Button>
                 <span className="text-[10px] text-muted-foreground font-medium leading-none mt-0.5">(Chances: 0/1 remaining)</span>
               </div>
             )}
             {isClosedTab && (
-              <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(inq.id)}>
+              <Button size="sm" variant="ghost" className="w-full sm:w-auto gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(inq.id)}>
                 Delete
               </Button>
             )}
-            <Link href={`/dashboard/offers?inquiryId=${inq.id}`}>
-              <Button size="sm" variant={isClosedTab ? "ghost" : "outline"} className="gap-1 bg-transparent border-input">
+            <Link href={`/dashboard/offers?inquiryId=${inq.id}`} className="w-full sm:w-auto">
+              <Button size="sm" variant={isClosedTab ? "ghost" : "outline"} className="w-full sm:w-auto gap-1 bg-transparent border-input">
                 {inq.offersCount && inq.offersCount > 0 ? `View ${inq.offersCount} Offer${inq.offersCount === 1 ? '' : 's'}` : 'View Offers'} <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
@@ -265,7 +265,7 @@ export default function InquiriesPage() {
   )
 
   return (
-    <div className="mx-auto max-w-5xl px-4 md:px-0">
+    <div className="mx-auto max-w-5xl">
       <div className="mb-4 md:mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-serif text-2xl font-bold text-foreground">My Inquiries</h2>
@@ -292,11 +292,13 @@ export default function InquiriesPage() {
         </Card>
       ) : (
         <Tabs defaultValue="current" className="w-full">
-          <TabsList className="mb-6 grid w-full max-w-[600px] grid-cols-3">
-            <TabsTrigger value="current">Current Inquiry ({currentInquiries.length})</TabsTrigger>
-            <TabsTrigger value="bidding">Active Bid ({biddingInquiries.length})</TabsTrigger>
-            <TabsTrigger value="closed">Closed Bid ({closedInquiries.length})</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-2 -mb-2 mb-6 hide-scrollbar">
+            <TabsList className="flex w-max min-w-full sm:grid sm:max-w-[600px] sm:grid-cols-3">
+              <TabsTrigger value="current" className="px-4 whitespace-nowrap">Current Inquiry ({currentInquiries.length})</TabsTrigger>
+              <TabsTrigger value="bidding" className="px-4 whitespace-nowrap">Active Bid ({biddingInquiries.length})</TabsTrigger>
+              <TabsTrigger value="closed" className="px-4 whitespace-nowrap">Closed Bid ({closedInquiries.length})</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="current" className="mt-0 space-y-4">
             {currentInquiries.length === 0 ? (

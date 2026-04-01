@@ -309,7 +309,7 @@ export default function RegisterPage() {
                     type="email"
                     placeholder="john@company.com"
                     value={form.email}
-                    onChange={(e) => updateForm("email", e.target.value)}
+                    onChange={(e) => updateForm("email", e.target.value.toLowerCase())}
                     className="mt-1.5"
                   />
                 </div>

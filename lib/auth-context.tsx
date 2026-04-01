@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       // 1. Register natively in the browser first
-      if (!auth.currentUser || auth.currentUser.email !== email) {
+      if (!auth.currentUser || auth.currentUser.email?.toLowerCase() !== email.toLowerCase()) {
         await createUserWithEmailAndPassword(auth, email, password)
       }
     } catch (e: any) {

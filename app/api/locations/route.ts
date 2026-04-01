@@ -3,6 +3,8 @@ import { db } from "@/lib/firebase"
 import { collection, getDocs } from "firebase/firestore"
 import { logger } from "@/lib/logger"
 
+export const revalidate = 3600; // Cache for 1 hour
+
 export async function GET() {
     try {
         const snap = await getDocs(collection(db, "locations"))

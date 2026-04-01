@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatOptionType, formatOptionLabel } from "@/lib/utils"
 import { createInquiry } from "@/lib/store"
 import { Textarea } from "@/components/ui/textarea"
+import Image from "next/image"
 
 export interface CartItem {
   id?: string;
@@ -51,7 +52,8 @@ export default function NewInquiryPage() {
   })
 
   // Data for products
-  const [dynamicProducts, setDynamicProducts] = useState<{ name: string, sub_products: string[], image_url?: string }[]>([])
+  const [dynamicProducts, setDynamicProducts] = useState<{ id: string, name: string, sub_products: string[], image_url?: string }[]>([])
+  const [allOptions, setAllOptions] = useState<any[]>([])
   const [productOptions, setProductOptions] = useState<any[]>([])
 
   // Location settings
@@ -62,21 +64,35 @@ export default function NewInquiryPage() {
 
   // Fetch product definitions & options
   useEffect(() => {
-    const fetchDynamicProducts = async () => {
+    const fetchInitialData = async () => {
       try {
         setLoadingProducts(true)
-        const res = await fetch("/api/products")
-        if (res.ok) {
-          const data = await res.json()
-          setDynamicProducts(data.map((p: any) => ({ name: p.name, sub_products: p.sub_products || [], image_url: p.image_url })))
+        const [prodRes, optRes] = await Promise.all([
+          fetch("/api/products"),
+          fetch("/api/products/options/all")
+        ])
+
+        if (prodRes.ok) {
+          const data = await prodRes.json()
+          setDynamicProducts(data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            sub_products: p.sub_products || [],
+            image_url: p.image_url
+          })))
+        }
+
+        if (optRes.ok) {
+          const data = await optRes.json()
+          setAllOptions(data)
         }
       } catch (err) {
-        console.error("Failed to fetch products:", err)
+        console.error("Failed to fetch initial data:", err)
       } finally {
         setLoadingProducts(false)
       }
     }
-    fetchDynamicProducts()
+    fetchInitialData()
 
     // Fetch locations for dropdowns
     fetch("/api/locations")
@@ -143,31 +159,30 @@ export default function NewInquiryPage() {
     });
   };
 
-  // Fetch product definitions & options when selected product changes (in Modal)
+  // Filter options when selected product changes (in Modal)
   useEffect(() => {
-    if (currentItem.product && isModalOpen) {
-      const url = `/api/products/options?productName=${encodeURIComponent(currentItem.product)}${currentItem.sub_product ? `&subProduct=${encodeURIComponent(currentItem.sub_product)}` : ""}`
-      fetch(url)
-        .then(r => r.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            const mappedOptions = data.map((opt: any) => ({
-              ...opt,
-              buyer_option_type: opt.buyer_option_type || (opt.form_type !== 'seller' ? opt.option_type : 'none'),
-              seller_option_type: opt.seller_option_type || (opt.form_type === 'seller' ? opt.option_type : 'none')
-            })).filter((opt: any) => opt.buyer_option_type !== 'none');
+    if (currentItem.product && isModalOpen && allOptions.length > 0) {
+      const product = dynamicProducts.find(p => p.name === currentItem.product);
+      if (!product) return;
 
-            const sorted = sortOptions(mappedOptions);
-            setProductOptions(sorted);
-          } else {
-            setProductOptions([])
-          }
-        })
-        .catch(() => setProductOptions([]))
+      const filteredOptions = allOptions.filter((opt: any) => {
+        const matchesProduct = String(opt.product_id) === String(product.id);
+        const matchesSubProduct = currentItem.sub_product ? opt.sub_product === currentItem.sub_product : !opt.sub_product;
+        return matchesProduct && matchesSubProduct;
+      });
+
+      const mappedOptions = filteredOptions.map((opt: any) => ({
+        ...opt,
+        buyer_option_type: opt.buyer_option_type || (opt.form_type !== 'seller' ? opt.option_type : 'none'),
+        seller_option_type: opt.seller_option_type || (opt.form_type === 'seller' ? opt.option_type : 'none')
+      })).filter((opt: any) => opt.buyer_option_type !== 'none');
+
+      const sorted = sortOptions(mappedOptions);
+      setProductOptions(sorted);
     } else {
       setProductOptions([])
     }
-  }, [currentItem.product, currentItem.sub_product, isModalOpen])
+  }, [currentItem.product, currentItem.sub_product, isModalOpen, allOptions, dynamicProducts])
 
 
   const updateOption = (optionName: string, value: string | string[]) => {
@@ -334,7 +349,7 @@ export default function NewInquiryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 md:px-6 pb-20">
+    <div className="mx-auto max-w-5xl pb-20">
       {/* ─── Page Header ─── */}
       <div className="mb-8 mt-4">
         <h2 className="font-serif text-3xl font-bold text-foreground tracking-tight">Products</h2>
@@ -364,7 +379,13 @@ export default function NewInquiryPage() {
                 onClick={() => handleOpenModal(p)}
               >
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300" />
+                  <Image
+                    src={p.image_url}
+                    alt={p.name}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+                  />
                 ) : (
                   <Package className="h-16 w-16 text-muted-foreground/30 group-hover:scale-105 transition-transform duration-300" />
                 )}
@@ -396,16 +417,27 @@ export default function NewInquiryPage() {
           <div className="bg-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/10">
-              <div>
-                <h2 className="text-xl font-bold text-foreground">
-                  {selectedProduct?.name}
-                </h2>
-                <p className="text-xs font-medium text-muted-foreground mt-0.5">
-                  {modalStep === 1 ? ' ' : 'Delivery Details'}
-                </p>
+            <div className="flex items-start justify-between px-6 py-4 border-b border-border bg-muted/10">
+              <div className="flex items-center gap-4">
+                {selectedProduct?.image_url ? (
+                  <div className="relative h-12 w-12 rounded-lg border border-border shadow-sm flex-shrink-0 overflow-hidden bg-white">
+                    <Image src={selectedProduct.image_url} alt={selectedProduct.name} fill className="object-contain p-1" sizes="48px" />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0 border border-primary/20">
+                    <Package className="h-6 w-6" />
+                  </div>
+                )}
+                <div className="flex flex-col justify-center">
+                  <h2 className="text-xl font-bold text-foreground leading-tight">
+                    {selectedProduct?.name}
+                  </h2>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1">
+                    {modalStep === 1 ? 'Configure Requirements' : 'Delivery Details'}
+                  </p>
+                </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleCloseModal} className="h-8 w-8 rounded-full bg-background/50 hover:bg-muted">
+              <Button variant="ghost" size="icon" onClick={handleCloseModal} className="h-8 w-8 rounded-full bg-background/50 hover:bg-muted shrink-0 ml-4">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -447,99 +479,113 @@ export default function NewInquiryPage() {
                   {/* Specs */}
                   {productOptions.length > 0 && (
                     <div className="space-y-5">
-                      {productOptions.map((opt) => {
-                        const optionKey = (() => {
-                          const hasDuplicates = productOptions.filter(o => o.option_name === opt.option_name).length > 1;
-                          return hasDuplicates ? `${opt.option_name} (${formatOptionType(opt.buyer_option_type)})` : opt.option_name;
-                        })();
+                      {(() => {
+                        const lastLockedIndex = productOptions.reduce((acc, opt, idx) => {
+                          const isLocked = addedItems.length > 0 && opt.seller_option_type !== 'none';
+                          return isLocked ? idx : acc;
+                        }, -1);
 
-                        const isLocked = addedItems.length > 0 && opt.seller_option_type !== 'none';
+                        return productOptions.map((opt, idx) => {
+                          const optionKey = (() => {
+                            const hasDuplicates = productOptions.filter(o => o.option_name === opt.option_name).length > 1;
+                            return hasDuplicates ? `${opt.option_name} (${formatOptionType(opt.buyer_option_type)})` : opt.option_name;
+                          })();
 
-                        return (
-                          <div key={opt.id} className={isLocked ? "opacity-70" : ""}>
-                            <Label className="text-foreground mb-2 flex items-center text-sm font-semibold">
-                              {opt.option_name}
-                              {productOptions.filter(o => o.option_name === opt.option_name).length > 1 && (
-                                <span className="ml-1 text-muted-foreground text-xs font-normal">({formatOptionType(opt.buyer_option_type)})</span>
+                          const isLocked = addedItems.length > 0 && opt.seller_option_type !== 'none';
+
+                          return (
+                            <div key={opt.id} className="space-y-2">
+                              <div className={isLocked ? "opacity-70" : ""}>
+                                <Label className="text-foreground mb-2 flex items-center text-sm font-semibold">
+                                  {opt.option_name}
+                                  {productOptions.filter(o => o.option_name === opt.option_name).length > 1 && (
+                                    <span className="ml-1 text-muted-foreground text-xs font-normal">({formatOptionType(opt.buyer_option_type)})</span>
+                                  )}
+                                  <span className="text-primary ml-1">*</span>
+                                </Label>
+
+                                {opt.buyer_option_type === 'dropdown' ? (
+                                  <Select
+                                    disabled={isLocked}
+                                    value={(currentItem.options?.[optionKey] as string) || ""}
+                                    onValueChange={(v) => updateOption(optionKey, v)}
+                                  >
+                                    <SelectTrigger className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground"><SelectValue placeholder={`Select ${opt.option_name.toLowerCase()}`} /></SelectTrigger>
+                                    <SelectContent className="z-[200]">
+                                      {(opt.dropdown_values || []).map((val: string, idx: number) => (
+                                        <SelectItem key={idx} value={val} className="font-medium">{val}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : opt.buyer_option_type === 'checkbox' ? (
+                                  <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 w-full rounded-lg border border-border/60 bg-muted/20 p-4 ${isLocked ? "pointer-events-none" : ""}`}>
+                                    {(opt.dropdown_values || []).length > 0 ? (
+                                      (opt.dropdown_values || []).map((val: string, idx: number) => (
+                                        <label key={idx} className={`flex items-start gap-2 text-sm leading-tight cursor-pointer text-foreground/90 hover:text-foreground font-medium`}>
+                                          <input
+                                            type="checkbox"
+                                            disabled={isLocked}
+                                            checked={((currentItem.options?.[optionKey] as string[]) || []).includes(val)}
+                                            onChange={() => toggleCheckboxOption(optionKey, val)}
+                                            className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary accent-primary"
+                                          />
+                                          <span>{val}</span>
+                                        </label>
+                                      ))
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
+                                    )}
+                                  </div>
+                                ) : opt.buyer_option_type === 'radio' ? (
+                                  <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 w-full rounded-lg border border-border/60 bg-muted/20 p-4 ${isLocked ? "pointer-events-none" : ""}`}>
+                                    {(opt.dropdown_values || []).length > 0 ? (
+                                      (opt.dropdown_values || []).map((val: string, idx: number) => (
+                                        <label key={idx} className={`flex items-start gap-2 text-sm leading-tight cursor-pointer text-foreground/90 hover:text-foreground font-medium`}>
+                                          <input
+                                            type="radio"
+                                            disabled={isLocked}
+                                            name={optionKey}
+                                            checked={(currentItem.options?.[optionKey] as string) === val}
+                                            onChange={() => updateOption(optionKey, val)}
+                                            className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-gray-300 text-primary focus:ring-primary accent-primary"
+                                          />
+                                          <span>{val}</span>
+                                        </label>
+                                      ))
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <Input
+                                    disabled={isLocked}
+                                    type={opt.buyer_option_type === 'number' ? 'number' : 'text'}
+                                    min={opt.buyer_option_type === 'number' ? ((opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty') ? "1" : "0.000001") : undefined}
+                                    step={opt.buyer_option_type === 'number' && (opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty') ? "1" : "any"}
+                                    placeholder={`Enter ${opt.option_name.toLowerCase()}`}
+                                    value={(currentItem.options?.[optionKey] as string) || ""}
+                                    onChange={(e) => {
+                                      let val = e.target.value;
+                                      if (val.startsWith('-')) return;
+                                      if (opt.buyer_option_type === 'number' && (opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty')) {
+                                        val = val.replace(/[^\d]/g, '');
+                                        if (val === '0') val = "";
+                                      }
+                                      updateOption(optionKey, val);
+                                    }}
+                                    className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground"
+                                  />
+                                )}
+                              </div>
+                              {idx === lastLockedIndex && (
+                                <p className="text-[10px] text-muted-foreground/70 italic mt-1 px-1">
+                                  * To unlock the Categories, Submit or Cancel the Product Inquiry
+                                </p>
                               )}
-                              <span className="text-primary ml-1">*</span>
-                            </Label>
-
-                            {opt.buyer_option_type === 'dropdown' ? (
-                              <Select
-                                disabled={isLocked}
-                                value={(currentItem.options?.[optionKey] as string) || ""}
-                                onValueChange={(v) => updateOption(optionKey, v)}
-                              >
-                                <SelectTrigger className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground"><SelectValue placeholder={`Select ${opt.option_name.toLowerCase()}`} /></SelectTrigger>
-                                <SelectContent className="z-[200]">
-                                  {(opt.dropdown_values || []).map((val: string, idx: number) => (
-                                    <SelectItem key={idx} value={val} className="font-medium">{val}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : opt.buyer_option_type === 'checkbox' ? (
-                              <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 w-full rounded-lg border border-border/60 bg-muted/20 p-4 ${isLocked ? "pointer-events-none" : ""}`}>
-                                {(opt.dropdown_values || []).length > 0 ? (
-                                  (opt.dropdown_values || []).map((val: string, idx: number) => (
-                                    <label key={idx} className={`flex items-start gap-2 text-sm leading-tight cursor-pointer text-foreground/90 hover:text-foreground font-medium`}>
-                                      <input
-                                        type="checkbox"
-                                        disabled={isLocked}
-                                        checked={((currentItem.options?.[optionKey] as string[]) || []).includes(val)}
-                                        onChange={() => toggleCheckboxOption(optionKey, val)}
-                                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary accent-primary"
-                                      />
-                                      <span>{val}</span>
-                                    </label>
-                                  ))
-                                ) : (
-                                  <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
-                                )}
-                              </div>
-                            ) : opt.buyer_option_type === 'radio' ? (
-                              <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 w-full rounded-lg border border-border/60 bg-muted/20 p-4 ${isLocked ? "pointer-events-none" : ""}`}>
-                                {(opt.dropdown_values || []).length > 0 ? (
-                                  (opt.dropdown_values || []).map((val: string, idx: number) => (
-                                    <label key={idx} className={`flex items-start gap-2 text-sm leading-tight cursor-pointer text-foreground/90 hover:text-foreground font-medium`}>
-                                      <input
-                                        type="radio"
-                                        disabled={isLocked}
-                                        name={optionKey}
-                                        checked={(currentItem.options?.[optionKey] as string) === val}
-                                        onChange={() => updateOption(optionKey, val)}
-                                        className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-gray-300 text-primary focus:ring-primary accent-primary"
-                                      />
-                                      <span>{val}</span>
-                                    </label>
-                                  ))
-                                ) : (
-                                  <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
-                                )}
-                              </div>
-                            ) : (
-                              <Input
-                                disabled={isLocked}
-                                type={opt.buyer_option_type === 'number' ? 'number' : 'text'}
-                                min={opt.buyer_option_type === 'number' ? ((opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty') ? "1" : "0.000001") : undefined}
-                                step={opt.buyer_option_type === 'number' && (opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty') ? "1" : "any"}
-                                placeholder={`Enter ${opt.option_name.toLowerCase()}`}
-                                value={(currentItem.options?.[optionKey] as string) || ""}
-                                onChange={(e) => {
-                                  let val = e.target.value;
-                                  if (val.startsWith('-')) return;
-                                  if (opt.buyer_option_type === 'number' && (opt.option_name.toLowerCase().includes('quantity') || opt.option_name.toLowerCase().trim() === 'qty')) {
-                                    val = val.replace(/[^\d]/g, '');
-                                    if (val === '0') val = "";
-                                  }
-                                  updateOption(optionKey, val);
-                                }}
-                                className="h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground"
-                              />
-                            )}
-                          </div>
-                        )
-                      })}
+                            </div>
+                          )
+                        });
+                      })()}
                     </div>
                   )}
 

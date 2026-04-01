@@ -30,7 +30,7 @@ export default function DashboardOverview() {
   const activeBidsCount = Array.isArray(sellerOffers) ? sellerOffers.filter((o: any) => o.status === "pending").length : 0
 
   return (
-    <div className="mx-auto max-w-6xl px-4 md:px-0">
+    <div className="mx-auto max-w-6xl">
       <div className="mb-4 md:mb-8">
         <h2 className="font-serif text-2xl font-bold text-foreground">
           Welcome back, {user?.name}

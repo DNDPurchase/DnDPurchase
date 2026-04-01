@@ -313,7 +313,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
 
   // Create the actual Firebase Auth user FIRST
   try {
-    if (!auth.currentUser || auth.currentUser.email !== data.email) {
+    if (!auth.currentUser || auth.currentUser.email?.toLowerCase() !== data.email.toLowerCase()) {
       await createUserWithEmailAndPassword(auth, data.email, data.password)
     }
   } catch (error: any) {
@@ -1167,14 +1167,36 @@ export async function getAcceptedOffersByUserId(userId: string, role: UserRole):
 }
 
 export async function getProducts(): Promise<{ id: string, name: string, sub_products?: string[], image_url?: string }[]> {
-  const q = query(collection(db, "products"), orderBy("name", "asc"))
+  const q = query(collection(db, "products"))
   const snap = await getDocs(q)
-  return snap.docs.map((p) => ({
+  const products = snap.docs.map((p) => ({
     id: p.data().product_id?.toString() || p.id,
     name: p.data().name,
     sub_products: p.data().sub_products || [],
     image_url: p.data().image_url || null
   }))
+
+  const sequence = [
+    "Cement",
+    "TMT Rebars",
+    "Pipes-Tubes-Hollow Sections",
+    "HR Plates or Coils",
+    "GP-GI Coils or Purlins",
+    "Color-coated Coils or Sheets",
+    "Bare Galvalume Coils or Sheets for Roof"
+  ]
+
+  products.sort((a, b) => {
+    const idxA = sequence.findIndex(s => a.name.includes(s) || s.includes(a.name));
+    const idxB = sequence.findIndex(s => b.name.includes(s) || s.includes(b.name));
+
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.name.localeCompare(b.name);
+  })
+
+  return products
 }
 
 export interface ProductOption {
@@ -1187,13 +1209,20 @@ export interface ProductOption {
   dropdown_values?: string[]
 }
 
-export async function getAllSellerProductOptions(): Promise<Record<string, ProductOption[]>> {
+export async function getAllProductOptions(): Promise<ProductOption[]> {
   const q = query(collection(db, "product_options"))
   const snap = await getDocs(q)
+  return snap.docs.map(docSnap => ({
+    ...(docSnap.data() as ProductOption),
+    id: docSnap.id
+  }))
+}
+
+export async function getAllSellerProductOptions(): Promise<Record<string, ProductOption[]>> {
+  const options = await getAllProductOptions()
   const result: Record<string, ProductOption[]> = {}
 
-  snap.docs.forEach((docSnap) => {
-    const data = docSnap.data() as ProductOption
+  options.forEach((data) => {
     if (data.seller_option_type && data.seller_option_type !== "none") {
       const pId = String(data.product_id)
       if (!result[pId]) result[pId] = []
@@ -1204,7 +1233,7 @@ export async function getAllSellerProductOptions(): Promise<Record<string, Produ
           existingOpt.dropdown_values = Array.from(new Set([...(existingOpt.dropdown_values || []), ...data.dropdown_values]))
         }
       } else {
-        result[pId].push({ ...data, id: docSnap.id })
+        result[pId].push({ ...data })
       }
     }
   })

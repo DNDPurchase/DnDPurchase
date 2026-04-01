@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getProducts } from "@/lib/store"
 import { logger } from "@/lib/logger"
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET() {
     try {

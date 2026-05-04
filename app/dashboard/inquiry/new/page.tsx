@@ -62,6 +62,11 @@ export default function NewInquiryPage() {
   const [submitting, setSubmitting] = useState(false)
   const [loadingProducts, setLoadingProducts] = useState(true)
 
+  // All-Table Product Catalog State
+  const [catalogData, setCatalogData] = useState<{ sellerId: string; sellerName: string; contactEmail: string; contactPhone: string; values: Record<string, string> }[]>([])
+  const [revealedContacts, setRevealedContacts] = useState<Set<number>>(new Set())
+  const [loadingCatalog, setLoadingCatalog] = useState(false)
+
   // Fetch product definitions & options
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -184,6 +189,72 @@ export default function NewInquiryPage() {
     }
   }, [currentItem.product, currentItem.sub_product, isModalOpen, allOptions, dynamicProducts])
 
+  // Detect if ALL buyer options are table type
+  const isAllTableProduct = (currentItem.product === "Stock of non-standard Color-coated coils/sheets") || (productOptions.length > 0 && productOptions.every((opt: any) => opt.buyer_option_type === 'table'));
+
+  // Fetch seller catalog data for all-table products
+  useEffect(() => {
+    if (!isAllTableProduct || !currentItem.product) {
+      setCatalogData([]);
+      setRevealedContacts(new Set());
+      return;
+    }
+    const fetchCatalog = async () => {
+      setLoadingCatalog(true);
+      try {
+        const { collection, getDocs, query, where } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+
+        // Query all sellers who sell this product
+        const usersSnap = await getDocs(
+          query(
+            collection(db, "sellers"),
+            where("categories", "array-contains", currentItem.product)
+          )
+        );
+
+        const getSafeArray = (data: any): any[] => {
+          if (!data) return [];
+          if (Array.isArray(data)) return data;
+          if (typeof data === 'object' && Object.keys(data).length > 0) return [data];
+          return [];
+        };
+
+        const rows: typeof catalogData = [];
+
+        for (const doc of usersSnap.docs) {
+          const seller = doc.data();
+          const rawItems = getSafeArray(seller.seller_product_options?.[currentItem.product]);
+          
+          // Filter by sub_product if buyer has selected one
+          const filteredItems = currentItem.sub_product
+            ? rawItems.filter(item => !item["Sub-Products"] || item["Sub-Products"] === currentItem.sub_product)
+            : rawItems;
+
+          for (const item of filteredItems) {
+            const values: Record<string, string> = {};
+            for (const [k, v] of Object.entries(item)) {
+              values[k] = Array.isArray(v) ? (v as string[]).join(", ") : String(v ?? "");
+            }
+            rows.push({
+              sellerId: doc.id,
+              sellerName: seller.name || seller.company_name || "Seller",
+              contactEmail: seller.email || "",
+              contactPhone: seller.phone || "",
+              values,
+            });
+          }
+        }
+
+        setCatalogData(rows);
+      } catch (err) {
+        console.error("Failed to fetch catalog data:", err);
+      } finally {
+        setLoadingCatalog(false);
+      }
+    };
+    fetchCatalog();
+  }, [isAllTableProduct, currentItem.product, currentItem.sub_product, productOptions]);
 
   const updateOption = (optionName: string, value: string | string[]) => {
     setCurrentItem(prev => ({
@@ -221,6 +292,9 @@ export default function NewInquiryPage() {
     }
 
     for (const opt of productOptions) {
+      // Skip table-type fields — data is provided by the seller
+      if (opt.buyer_option_type === 'table') continue;
+
       const optionKey = (() => {
         const hasDuplicates = productOptions.filter((o) => o.option_name === opt.option_name).length > 1;
         return hasDuplicates ? `${opt.option_name} (${formatOptionType(opt.buyer_option_type)})` : opt.option_name;
@@ -433,7 +507,7 @@ export default function NewInquiryPage() {
                     {selectedProduct?.name}
                   </h2>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1">
-                    {modalStep === 1 ? 'Configure Requirements' : 'Delivery Details'}
+                    {isAllTableProduct ? 'Seller Directory' : (modalStep === 1 ? 'Configure Requirements' : 'Delivery Details')}
                   </p>
                 </div>
               </div>
@@ -452,30 +526,116 @@ export default function NewInquiryPage() {
                       <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center">
                         Product Type <span className="text-primary ml-1">*</span>
                       </Label>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProduct.sub_products.map((sp: string) => (
-                          <Button
-                            key={sp}
-                            variant={currentItem.sub_product === sp ? "default" : "outline"}
-                            size="sm"
-                            disabled={addedItems.length > 0}
-                            onClick={() => {
-                              if (addedItems.length === 0) {
-                                setCurrentItem(prev => ({ ...prev, sub_product: sp, options: {} }))
-                              }
-                            }}
-                            className={`rounded-lg font-medium transition-all duration-200 ${currentItem.sub_product === sp
-                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105"
-                              : "hover:bg-muted"
-                              } ${addedItems.length > 0 ? "opacity-70 cursor-not-allowed" : ""}`}
-                          >
-                            {sp}
-                          </Button>
-                        ))}
-                      </div>
+                      <Select
+                        disabled={addedItems.length > 0}
+                        value={currentItem.sub_product || ""}
+                        onValueChange={(val) => {
+                          if (addedItems.length === 0) {
+                            setCurrentItem(prev => ({ ...prev, sub_product: val, options: {} }))
+                          }
+                        }}
+                      >
+                        <SelectTrigger className={`h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground ${addedItems.length > 0 ? "opacity-70 cursor-not-allowed" : ""}`}>
+                          <SelectValue placeholder="Select product type..." />
+                        </SelectTrigger>
+                        <SelectContent className="z-[200]">
+                          {selectedProduct.sub_products.map((sp: string) => (
+                            <SelectItem key={sp} value={sp} className="font-medium">{sp}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
 
+                  {isAllTableProduct && currentItem.sub_product ? (
+                    /* ── All-Table Product: Catalog View ── */
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+                        <span className="text-xs font-bold uppercase tracking-wider text-primary">Seller Directory</span>
+                      </div>
+
+                      {loadingCatalog ? (
+                        <div className="flex items-center justify-center py-12">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          <span className="ml-2 text-sm text-muted-foreground">Loading seller data...</span>
+                        </div>
+                      ) : catalogData.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-border bg-muted/10 p-8 text-center">
+                          <p className="text-sm text-muted-foreground">No seller data available yet for this product.</p>
+                          <p className="text-xs text-muted-foreground/60 mt-1">Sellers will provide tabular data when they submit quotations.</p>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-border overflow-hidden bg-card">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-muted/30 border-b border-border">
+                                  <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground/80 w-8">#</th>
+                                  {(() => {
+                                    const FIELD_ORDER = ["Sub-Products", "Color", "Manufacturer", "Quantity(in tons)", "Location", "Comment"];
+                                    const allCols = Array.from(new Set(catalogData.flatMap(r => Object.keys(r.values))));
+                                    const sortedCols = [...FIELD_ORDER.filter(f => allCols.includes(f)), ...allCols.filter(f => !FIELD_ORDER.includes(f))];
+                                    return sortedCols.map((col, ci) => (
+                                      <th key={ci} className="px-3 py-2.5 text-left font-semibold text-foreground/80 whitespace-nowrap">{col}</th>
+                                    ));
+                                  })()}
+                                  <th className="px-3 py-2.5 text-center font-semibold text-foreground/80 w-36">Contact</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {catalogData.map((row, rowIdx) => (
+                                  <tr key={rowIdx} className="border-b border-border/50 hover:bg-muted/10 transition-colors">
+                                    <td className="px-3 py-2.5 text-muted-foreground font-medium">{rowIdx + 1}</td>
+                                    {(() => {
+                                      const FIELD_ORDER = ["Sub-Products", "Color", "Manufacturer", "Quantity(in tons)", "Location", "Comment"];
+                                      const allCols = Array.from(new Set(catalogData.flatMap(r => Object.keys(r.values))));
+                                      const sortedCols = [...FIELD_ORDER.filter(f => allCols.includes(f)), ...allCols.filter(f => !FIELD_ORDER.includes(f))];
+                                      return sortedCols.map((col, ci) => (
+                                        <td key={ci} className="px-3 py-2.5 text-foreground font-medium whitespace-nowrap">
+                                          {row.values[col] || <span className="text-muted-foreground/50 italic">—</span>}
+                                        </td>
+                                      ));
+                                    })()}
+                                    <td className="px-3 py-2.5 text-center">
+                                      {revealedContacts.has(rowIdx) ? (
+                                        <div className="flex flex-col items-start gap-1 text-[10px] animate-in fade-in duration-300">
+                                          <span className="font-bold text-foreground">{row.sellerName}</span>
+                                          {row.contactEmail && (
+                                            <span className="flex items-center gap-1 text-muted-foreground break-all">
+                                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                              {row.contactEmail}
+                                            </span>
+                                          )}
+                                          {row.contactPhone && (
+                                            <span className="flex items-center gap-1 text-muted-foreground">
+                                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                              {row.contactPhone}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 text-[10px] font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/5 rounded-lg px-2.5"
+                                          onClick={() => setRevealedContacts(prev => new Set(prev).add(rowIdx))}
+                                        >
+                                          <Lock className="h-3 w-3" />
+                                          Seller Contact
+                                        </Button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
                   {/* Specs */}
                   {productOptions.length > 0 && (
                     <div className="space-y-5">
@@ -495,13 +655,13 @@ export default function NewInquiryPage() {
 
                           return (
                             <div key={opt.id} className="space-y-2">
-                              <div className={isLocked ? "opacity-70" : ""}>
+                              <div className={isLocked && opt.buyer_option_type !== 'table' ? "opacity-70" : ""}>
                                 <Label className="text-foreground mb-2 flex items-center text-sm font-semibold">
                                   {opt.option_name}
                                   {productOptions.filter(o => o.option_name === opt.option_name).length > 1 && (
                                     <span className="ml-1 text-muted-foreground text-xs font-normal">({formatOptionType(opt.buyer_option_type)})</span>
                                   )}
-                                  <span className="text-primary ml-1">*</span>
+                                  {opt.buyer_option_type !== 'table' && <span className="text-primary ml-1">*</span>}
                                 </Label>
 
                                 {opt.buyer_option_type === 'dropdown' ? (
@@ -556,6 +716,36 @@ export default function NewInquiryPage() {
                                       <span className="text-sm text-muted-foreground italic col-span-full">No choices configured</span>
                                     )}
                                   </div>
+                                ) : opt.buyer_option_type === 'table' ? (
+                                  <div className="w-full rounded-lg border border-border/60 bg-muted/20 p-4 space-y-2">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary/60"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+                                      <span className="text-xs font-semibold uppercase tracking-wider text-primary/70">Tabular Data</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                      This information will be provided by the seller in a tabular format when they submit their quotation.
+                                    </p>
+                                    {(opt.table_columns && opt.table_columns.length > 0) && (
+                                      <div className="rounded-md border border-border/40 overflow-hidden mt-2">
+                                        <table className="w-full text-xs">
+                                          <thead>
+                                            <tr className="bg-muted/30 border-b border-border/40">
+                                              {opt.table_columns.map((col: string, ci: number) => (
+                                                <th key={ci} className="px-3 py-1.5 text-left font-semibold text-muted-foreground/80">{col}</th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            <tr>
+                                              {opt.table_columns.map((_: string, ci: number) => (
+                                                <td key={ci} className="px-3 py-2 text-muted-foreground/50 italic">—</td>
+                                              ))}
+                                            </tr>
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </div>
                                 ) : (
                                   <Input
                                     disabled={isLocked}
@@ -590,7 +780,7 @@ export default function NewInquiryPage() {
                   )}
 
                   {/* Remarks Field */}
-                  {(!selectedProduct?.sub_products?.length || currentItem.sub_product) && (
+                  {(!selectedProduct?.sub_products?.length || currentItem.sub_product) && !isAllTableProduct && (
                     <div className="space-y-3 pt-4 border-t border-border/50">
                       <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center">
                         Additional Remarks / Comments (Optional)
@@ -602,6 +792,8 @@ export default function NewInquiryPage() {
                         className="resize-none h-20 bg-muted/30 border-border font-medium text-foreground"
                       />
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
               )}
@@ -708,37 +900,43 @@ export default function NewInquiryPage() {
             <div className="border-t border-border bg-muted/10">
               <div className="px-6 py-5 flex items-center justify-between gap-3">
                 <div>
-                  {modalStep === 2 && (
+                  {!isAllTableProduct && modalStep === 2 && (
                     <Button variant="ghost" onClick={() => setModalStep(1)} className="font-medium text-muted-foreground hover:text-foreground">
                       Back to Requirements
                     </Button>
                   )}
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={handleCloseModal} className="font-medium rounded-xl">Cancel</Button>
-                  {modalStep === 1 ? (
-                    <Button
-                      onClick={handleAddItem}
-                      variant="outline"
-                      className="font-bold rounded-xl border-primary text-primary hover:bg-primary/5 px-6"
-                    >
-                      Add Item
-                    </Button>
+                  {isAllTableProduct ? (
+                    <Button variant="outline" onClick={handleCloseModal} className="font-medium rounded-xl px-6">Close</Button>
                   ) : (
-                    <Button
-                      onClick={handleSubmitInquiry}
-                      disabled={submitting}
-                      className="font-bold px-8 rounded-xl bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm gap-2"
-                    >
-                      {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      Submit Inquiry
-                    </Button>
+                    <>
+                      <Button variant="outline" onClick={handleCloseModal} className="font-medium rounded-xl">Cancel</Button>
+                      {modalStep === 1 ? (
+                        <Button
+                          onClick={handleAddItem}
+                          variant="outline"
+                          className="font-bold rounded-xl border-primary text-primary hover:bg-primary/5 px-6"
+                        >
+                          Add Item
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleSubmitInquiry}
+                          disabled={submitting}
+                          className="font-bold px-8 rounded-xl bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm gap-2"
+                        >
+                          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          Submit Inquiry
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
 
-              {/* Added Items Preview below buttons - only in Step 1 */}
-              {modalStep === 1 && addedItems.length > 0 && (
+              {/* Added Items Preview below buttons - only in Step 1, not for all-table products */}
+              {!isAllTableProduct && modalStep === 1 && addedItems.length > 0 && (
                 <div className="px-6 pb-6 pt-0 border-t border-border/40 bg-muted/5">
                   <div className="mt-4 space-y-3 max-h-[150px] overflow-y-auto pr-2 form-scrollbar">
                     <div className="flex items-center gap-2 mb-2">

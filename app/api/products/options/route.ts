@@ -53,7 +53,8 @@ export async function GET(req: Request) {
             'checkbox': 0,
             'dropdown': 1,
             'number': 2,
-            'text': 3
+            'text': 3,
+            'table': 4
         }
 
         optionsData.sort((a, b) => {

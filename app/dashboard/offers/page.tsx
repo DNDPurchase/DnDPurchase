@@ -16,9 +16,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Suspense, useState, useMemo, useEffect } from "react"
 import { toast } from "sonner"
-import useSWR from "swr"
+import useSWR, { mutate as globalMutate } from "swr"
 import { getInquiryById, getOffersByInquiryId, getInquiriesByBuyerId, acceptOffer, disqualifyOffer, closeInquiry, revertOfferToPending, activateBidding, startBidding } from "@/lib/store"
-import { formatOptionLabel } from "@/lib/utils"
+import { formatOptionLabel, sortInquiryOptions } from "@/lib/utils"
 
 function rankBadge(rank?: number) {
   if (!rank) return <span className="text-muted-foreground">-</span>
@@ -80,55 +80,6 @@ function OffersContent() {
     fetchAll()
   }, [productSubProductPairs])
 
-  const sortInquiryOptions = (productName: string, subProduct: string | undefined, options: Record<string, any>) => {
-    const key = `${productName}|${subProduct || ""}`
-    const metadata = allProductOptions[key] || []
-    if (metadata.length === 0) return Object.entries(options)
-
-    return Object.entries(options).sort(([keyA], [keyB]) => {
-      const metaA = metadata.find(m => m.option_name === keyA || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyA)
-      const metaB = metadata.find(m => m.option_name === keyB || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyB)
-
-      const nameA = keyA.toLowerCase().trim().split('(')[0].trim()
-      const nameB = keyB.toLowerCase().trim().split('(')[0].trim()
-
-      // 1. Manufacturer Always First
-      const isManA = nameA === "manufacturer"
-      const isManB = nameB === "manufacturer"
-      if (isManA && !isManB) return -1
-      if (!isManA && isManB) return 1
-
-      // 2. Locked Options (Metadata-driven) Next
-      const isLockedA = metaA ? metaA.seller_option_type !== 'none' : false
-      const isLockedB = metaB ? metaB.seller_option_type !== 'none' : false
-
-      if (isLockedA && !isLockedB) return -1
-      if (!isLockedA && isLockedB) return 1
-
-      // 3. Quantity & Measurement Always Last (Measurement second last)
-      const specialEndOrder = ["quantity measurement", "quantity"]
-      const endIdxA = specialEndOrder.indexOf(nameA)
-      const endIdxB = specialEndOrder.indexOf(nameB)
-
-      if (endIdxA !== -1 && endIdxB !== -1) return endIdxA - endIdxB
-      if (endIdxA !== -1) return 1
-      if (endIdxB !== -1) return -1
-
-      // 4. Alphabetical for others
-      return keyA.localeCompare(keyB)
-    })
-  }
-
-  function formatOptionType(type: string) {
-    switch (type) {
-      case 'radio': return 'Radio';
-      case 'checkbox': return 'Checkbox';
-      case 'dropdown': return 'Dropdown';
-      case 'number': return 'Number';
-      case 'text': return 'Text';
-      default: return type;
-    }
-  }
   const { data: buyerInquiries } = useSWR(
     !inquiryId && user ? `buyer-inquiries-${user.id}` : null,
     () => getInquiriesByBuyerId(user!.id)
@@ -147,6 +98,8 @@ function OffersContent() {
     })
 
     mutate()
+    if (user) globalMutate(`buyer-inquiries-${user.id}`)
+    globalMutate("open-inquiries")
     toast.success("Offer disqualified")
   }
 
@@ -165,6 +118,8 @@ function OffersContent() {
 
     mutate()
     if (mutateInquiry) mutateInquiry()
+    if (user) globalMutate(`buyer-inquiries-${user.id}`)
+    globalMutate("open-inquiries")
     toast.success("Offer accepted! Seller notified via Email and SMS.")
   }
 
@@ -177,6 +132,8 @@ function OffersContent() {
 
       mutate()
       if (mutateInquiry) mutateInquiry()
+      if (user) globalMutate(`buyer-inquiries-${user.id}`)
+      globalMutate("open-inquiries")
       toast.success(offerId ? "Bidding resumed for 3 days. The accepted offer has been moved back to pending." : "Bidding resumed for 3 days.")
     } catch (error) {
       toast.error("Failed to resume bidding")
@@ -198,6 +155,8 @@ function OffersContent() {
         setIsStartBiddingDialogOpen(false)
         mutate()
         if (mutateInquiry) mutateInquiry()
+        if (user) globalMutate(`buyer-inquiries-${user.id}`)
+        globalMutate("open-inquiries")
       }
     } catch (error) {
       toast.error("Failed to start bidding")
@@ -373,10 +332,48 @@ function OffersContent() {
                                   })()}
                                 </TableCell>
                                 <TableCell className="whitespace-nowrap px-2 py-4">{rankBadge(offer.rank)}</TableCell>
-                                <TableCell className="max-w-[150px] text-muted-foreground px-2 py-4">
+                                <TableCell className="max-w-[250px] text-muted-foreground px-2 py-4">
                                   {offer.sellerOptions && Object.keys(offer.sellerOptions).length > 0 ? (
-                                    <div className="flex flex-col gap-1 text-[11px] whitespace-normal">
-                                      {sortInquiryOptions(item.product, item.sub_product, offer.sellerOptions).map(([k, v]) => {
+                                    <div className="flex flex-col gap-2 text-[11px] whitespace-normal">
+                                      {sortInquiryOptions(offer.sellerOptions, allProductOptions[`${item.product}|${item.sub_product || ""}`]).map(([k, v]) => {
+                                        // Check if value is a JSON table string
+                                        let tableData: Record<string, string>[] | null = null;
+                                        try {
+                                          const parsed = typeof v === 'string' ? JSON.parse(v) : null;
+                                          if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+                                            tableData = parsed;
+                                          }
+                                        } catch {}
+
+                                        if (tableData && tableData.length > 0) {
+                                          const cols = Object.keys(tableData[0]);
+                                          return (
+                                            <div key={k} className="w-full">
+                                              <strong className="font-medium text-foreground block mb-1">{formatOptionLabel(k)}</strong>
+                                              <div className="rounded border border-border overflow-hidden">
+                                                <table className="w-full text-[10px]">
+                                                  <thead>
+                                                    <tr className="bg-muted/30 border-b border-border">
+                                                      {cols.map((col, ci) => (
+                                                        <th key={ci} className="px-2 py-1 text-left font-semibold text-foreground/70">{col}</th>
+                                                      ))}
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody>
+                                                    {tableData.map((row, ri) => (
+                                                      <tr key={ri} className="border-b border-border/30">
+                                                        {cols.map((col, ci) => (
+                                                          <td key={ci} className="px-2 py-1 text-foreground">{row[col] || '-'}</td>
+                                                        ))}
+                                                      </tr>
+                                                    ))}
+                                                  </tbody>
+                                                </table>
+                                              </div>
+                                            </div>
+                                          );
+                                        }
+
                                         const valStr = Array.isArray(v) ? v.join(", ") : v;
                                         if (!valStr) return null;
                                         return <span key={k}><strong className="font-medium text-foreground">{formatOptionLabel(k)}:</strong> {String(valStr)}</span>
@@ -502,8 +499,46 @@ function OffersContent() {
                             {offer.sellerOptions && Object.keys(offer.sellerOptions).length > 0 && (
                               <div className="bg-muted/20 p-2.5 rounded-md mt-1 border border-border/30">
                                 <div className="text-xs font-semibold text-foreground/80 mb-1 uppercase tracking-wider">Specs</div>
-                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                                  {sortInquiryOptions(item.product, item.sub_product, offer.sellerOptions).map(([k, v]) => {
+                                <div className="flex flex-col gap-2 text-xs">
+                                  {sortInquiryOptions(offer.sellerOptions, allProductOptions[`${item.product}|${item.sub_product || ""}`]).map(([k, v]) => {
+                                    // Check if value is a JSON table string
+                                    let tableData: Record<string, string>[] | null = null;
+                                    try {
+                                      const parsed = typeof v === 'string' ? JSON.parse(v) : null;
+                                      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+                                        tableData = parsed;
+                                      }
+                                    } catch {}
+
+                                    if (tableData && tableData.length > 0) {
+                                      const cols = Object.keys(tableData[0]);
+                                      return (
+                                        <div key={k} className="w-full">
+                                          <strong className="font-medium text-foreground block mb-1">{formatOptionLabel(k)}</strong>
+                                          <div className="rounded border border-border overflow-hidden">
+                                            <table className="w-full text-[10px]">
+                                              <thead>
+                                                <tr className="bg-muted/30 border-b border-border">
+                                                  {cols.map((col, ci) => (
+                                                    <th key={ci} className="px-2 py-1 text-left font-semibold text-foreground/70">{col}</th>
+                                                  ))}
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {tableData.map((row, ri) => (
+                                                  <tr key={ri} className="border-b border-border/30">
+                                                    {cols.map((col, ci) => (
+                                                      <td key={ci} className="px-2 py-1 text-foreground">{row[col] || '-'}</td>
+                                                    ))}
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+
                                     const valStr = Array.isArray(v) ? v.join(", ") : v;
                                     if (!valStr) return null;
                                     return <span key={k}><strong className="font-medium text-foreground">{formatOptionLabel(k)}:</strong> {String(valStr)}</span>

@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/auth-context"
 import { logger } from "@/lib/logger"
-import { Loader2, Package, X, Save, MapPin, Pencil, ChevronDown, ChevronRight, CheckCircle2, Circle, ShieldCheck, Layers, Globe } from "lucide-react"
+import { Loader2, Package, X, Save, MapPin, Pencil, ChevronDown, ChevronRight, CheckCircle2, Circle, ShieldCheck, Layers, Globe, Plus } from "lucide-react"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { updateUser } from "@/lib/store"
 import { ProductOption } from "@/lib/store"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function MyProductsPage() {
     const { user, updateUserData } = useAuth()
@@ -22,12 +23,13 @@ export default function MyProductsPage() {
     const [expandedLocations, setExpandedLocations] = useState<string[]>([])
 
     // We maintain a local copy of the data for the item being edited
+    const [tempProductItems, setTempProductItems] = useState<any[]>([])
     const [tempProductOptions, setTempProductOptions] = useState<Record<string, any>>({})
     const [tempLocationDistricts, setTempLocationDistricts] = useState<string[]>([])
 
     const [formData, setFormData] = useState({
         categories: user?.categories || [] as string[],
-        sellerProductOptions: user?.sellerProductOptions || {} as Record<string, Record<string, any>>,
+        sellerProductOptions: user?.sellerProductOptions || {} as Record<string, any[]>,
         availableLocations: user?.availableLocations || {} as Record<string, string[]>,
     })
     const [locations, setLocations] = useState<any[]>([])
@@ -73,6 +75,7 @@ export default function MyProductsPage() {
         if (!isCurrentlyExpanded && !isActive) {
             // If expanding a new product, initialize its options from empty
             setTempProductOptions({});
+            setTempProductItems([]);
         }
 
         setExpandedProducts(prev =>
@@ -101,15 +104,15 @@ export default function MyProductsPage() {
         // Check sub-products
         if (productObj.sub_products && productObj.sub_products.length > 0) {
             const subs = options["Sub-Products"]
-            if (!subs || (Array.isArray(subs) && subs.length === 0)) {
-                return `Please select at least one sub-product for ${catName}`
+            if (!subs || (Array.isArray(subs) ? subs.length === 0 : !subs.trim())) {
+                return `Please select a sub-product for ${catName}`
             }
         }
 
         // Check other options
         const pOptions = allOptions[productObj.id] || []
         for (const opt of pOptions) {
-            if (opt.seller_option_type !== "none") {
+            if (opt.seller_option_type !== "none" && opt.seller_option_type !== "table") {
                 const val = options[opt.option_name]
                 if (!val || (Array.isArray(val) && val.length === 0)) {
                     return `Please select at least one ${opt.option_name} for ${catName}`
@@ -119,12 +122,105 @@ export default function MyProductsPage() {
         return null
     }
 
-    const saveProduct = async (catName: string) => {
-        if (!user) return
+    const getSafeItemsArray = (data: any): any[] => {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        if (typeof data === 'object' && Object.keys(data).length > 0) return [data];
+        return [];
+    }
 
+    const renderItemsTable = (items: any[], onRemove?: (index: number) => void) => {
+        const safeItems = getSafeItemsArray(items);
+        if (safeItems.length === 0) return null;
+        
+        // Exclude table type options from columns as they are handled differently
+        const allColumns = Array.from(new Set(safeItems.flatMap(item => Object.keys(item))));
+        const FIELD_ORDER = ["Sub-Products", "Color", "Manufacturer", "Quantity(in tons)", "Location", "Comment"];
+        const columns = [
+            ...FIELD_ORDER.filter(f => allColumns.includes(f)),
+            ...allColumns.filter(f => !FIELD_ORDER.includes(f)),
+        ];
+
+        return (
+            <div className="rounded-md border border-border overflow-hidden mb-5">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-semibold tracking-wider">
+                            <tr>
+                                <th className="px-4 py-2.5 w-10 text-center">#</th>
+                                {columns.map(col => (
+                                    <th key={col} className="px-4 py-2.5 whitespace-nowrap">{col}</th>
+                                ))}
+                                {onRemove && <th className="px-4 py-2.5 text-right w-16">Action</th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                            {safeItems.map((item, idx) => (
+                                <tr key={idx} className="bg-card hover:bg-muted/20 transition-colors">
+                                    <td className="px-4 py-3 text-center text-muted-foreground font-medium">{idx + 1}</td>
+                                    {columns.map(col => {
+                                        const val = item[col];
+                                        const displayVal = Array.isArray(val) ? val.join(", ") : String(val || "-");
+                                        return (
+                                            <td key={col} className="px-4 py-3 whitespace-nowrap max-w-[200px] truncate" title={displayVal}>
+                                                {displayVal}
+                                            </td>
+                                        )
+                                    })}
+                                    {onRemove && (
+                                        <td className="px-4 py-3 text-right">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                onClick={() => onRemove(idx)}
+                                                title="Remove item"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    }
+
+    const handleAddItem = (catName: string) => {
         const error = validateProduct(catName, tempProductOptions)
         if (error) {
             toast.error(error)
+            return
+        }
+
+        setTempProductItems(prev => [...prev, { ...tempProductOptions }])
+        setTempProductOptions({})
+    }
+
+    const saveProduct = async (catName: string) => {
+        if (!user) return
+
+        // If there are unsaved inputs in the form, try to add them first
+        if (Object.keys(tempProductOptions).length > 0) {
+            const error = validateProduct(catName, tempProductOptions)
+            if (!error) {
+                setTempProductItems(prev => [...prev, { ...tempProductOptions }])
+                setTempProductOptions({})
+            }
+        }
+
+        // Wait a tick for state to update if we just added an item, or proceed if items exist
+        // To avoid async state issues, we use the current tempProductItems directly, plus any valid unsaved input
+        let finalItems = [...tempProductItems]
+        if (Object.keys(tempProductOptions).length > 0 && !validateProduct(catName, tempProductOptions)) {
+             finalItems.push({ ...tempProductOptions })
+        }
+
+        if (finalItems.length === 0) {
+            toast.error(`Please add at least one item for ${catName}`)
             return
         }
 
@@ -136,7 +232,7 @@ export default function MyProductsPage() {
 
             const newOptions = {
                 ...formData.sellerProductOptions,
-                [catName]: tempProductOptions
+                [catName]: finalItems
             }
 
             const data = await updateUser(user.id, {
@@ -296,10 +392,15 @@ export default function MyProductsPage() {
                             const isActive = formData.categories.includes(catName)
                             const isEditing = editingProduct === catName
                             const isExpanded = expandedProducts.includes(catName)
-                            const isConfiguring = isEditing || (isExpanded && !isActive)
-                            const currentOptions = isConfiguring ? tempProductOptions : (formData.sellerProductOptions[catName] || {})
+                            const currentOptions = getSafeItemsArray(formData.sellerProductOptions[catName])
                             const pOptions = allOptions[product.id] || []
-                            const savedOptionCount = Object.values(formData.sellerProductOptions[catName] || {}).filter(v => Array.isArray(v) ? v.length > 0 : !!v).length
+                            const savedOptionCount = currentOptions.length
+
+                            const FIELD_ORDER = ["Color", "Manufacturer", "Quantity(in tons)", "Location", "Comment"];
+                            const sortedPOptions = [
+                                ...FIELD_ORDER.map(name => pOptions.find(o => o.option_name === name)).filter(Boolean),
+                                ...pOptions.filter(o => !FIELD_ORDER.includes(o.option_name)),
+                            ] as typeof pOptions;
 
                             return (
                                 <div
@@ -349,7 +450,7 @@ export default function MyProductsPage() {
                                                             Cancel
                                                         </Button>
                                                         {(() => {
-                                                            const isValid = validateProduct(catName, tempProductOptions) === null;
+                                                            const isValid = tempProductItems.length > 0 || Object.keys(tempProductOptions).length > 0;
                                                             return (
                                                                 <Button
                                                                     size="sm"
@@ -371,7 +472,8 @@ export default function MyProductsPage() {
                                                                 className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
                                                                 onClick={() => {
                                                                     setEditingProduct(catName)
-                                                                    setTempProductOptions(formData.sellerProductOptions[catName] || {})
+                                                                    setTempProductItems(getSafeItemsArray(formData.sellerProductOptions[catName]))
+                                                                    setTempProductOptions({})
                                                                 }}
                                                                 disabled={loading}
                                                                 title="Edit product"
@@ -402,98 +504,116 @@ export default function MyProductsPage() {
                                     {(isEditing || isExpanded) && (
                                         <div className="border-t border-border/50">
                                             {(isEditing || (isExpanded && !isActive)) ? (
-                                                <div className="p-5 space-y-5">
-                                                    {/* Sub-Products */}
-                                                    {product.sub_products && product.sub_products.length > 0 && (
-                                                        <div className="space-y-2.5">
-                                                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                                                Sub-Products <span className="text-primary">*</span>
-                                                            </Label>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {product.sub_products.map(sub => {
-                                                                    const checked = (tempProductOptions["Sub-Products"] || []).includes(sub)
-                                                                    return (
-                                                                        <label
-                                                                            key={sub}
-                                                                            className={`inline-flex items-center gap-2 text-sm cursor-pointer transition-all duration-150 px-3.5 py-2 rounded-lg border ${checked
-                                                                                ? 'bg-primary border-primary text-primary-foreground font-medium shadow-sm'
-                                                                                : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
-                                                                                }`}
-                                                                        >
-                                                                            <Checkbox
-                                                                                checked={checked}
-                                                                                className={checked ? "border-primary-foreground/50 bg-primary-foreground/20 data-[state=checked]:bg-primary-foreground/20 data-[state=checked]:text-primary-foreground" : ""}
-                                                                                onCheckedChange={(c: boolean) => {
-                                                                                    const prev = tempProductOptions["Sub-Products"] || []
-                                                                                    const next = c ? [...prev, sub] : prev.filter((s: string) => s !== sub)
-                                                                                    setTempProductOptions({ ...tempProductOptions, "Sub-Products": next })
-                                                                                }}
-                                                                            />
-                                                                            {sub}
-                                                                        </label>
-                                                                    )
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Dynamic Options */}
-                                                    {pOptions.map(opt => {
-                                                        const isMulti = opt.seller_option_type === "dropdown" || opt.seller_option_type === "checkbox"
-                                                        if (!isMulti || !opt.dropdown_values) return null
-
-                                                        const currentVals = tempProductOptions[opt.option_name] || []
-                                                        return (
-                                                            <div key={opt.id} className="space-y-2.5">
-                                                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                                                    {opt.option_name} <span className="text-primary">*</span>
-                                                                </Label>
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    {opt.dropdown_values.map(val => {
-                                                                        const checked = currentVals.includes(val)
-                                                                        return (
-                                                                            <label
-                                                                                key={val}
-                                                                                className={`inline-flex items-center gap-2 text-sm cursor-pointer transition-all duration-150 px-3.5 py-2 rounded-lg border ${checked
-                                                                                    ? 'bg-primary border-primary text-primary-foreground font-medium shadow-sm'
-                                                                                    : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
-                                                                                    }`}
-                                                                            >
-                                                                                <Checkbox
-                                                                                    checked={checked}
-                                                                                    className={checked ? "border-primary-foreground/50 bg-primary-foreground/20 data-[state=checked]:bg-primary-foreground/20 data-[state=checked]:text-primary-foreground" : ""}
-                                                                                    onCheckedChange={(c: boolean) => {
-                                                                                        const next = c ? [...currentVals, val] : currentVals.filter((v: string) => v !== val)
-                                                                                        setTempProductOptions({ ...tempProductOptions, [opt.option_name]: next })
-                                                                                    }}
-                                                                                />
-                                                                                {val}
-                                                                            </label>
-                                                                        )
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        )
+                                                <div className="p-5">
+                                                    {/* Preview of added items */}
+                                                    {renderItemsTable(tempProductItems, (idx) => {
+                                                        setTempProductItems(prev => prev.filter((_, i) => i !== idx))
                                                     })}
+
+                                                    <div className="space-y-5 rounded-lg border border-border bg-muted/10 p-5">
+                                                        <h4 className="text-sm font-semibold text-foreground">Add New Variant</h4>
+                                                        
+                                                        {/* Sub-Products */}
+                                                        {product.sub_products && product.sub_products.length > 0 && (
+                                                            <div className="space-y-2.5">
+                                                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                                    Sub-Products <span className="text-primary">*</span>
+                                                                </Label>
+                                                                <Select
+                                                                    value={typeof tempProductOptions["Sub-Products"] === 'string' ? tempProductOptions["Sub-Products"] : ""}
+                                                                    onValueChange={(val) => setTempProductOptions({ ...tempProductOptions, "Sub-Products": val })}
+                                                                >
+                                                                    <SelectTrigger className="w-full h-10 rounded-lg bg-muted/30 border-border font-medium text-foreground">
+                                                                        <SelectValue placeholder="Select sub-product..." />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent className="z-[200]">
+                                                                        {product.sub_products.map(sub => (
+                                                                            <SelectItem key={sub} value={sub} className="font-medium">{sub}</SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Dynamic Options / Categories */}
+                                                        {sortedPOptions.map(opt => {
+                                                                if (opt.seller_option_type === 'none') return null;
+
+                                                                const isMulti = opt.seller_option_type === "dropdown" || opt.seller_option_type === "checkbox";
+                                                                const currentVals = tempProductOptions[opt.option_name] || (isMulti ? [] : '');
+
+                                                                return (
+                                                                    <div key={opt.id} className="space-y-2.5">
+                                                                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                                            {opt.option_name}
+                                                                            <span className="ml-1.5 text-[9px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70 normal-case tracking-normal">{opt.seller_option_type}</span>
+                                                                        </Label>
+
+                                                                        {(isMulti && opt.dropdown_values) ? (
+                                                                            <div className="flex flex-wrap gap-2">
+                                                                                {opt.dropdown_values.map(val => {
+                                                                                    const checked = Array.isArray(currentVals) && currentVals.includes(val)
+                                                                                    return (
+                                                                                        <label
+                                                                                            key={val}
+                                                                                            className={`inline-flex items-center gap-2 text-sm cursor-pointer transition-all duration-150 px-3.5 py-2 rounded-lg border ${checked
+                                                                                                ? 'bg-primary border-primary text-primary-foreground font-medium shadow-sm'
+                                                                                                : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
+                                                                                                }`}
+                                                                                        >
+                                                                                            <Checkbox
+                                                                                                checked={checked}
+                                                                                                className={checked ? "border-primary-foreground/50 bg-primary-foreground/20 data-[state=checked]:bg-primary-foreground/20 data-[state=checked]:text-primary-foreground" : ""}
+                                                                                                onCheckedChange={(c: boolean) => {
+                                                                                                    const prev = Array.isArray(currentVals) ? currentVals : [];
+                                                                                                    const next = c ? [...prev, val] : prev.filter((v: string) => v !== val)
+                                                                                                    setTempProductOptions({ ...tempProductOptions, [opt.option_name]: next })
+                                                                                                }}
+                                                                                            />
+                                                                                            {val}
+                                                                                        </label>
+                                                                                    )
+                                                                                })}
+                                                                            </div>
+                                                                        ) : opt.seller_option_type === 'table' ? (
+                                                                            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                                                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary/60"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+                                                                                    <span className="text-xs text-muted-foreground">Tabular data — configured per quotation</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <Input
+                                                                                type={opt.seller_option_type === 'number' ? 'number' : 'text'}
+                                                                                placeholder={`Enter ${opt.option_name.toLowerCase()}`}
+                                                                                value={typeof currentVals === 'string' ? currentVals : ''}
+                                                                                onChange={(e) => setTempProductOptions({ ...tempProductOptions, [opt.option_name]: e.target.value })}
+                                                                                className="h-10 rounded-lg bg-muted/30 border-border font-medium text-foreground"
+                                                                            />
+                                                                        )}
+                                                                    </div>
+                                                                )
+                                                            })}
+                                                        
+                                                        {/* Add Item Button */}
+                                                        <div className="pt-2 flex justify-end">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => handleAddItem(catName)}
+                                                                className="gap-2"
+                                                            >
+                                                                <Plus className="h-4 w-4" /> Add Configuration
+                                                            </Button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 /* Read-Only Summary */
-                                                <div className="px-5 py-4 space-y-3">
-                                                    {Object.entries(currentOptions).map(([optName, optVals]) => {
-                                                        const isArray = Array.isArray(optVals)
-                                                        if (isArray && optVals.length === 0) return null
-                                                        return (
-                                                            <div key={optName}>
-                                                                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 mb-1.5">{optName}</div>
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {isArray ? (optVals as string[]).map(v => (
-                                                                        <span key={v} className="inline-flex items-center bg-primary/8 text-primary border border-primary/15 px-2.5 py-1 rounded-md text-xs font-medium">{v}</span>
-                                                                    )) : <span className="inline-flex items-center bg-primary/8 text-primary border border-primary/15 px-2.5 py-1 rounded-md text-xs font-medium">{String(optVals)}</span>}
-                                                                </div>
-                                                            </div>
-                                                        )
-                                                    })}
-                                                    {Object.keys(currentOptions).length === 0 && (
+                                                <div className="px-5 py-4">
+                                                    {currentOptions.length > 0 ? (
+                                                        renderItemsTable(currentOptions)
+                                                    ) : (
                                                         <p className="text-xs text-muted-foreground/60 italic py-1">No specifications configured. Click Edit to set up.</p>
                                                     )}
                                                 </div>

@@ -18,7 +18,7 @@ import useSWR from "swr"
 import { getOpenInquiries, getOffersBySellerId, createOffer, updateOffer, deleteOffer } from "@/lib/store"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { storage } from "@/lib/firebase"
-import { formatOptionType, formatOptionLabel } from "@/lib/utils"
+import { formatOptionType, formatOptionLabel, sortInquiryOptions } from "@/lib/utils"
 // We need to import Select components as well. Wait, I should import them from ui.
 interface InquiryItem {
   id: string
@@ -84,23 +84,30 @@ export default function SellerPendingPage() {
       const sellerOptionsData = user.sellerProductOptions || {}
 
       const hasValidOptionMatch = matchingItems.some(item => {
-        const itemSellerOpts = sellerOptionsData[item.product] || {}
+        const sellerVariants = sellerOptionsData[item.product] || []
 
-        for (const [optName, sellerVal] of Object.entries(itemSellerOpts)) {
-          const sellerValsArr = Array.isArray(sellerVal) ? sellerVal : [sellerVal].filter(Boolean)
+        if (sellerVariants.length === 0) return true
 
-          if (sellerValsArr.length > 0) {
-            const buyerVal = (item.options || {})[optName]
+        return sellerVariants.some((variant: any) => {
+          for (const [optName, sellerVal] of Object.entries(variant)) {
+            const sellerValsArr = Array.isArray(sellerVal) ? sellerVal : [sellerVal].filter(Boolean)
 
-            if (buyerVal !== undefined && buyerVal !== null && String(buyerVal).trim() !== "") {
-              const buyerValsArr = Array.isArray(buyerVal) ? buyerVal : [buyerVal].filter(Boolean)
-              const intersects = buyerValsArr.some(bv => sellerValsArr.includes(bv))
+            if (sellerValsArr.length > 0) {
+              let buyerVal = (item.options || {})[optName]
+              if (optName === "Sub-Products" && !buyerVal) {
+                buyerVal = item.sub_product
+              }
 
-              if (!intersects) return false
+              if (buyerVal !== undefined && buyerVal !== null && String(buyerVal).trim() !== "") {
+                const buyerValsArr = Array.isArray(buyerVal) ? buyerVal : [buyerVal].filter(Boolean)
+                const intersects = buyerValsArr.some(bv => sellerValsArr.includes(bv))
+
+                if (!intersects) return false // This variant doesn't match
+              }
             }
           }
-        }
-        return true
+          return true // This variant matches
+        })
       })
 
       if (!hasValidOptionMatch) return false
@@ -155,44 +162,6 @@ export default function SellerPendingPage() {
     fetchAll()
   }, [productSubProductPairs])
 
-  const sortInquiryOptions = (productName: string, subProduct: string | undefined, options: Record<string, any>) => {
-    const key = `${productName}|${subProduct || ""}`
-    const metadata = allProductOptions[key] || []
-    if (metadata.length === 0) return Object.entries(options)
-
-    return Object.entries(options).sort(([keyA], [keyB]) => {
-      const metaA = metadata.find(m => m.option_name === keyA || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyA)
-      const metaB = metadata.find(m => m.option_name === keyB || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyB)
-
-      const nameA = keyA.toLowerCase().trim().split('(')[0].trim()
-      const nameB = keyB.toLowerCase().trim().split('(')[0].trim()
-
-      // 1. Manufacturer Always First
-      const isManA = nameA === "manufacturer"
-      const isManB = nameB === "manufacturer"
-      if (isManA && !isManB) return -1
-      if (!isManA && isManB) return 1
-
-      // 2. Locked Options (Metadata-driven) Next
-      const isLockedA = metaA ? metaA.seller_option_type !== 'none' : false
-      const isLockedB = metaB ? metaB.seller_option_type !== 'none' : false
-
-      if (isLockedA && !isLockedB) return -1
-      if (!isLockedA && isLockedB) return 1
-
-      // 3. Quantity & Measurement Always Last (Measurement second last)
-      const specialEndOrder = ["quantity measurement", "quantity"]
-      const endIdxA = specialEndOrder.indexOf(nameA)
-      const endIdxB = specialEndOrder.indexOf(nameB)
-
-      if (endIdxA !== -1 && endIdxB !== -1) return endIdxA - endIdxB
-      if (endIdxA !== -1) return 1
-      if (endIdxB !== -1) return -1
-
-      // 4. Alphabetical for others
-      return keyA.localeCompare(keyB)
-    })
-  }
 
   // Dispatch Location mapping
   const [locationSettings, setLocationSettings] = useState<any>(null)
@@ -301,7 +270,7 @@ export default function SellerPendingPage() {
           attachments: finalAttachments,
           contactEmail,
           contactPhone,
-          sellerOptions: {},
+          sellerOptions: { ...sellerOptionsState },
         })
         toast.success("Quote updated successfully!")
       } else {
@@ -315,7 +284,7 @@ export default function SellerPendingPage() {
           pdfUrl: finalAttachments[0] || "/dummy-quote.pdf", // Fallback for old code
           contactEmail,
           contactPhone,
-          sellerOptions: {},
+          sellerOptions: { ...sellerOptionsState },
           status: "pending" as const
         }
         await createOffer(payload);
@@ -436,7 +405,7 @@ export default function SellerPendingPage() {
                       </div>
                       <div className="text-muted-foreground/30 mx-1">|</div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-muted-foreground">
-                        {sortInquiryOptions(item.product, item.sub_product, item.options || {}).map(([k, v]) => {
+                        {sortInquiryOptions(item.options || {}, allProductOptions[`${item.product}|${item.sub_product || ""}`]).map(([k, v]) => {
                           const valStr = Array.isArray(v) ? v.join(", ") : v;
                           if (!valStr) return null;
                           return <span key={k} className="text-xs bg-background/60 shadow-sm border border-border px-2 py-1 rounded-md text-foreground/80"><span className="font-medium text-foreground">{formatOptionLabel(k)}:</span> {valStr}</span>
@@ -527,7 +496,7 @@ export default function SellerPendingPage() {
                           <TableCell className="text-muted-foreground text-xs pt-4">
                             <div className="flex flex-wrap gap-2">
                               {/* Dynamic Options */}
-                              {sortInquiryOptions(item.product, item.sub_product, item.options || {}).map(([k, v]) => {
+                              {sortInquiryOptions(item.options || {}, allProductOptions[`${item.product}|${item.sub_product || ""}`]).map(([k, v]) => {
                                 const valStr = Array.isArray(v) ? v.join(", ") : v;
                                 if (!valStr) return null;
                                 return (
@@ -615,7 +584,7 @@ export default function SellerPendingPage() {
                   <div className="space-y-1.5">
                     <strong className="text-foreground/80 block text-xs uppercase tracking-wider">Specifications</strong>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {sortInquiryOptions(quoteItem.product, quoteItem.sub_product, quoteItem.options || {}).map(([k, v]) => {
+                      {sortInquiryOptions(quoteItem.options || {}, allProductOptions[`${quoteItem.product}|${quoteItem.sub_product || ""}`]).map(([k, v]) => {
                         const valStr = Array.isArray(v) ? v.join(", ") : v;
                         if (!valStr) return null;
                         return (
@@ -635,8 +604,118 @@ export default function SellerPendingPage() {
                   )}
                 </div>
               </div>
+              {/* Table View Options for Seller */}
+              {sellerProductOptions.filter((opt: any) => opt.seller_option_type === 'table').length > 0 && (
+                <div className="space-y-4">
+                  {sellerProductOptions
+                    .filter((opt: any) => opt.seller_option_type === 'table')
+                    .map((opt: any) => {
+                      const optionKey = opt.option_name;
+                      const tableColumns: string[] = opt.table_columns || ['Column 1', 'Column 2'];
+                      const currentRows: Record<string, string>[] = (() => {
+                        try {
+                          const raw = sellerOptionsState[optionKey];
+                          if (typeof raw === 'string') return JSON.parse(raw);
+                          if (Array.isArray(raw)) return raw as any;
+                          return [];
+                        } catch { return []; }
+                      })();
 
+                      const addRow = () => {
+                        const emptyRow: Record<string, string> = {};
+                        tableColumns.forEach(col => { emptyRow[col] = ''; });
+                        const newRows = [...currentRows, emptyRow];
+                        updateSellerOption(optionKey, JSON.stringify(newRows));
+                      };
 
+                      const updateRow = (rowIdx: number, colName: string, value: string) => {
+                        const newRows = currentRows.map((row, i) =>
+                          i === rowIdx ? { ...row, [colName]: value } : row
+                        );
+                        updateSellerOption(optionKey, JSON.stringify(newRows));
+                      };
+
+                      const removeRow = (rowIdx: number) => {
+                        const newRows = currentRows.filter((_, i) => i !== rowIdx);
+                        updateSellerOption(optionKey, JSON.stringify(newRows));
+                      };
+
+                      return (
+                        <div key={opt.id || optionKey} className="rounded-lg border border-border bg-card overflow-hidden">
+                          <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border">
+                            <div>
+                              <h4 className="text-sm font-semibold text-foreground">{opt.option_name}</h4>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">Add rows of data below. This will be visible to buyers.</p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                              onClick={addRow}
+                              disabled={editingOffer?.status === "accepted"}
+                            >
+                              <Plus className="h-3 w-3" /> Add Row
+                            </Button>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-muted/20 border-b border-border">
+                                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground/80 w-8">#</th>
+                                  {tableColumns.map((col: string, ci: number) => (
+                                    <th key={ci} className="px-3 py-2 text-left font-semibold text-foreground/80">{col}</th>
+                                  ))}
+                                  <th className="px-3 py-2 text-right font-semibold text-muted-foreground/80 w-16"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {currentRows.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={tableColumns.length + 2} className="px-4 py-6 text-center text-muted-foreground italic text-xs">
+                                      No rows added yet. Click &quot;Add Row&quot; to start.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  currentRows.map((row: Record<string, string>, rowIdx: number) => (
+                                    <tr key={rowIdx} className="border-b border-border/50 hover:bg-muted/10 transition-colors">
+                                      <td className="px-3 py-1.5 text-muted-foreground font-medium">{rowIdx + 1}</td>
+                                      {tableColumns.map((col: string, ci: number) => (
+                                        <td key={ci} className="px-2 py-1.5">
+                                          <Input
+                                            type="text"
+                                            placeholder={`Enter ${col.toLowerCase()}`}
+                                            value={row[col] || ''}
+                                            onChange={(e) => updateRow(rowIdx, col, e.target.value)}
+                                            className="h-8 text-xs border-border/50 bg-background"
+                                            disabled={editingOffer?.status === "accepted"}
+                                          />
+                                        </td>
+                                      ))}
+                                      <td className="px-2 py-1.5 text-right">
+                                        {editingOffer?.status !== "accepted" && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                                            onClick={() => removeRow(rowIdx)}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
 
               {showConfirmDialog ? (
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-6 space-y-4">

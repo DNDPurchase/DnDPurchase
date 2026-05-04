@@ -28,7 +28,7 @@ export interface User {
   createdAt: string
   categories?: string[]
   productManufacturers?: Record<string, string[]>
-  sellerProductOptions?: Record<string, Record<string, any>>
+  sellerProductOptions?: Record<string, any[]>
   availableLocations?: Record<string, string[]>
   smsNotificationsEnabled: boolean
   secondaryEmails?: string[]
@@ -333,7 +333,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
     await setDoc(doc(db, "buyers", id), {
       id,
       name: data.name,
-      email: data.email,
+      email: data.email.toLowerCase(),
       phone: data.phone,
       password: data.password,
       company: data.company || null,
@@ -382,7 +382,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
     await setDoc(doc(db, "sellers", id), {
       id,
       name: data.name,
-      email: data.email,
+      email: data.email.toLowerCase(),
       phone: data.phone,
       password: data.password,
       company: data.company || "",
@@ -442,13 +442,13 @@ export async function loginUser(email: string, password: string, role?: UserRole
   const users: User[] = [];
 
   if (role === "buyer" || !role) {
-    const q = query(collection(db, "buyers"), where("email", "==", email), limit(1))
+    const q = query(collection(db, "buyers"), where("email", "==", email.toLowerCase()), limit(1))
     const snap = await getDocs(q)
     if (!snap.empty) users.push(mapBuyerFromDb(snap.docs[0].data(), snap.docs[0].id))
   }
 
   if (role === "seller" || !role) {
-    const q = query(collection(db, "sellers"), where("email", "==", email), limit(1))
+    const q = query(collection(db, "sellers"), where("email", "==", email.toLowerCase()), limit(1))
     const snap = await getDocs(q)
     if (!snap.empty) users.push(mapSellerFromDb(snap.docs[0].data(), snap.docs[0].id))
   }
@@ -458,29 +458,30 @@ export async function loginUser(email: string, password: string, role?: UserRole
 
 export async function loginUserWithGoogle(email: string): Promise<User[] | null> {
   const users: User[] = [];
+  const normalizedEmail = email.toLowerCase();
 
-  const bq = query(collection(db, "buyers"), or(where("email", "==", email), where("google_email", "==", email)), limit(1))
+  const bq = query(collection(db, "buyers"), or(where("email", "==", normalizedEmail), where("google_email", "==", normalizedEmail)), limit(1))
   const bSnap = await getDocs(bq)
   if (!bSnap.empty) {
     const docSnap = bSnap.docs[0]
     const data = docSnap.data()
     if (!data.google_connected || !data.google_email) {
-      await updateDoc(doc(db, "buyers", docSnap.id), { google_connected: true, google_email: email })
+      await updateDoc(doc(db, "buyers", docSnap.id), { google_connected: true, google_email: normalizedEmail })
       data.google_connected = true
-      data.google_email = email
+      data.google_email = normalizedEmail
     }
     users.push(mapBuyerFromDb(data, docSnap.id))
   }
 
-  const sq = query(collection(db, "sellers"), or(where("email", "==", email), where("google_email", "==", email)), limit(1))
+  const sq = query(collection(db, "sellers"), or(where("email", "==", normalizedEmail), where("google_email", "==", normalizedEmail)), limit(1))
   const sSnap = await getDocs(sq)
   if (!sSnap.empty) {
     const docSnap = sSnap.docs[0]
     const data = docSnap.data()
     if (!data.google_connected || !data.google_email) {
-      await updateDoc(doc(db, "sellers", docSnap.id), { google_connected: true, google_email: email })
+      await updateDoc(doc(db, "sellers", docSnap.id), { google_connected: true, google_email: normalizedEmail })
       data.google_connected = true
-      data.google_email = email
+      data.google_email = normalizedEmail
     }
     users.push(mapSellerFromDb(data, docSnap.id))
   }
@@ -511,16 +512,19 @@ export async function connectUserWithGoogle(userId: string, googleEmail: string)
     if (!accountEmail) return false;
 
     // 2. Update all records matching this account email in both collections
-    const bq = query(collection(db, "buyers"), where("email", "==", accountEmail))
+    const normalizedAccountEmail = accountEmail.toLowerCase();
+    const normalizedGoogleEmail = googleEmail.toLowerCase();
+
+    const bq = query(collection(db, "buyers"), where("email", "==", normalizedAccountEmail))
     const bSnaps = await getDocs(bq)
     for (const d of bSnaps.docs) {
-      await updateDoc(d.ref, { google_connected: true, google_email: googleEmail })
+      await updateDoc(d.ref, { google_connected: true, google_email: normalizedGoogleEmail })
     }
 
-    const sq = query(collection(db, "sellers"), where("email", "==", accountEmail))
+    const sq = query(collection(db, "sellers"), where("email", "==", normalizedAccountEmail))
     const sSnaps = await getDocs(sq)
     for (const d of sSnaps.docs) {
-      await updateDoc(d.ref, { google_connected: true, google_email: googleEmail })
+      await updateDoc(d.ref, { google_connected: true, google_email: normalizedGoogleEmail })
     }
 
     return true;
@@ -1180,6 +1184,7 @@ export async function getProducts(): Promise<{ id: string, name: string, sub_pro
     "Cement",
     "TMT Rebars",
     "Pipes-Tubes-Hollow Sections",
+    "Beam, Column, Channel, Angle",
     "HR Plates or Coils",
     "GP-GI Coils or Purlins",
     "Color-coated Coils or Sheets",
@@ -1279,7 +1284,7 @@ export interface UpdateUserData {
   company?: string
   categories?: string[]
   productManufacturers?: Record<string, string[]>
-  sellerProductOptions?: Record<string, Record<string, any>>
+  sellerProductOptions?: Record<string, any[]>
   availableLocations?: Record<string, string[]>
   smsNotificationsEnabled?: boolean
   secondaryEmails?: string[]
@@ -1318,7 +1323,8 @@ export async function updateUser(userId: string, updates: UpdateUserData): Promi
 export async function updateUserPasswordByEmail(email: string, newPassword: string): Promise<boolean> {
   try {
     // Check buyers
-    const bq = query(collection(db, "buyers"), where("email", "==", email), limit(1))
+    const normalizedEmail = email.toLowerCase();
+    const bq = query(collection(db, "buyers"), where("email", "==", normalizedEmail), limit(1))
     const bSnap = await getDocs(bq)
     if (!bSnap.empty) {
       await updateDoc(doc(db, "buyers", bSnap.docs[0].id), { password: newPassword })
@@ -1326,7 +1332,7 @@ export async function updateUserPasswordByEmail(email: string, newPassword: stri
     }
 
     // Check sellers
-    const sq = query(collection(db, "sellers"), where("email", "==", email), limit(1))
+    const sq = query(collection(db, "sellers"), where("email", "==", normalizedEmail), limit(1))
     const sSnap = await getDocs(sq)
     if (!sSnap.empty) {
       await updateDoc(doc(db, "sellers", sSnap.docs[0].id), { password: newPassword })

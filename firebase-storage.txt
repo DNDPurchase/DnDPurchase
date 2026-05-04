@@ -7,9 +7,13 @@ service firebase.storage {
       return request.auth != null;
     }
     
-    // Assuming admins will be set with a custom claim `admin: true` in Firebase Auth
+    // Check if the user is the official admin
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.admin == true;
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'admin@dnd.com' ||
+        request.auth.token.email == 'contact@dndpurchase.com'
+      );
     }
 
     // Documents Folder (e.g. GST docs, Aadhaar cards)
@@ -18,7 +22,7 @@ service firebase.storage {
     match /documents/{fileName} {
       allow read: if true;
       allow write: if request.resource.size < 5 * 1024 * 1024 // 5MB max
-                   && request.resource.contentType.matches('image/.*'); // Only images
+                   && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
     }
 
     // Product Images Folder
@@ -37,7 +41,7 @@ service firebase.storage {
       allow read: if true;
       allow create, update: if isAuthenticated()
                    && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('application/.*pdf.*');
+                   && (request.resource.contentType.matches('application/.*pdf.*') || request.resource.contentType.matches('image/.*'));
       allow delete: if isAuthenticated();
     }
 
@@ -47,3 +51,24 @@ service firebase.storage {
     }
   }
 }
+
+// ==========================================
+// Firebase Storage Structure Documentation
+// ==========================================
+
+/*
+  /documents/{uid}/{fileName}
+  - Purpose: User verification documents for roles (GST Cert, Aadhaar)
+  - Constraints: Max 5MB, PDF or Image only
+  - Access: Public Read (for verification), Owner/Admin Write
+
+  /products/{fileName}
+  - Purpose: Product catalog images
+  - Constraints: Max 5MB, Image only
+  - Access: Public Read, Admin Write
+
+  /quotes/{fileName}
+  - Purpose: Official quotation documents (PDF/Images) attached to offers
+  - Constraints: Max 5MB per file, PDF/JPEG/JPG/PNG only
+  - Access: Public Read, Authenticated User Write (Buyers or Sellers)
+*/

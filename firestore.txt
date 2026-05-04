@@ -12,13 +12,21 @@ service cloud.firestore {
     }
 
     function isBuyerOwner(buyerId) {
-      let buyerInfo = get(/databases/$(database)/documents/buyers/$(buyerId)).data;
-      return isAuthenticated() && (buyerInfo.auth_uid == request.auth.uid || buyerInfo.email == request.auth.token.email || buyerInfo.google_email == request.auth.token.email);
+      let buyerDoc = get(/databases/$(database)/documents/buyers/$(buyerId));
+      return isAuthenticated() && buyerDoc != null && (
+        buyerDoc.data.get('auth_uid', '') == request.auth.uid || 
+        buyerDoc.data.get('email', '').lower() == request.auth.token.get('email', '').lower() || 
+        buyerDoc.data.get('google_email', '').lower() == request.auth.token.get('email', '').lower()
+      );
     }
 
     function isSellerOwner(sellerId) {
-      let sellerInfo = get(/databases/$(database)/documents/sellers/$(sellerId)).data;
-      return isAuthenticated() && (sellerInfo.auth_uid == request.auth.uid || sellerInfo.email == request.auth.token.email || sellerInfo.google_email == request.auth.token.email);
+      let sellerDoc = get(/databases/$(database)/documents/sellers/$(sellerId));
+      return isAuthenticated() && sellerDoc != null && (
+        sellerDoc.data.get('auth_uid', '') == request.auth.uid || 
+        sellerDoc.data.get('email', '').lower() == request.auth.token.get('email', '').lower() || 
+        sellerDoc.data.get('google_email', '').lower() == request.auth.token.get('email', '').lower()
+      );
     }
 
     // Check if the user is the official admin
@@ -34,7 +42,7 @@ service cloud.firestore {
     match /buyers/{userId} {
       allow create: if true; // Registration
       allow read: if true;
-      allow update: if (isAuthenticated() && (resource.data.auth_uid == request.auth.uid || resource.data.email == request.auth.token.email || resource.data.google_email == request.auth.token.email)) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'verified', 'created_at', 'auth_uid', 'email']) || isAdmin();
+      allow update: if (isAuthenticated() && (resource.data.get('auth_uid', '') == request.auth.uid || resource.data.get('email', '').lower() == request.auth.token.get('email', '').lower() || resource.data.get('google_email', '').lower() == request.auth.token.get('email', '').lower())) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'verified', 'created_at', 'auth_uid', 'email']) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -42,7 +50,9 @@ service cloud.firestore {
     match /sellers/{userId} {
       allow create: if true; // Registration
       allow read: if true;
-      allow update: if (isAuthenticated() && (resource.data.auth_uid == request.auth.uid || resource.data.email == request.auth.token.email || resource.data.google_email == request.auth.token.email)) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'verified', 'created_at', 'auth_uid', 'email']) || isAdmin();
+      // Allow updates to profile fields (including categories and product_manufacturers) 
+      // but prevent modification of sensitive authentication bindings.
+      allow update: if (isAuthenticated() && (resource.data.get('auth_uid', '') == request.auth.uid || resource.data.get('email', '').lower() == request.auth.token.get('email', '').lower() || resource.data.get('google_email', '').lower() == request.auth.token.get('email', '').lower())) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'verified', 'created_at', 'auth_uid', 'email']) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -55,6 +65,22 @@ service cloud.firestore {
     }
 
     match /product_options/{optionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Locations Collection
+    // - Anyone can read (for checkout dropdowns)
+    // - Only Admins can modify states and districts
+    match /locations/{stateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Settings Collection
+    // - Anyone can read (for global app settings)
+    // - Only Admins can modify
+    match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -81,9 +107,142 @@ service cloud.firestore {
       allow delete: if isSellerOwner(resource.data.seller_id) || isAdmin();
     }
 
+    // Soft Deleted Inquiries Collection
+    match /soft_deleted_inquiries/{inquiryId} {
+      allow read: if isAdmin() || isBuyerOwner(resource.data.buyer_id);
+      allow create: if isBuyerOwner(request.resource.data.deleted_by_user_id) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
     // Default fallback - deny all other access
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+
+// ==========================================
+// Firestore Schema Documentation
+// ==========================================
+
+/*
+  /buyers/{userId}
+  {
+    id: string (BUY-XXX),
+    name: string,
+    email: string,
+    phone: string,
+    company: string (optional),
+    role: "buyer" | "both",
+    entity_type: "company" | "individual" | "both",
+    verification_type: "gst" | "aadhar" | "both",
+    gstin: string (optional),
+    gst_certificate_path: string (optional),
+    aadhaar_number: string (optional),
+    aadhaar_document_path: string (optional),
+    display_name: string,
+    user_code: string (BXXX),
+    verified: boolean,
+    secondary_emails: string[] (optional),
+    created_at: timestamp
+  }
+
+  /sellers/{userId}
+  {
+    id: string (SEL-XXX),
+    name: string,
+    email: string,
+    phone: string,
+    company: string (optional),
+    role: "seller" | "both",
+    entity_type: "company" | "individual" | "both",
+    verification_type: "gst" | "aadhar" | "both",
+    gstin: string (optional),
+    gst_certificate_path: string (optional),
+    aadhaar_number: string (optional),
+    aadhaar_document_path: string (optional),
+    display_name: string,
+    user_code: string (SXXX),
+    categories: string[],
+    product_manufacturers: Record<string, string[]>,
+    seller_product_options: Record<string, Record<string, any>>,
+    available_locations: Record<string, string[]>,
+    verified: boolean,
+    secondary_emails: string[] (optional),
+    created_at: timestamp
+  }
+
+  /products/{productId}
+  {
+    product_id: string,
+    name: string,
+    category: string,
+    sub_products: string[],
+    product_manufacturers: string[],
+    image_url: string (optional),
+    created_at: timestamp
+  }
+
+  /product_options/{optionId}
+  {
+    id: string,
+    product_id: string,
+    sub_product: string (optional),
+    option_name: string,
+    buyer_option_type: "text" | "number" | "dropdown" | "checkbox" | "radio" | "none",
+    seller_option_type: "text" | "number" | "dropdown" | "checkbox" | "radio" | "none",
+    dropdown_values: string[] (optional, for choice-based types)
+  }
+
+  /inquiries/{inquiryId}
+  {
+    id: string (INQ-XXX),
+    buyer_id: string,
+    buyer_name: string (LEGACY),
+    buyer_alias: string (Buyer-XXX),
+    status: "active" | "open" | "bidding" | "closed",
+    bidding_deadline: timestamp (ISO string) | null,
+    district: string,
+    state: string,
+    created_at: timestamp (ISO string),
+    rebid_count: number (optional)
+  }
+
+  /inquiry_items/{itemId}
+  {
+    id: string (ITEM-XXX),
+    inquiry_id: string,
+    product: string,
+    sub_product: string | null,
+    options: Record<string, string | string[]>,
+    remarks: string (optional)
+  }
+
+  /offers/{offerId}
+  {
+    id: string (OFR-XXX),
+    seller_id: string,
+    seller_name: string (LEGACY),
+    seller_alias: string (Seller-XXX),
+    inquiry_id: string,
+    inquiry_item_id: string,
+    price_per_ton: number,
+    comments: string,
+    pdf_url: string, // Kept for backward compatibility
+    attachments: string[], // Multi-document support
+    contact_email: string | null,
+    contact_phone: string | null,
+    seller_options: Record<string, string | string[]>,
+    requested_quantity: number,
+    status: "pending" | "accepted" | "rejected",
+    archived: boolean, // For History tab support
+    inquiry_status: string, // Injected for filtering/badge logic
+    created_at: timestamp
+  }
+
+  /locations/{stateId}
+  {
+    state_name: string,
+    districts: string[]
+  }
+*/

@@ -11,10 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { FileText, ArrowRight, Plus, Clock, RotateCcw, MapPin, Package } from "lucide-react"
-import useSWR from "swr"
+import useSWR, { mutate as globalMutate } from "swr"
 import { getInquiriesByBuyerId, getOffersByInquiryId, softDeleteOffer, activateBidding, closeInquiry, softDeleteInquiry } from "@/lib/store"
 import { toast } from "sonner"
-import { formatOptionLabel } from "@/lib/utils"
+import { formatOptionLabel, sortInquiryOptions } from "@/lib/utils"
 
 function statusColor(status: string) {
   switch (status) {
@@ -69,55 +69,6 @@ export default function InquiriesPage() {
     }
   )
 
-  const sortInquiryOptions = (productName: string, subProduct: string | undefined, options: Record<string, any>) => {
-    const key = `${productName}|${subProduct || ""}`
-    const metadata = allProductOptions[key] || []
-    if (metadata.length === 0) return Object.entries(options)
-
-    return Object.entries(options).sort(([keyA], [keyB]) => {
-      const metaA = metadata.find(m => m.option_name === keyA || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyA)
-      const metaB = metadata.find(m => m.option_name === keyB || `${m.option_name} (${formatOptionType(m.buyer_option_type)})` === keyB)
-
-      const nameA = keyA.toLowerCase().trim().split('(')[0].trim()
-      const nameB = keyB.toLowerCase().trim().split('(')[0].trim()
-
-      // 1. Manufacturer Always First
-      const isManA = nameA === "manufacturer"
-      const isManB = nameB === "manufacturer"
-      if (isManA && !isManB) return -1
-      if (!isManA && isManB) return 1
-
-      // 2. Locked Options (Metadata-driven) Next
-      const isLockedA = metaA ? metaA.seller_option_type !== 'none' : false
-      const isLockedB = metaB ? metaB.seller_option_type !== 'none' : false
-
-      if (isLockedA && !isLockedB) return -1
-      if (!isLockedA && isLockedB) return 1
-
-      // 3. Quantity & Measurement Always Last (Measurement second last)
-      const specialEndOrder = ["quantity measurement", "quantity"]
-      const endIdxA = specialEndOrder.indexOf(nameA)
-      const endIdxB = specialEndOrder.indexOf(nameB)
-
-      if (endIdxA !== -1 && endIdxB !== -1) return endIdxA - endIdxB
-      if (endIdxA !== -1) return 1
-      if (endIdxB !== -1) return -1
-
-      // 4. Alphabetical for others
-      return keyA.localeCompare(keyB)
-    })
-  }
-
-  function formatOptionType(type: string) {
-    switch (type) {
-      case 'radio': return 'Radio';
-      case 'checkbox': return 'Checkbox';
-      case 'dropdown': return 'Dropdown';
-      case 'number': return 'Number';
-      case 'text': return 'Text';
-      default: return type;
-    }
-  }
 
   const openRebidDialog = (inqId: string) => {
     setRebidDialogState({ isOpen: true, inquiryId: inqId, days: "3" })
@@ -139,6 +90,7 @@ export default function InquiriesPage() {
       }
       await activateBidding(rebidDialogState.inquiryId, days)
       mutate()
+      globalMutate("open-inquiries")
       toast.success(`Bidding resumed for ${days} days.`)
       setRebidDialogState({ isOpen: false, inquiryId: null, days: "3" })
     } catch (error) {
@@ -150,6 +102,7 @@ export default function InquiriesPage() {
     try {
       await closeInquiry(inqId)
       mutate()
+      globalMutate("open-inquiries")
       toast.success("Inquiry closed successfully.")
     } catch (error) {
       toast.error("Failed to close inquiry")
@@ -161,6 +114,7 @@ export default function InquiriesPage() {
     try {
       await softDeleteInquiry(inqId, user!.id)
       mutate()
+      globalMutate("open-inquiries")
       toast.success("Inquiry deleted successfully.")
     } catch (error) {
       toast.error("Failed to delete inquiry.")
@@ -197,7 +151,7 @@ export default function InquiriesPage() {
                 {item.product} {item.sub_product && <span className="text-muted-foreground font-normal">({item.sub_product})</span>}
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-muted-foreground">
-                {sortInquiryOptions(item.product, item.sub_product, item.options || {}).map(([k, v]) => {
+                {sortInquiryOptions(item.options || {}, allProductOptions[`${item.product}|${item.sub_product || ""}`]).map(([k, v]) => {
                   const valStr = Array.isArray(v) ? v.join(", ") : String(v);
                   if (!valStr || valStr === 'undefined') return null;
                   return <span key={k} className="text-xs bg-background shadow-sm border border-border/50 px-2 py-1 rounded-md text-foreground/80"><span className="font-medium text-foreground">{formatOptionLabel(k)}:</span> {valStr}</span>

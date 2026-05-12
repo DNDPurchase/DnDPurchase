@@ -524,7 +524,7 @@ export default function NewInquiryPage() {
                   {selectedProduct?.sub_products?.length > 0 && (
                     <div className="space-y-3">
                       <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center">
-                        Product Type <span className="text-primary ml-1">*</span>
+                        {currentItem.product === "Stock of non-standard Color-coated coils/sheets" ? "COLOR SERIES" : "Product Type"} <span className="text-primary ml-1">*</span>
                       </Label>
                       <Select
                         disabled={addedItems.length > 0}
@@ -536,7 +536,7 @@ export default function NewInquiryPage() {
                         }}
                       >
                         <SelectTrigger className={`h-11 rounded-lg bg-muted/30 border-border font-medium text-foreground ${addedItems.length > 0 ? "opacity-70 cursor-not-allowed" : ""}`}>
-                          <SelectValue placeholder="Select product type..." />
+                          <SelectValue placeholder={currentItem.product === "Stock of non-standard Color-coated coils/sheets" ? "Select Color Series..." : "Select product type..."} />
                         </SelectTrigger>
                         <SelectContent className="z-[200]">
                           {selectedProduct.sub_products.map((sp: string) => (
@@ -567,7 +567,7 @@ export default function NewInquiryPage() {
                         </div>
                       ) : (
                         <div className="rounded-lg border border-border overflow-hidden bg-card">
-                          <div className="overflow-x-auto">
+                          <div className="overflow-x-scroll scrollbar-show-x">
                             <table className="w-full text-xs">
                               <thead>
                                 <tr className="bg-muted/30 border-b border-border">
@@ -577,7 +577,9 @@ export default function NewInquiryPage() {
                                     const allCols = Array.from(new Set(catalogData.flatMap(r => Object.keys(r.values))));
                                     const sortedCols = [...FIELD_ORDER.filter(f => allCols.includes(f)), ...allCols.filter(f => !FIELD_ORDER.includes(f))];
                                     return sortedCols.map((col, ci) => (
-                                      <th key={ci} className="px-3 py-2.5 text-left font-semibold text-foreground/80 whitespace-nowrap">{col}</th>
+                                      <th key={ci} className="px-3 py-2.5 text-left font-semibold text-foreground/80 whitespace-nowrap">
+                                        {col === "Sub-Products" && currentItem.product === "Stock of non-standard Color-coated coils/sheets" ? "Color Series" : col}
+                                      </th>
                                     ));
                                   })()}
                                   <th className="px-3 py-2.5 text-center font-semibold text-foreground/80 w-36">Contact</th>

@@ -51,6 +51,12 @@ export default function SellerPendingPage() {
     { refreshInterval: 5000 }
   )
 
+  const { data: myOffers, mutate: mutateMyOffers } = useSWR(
+    user ? `seller-offers-${user.id}` : null,
+    () => getOffersBySellerId(user!.id),
+    { refreshInterval: 5000 }
+  )
+
   const filteredInquiries = useMemo(() => {
     if (!inquiries || !user) return []
     if (!Array.isArray(inquiries)) return []
@@ -61,9 +67,14 @@ export default function SellerPendingPage() {
       // 0. EXCLUDE OWN INQUIRIES
       if (currentUserBuyerId && inq.buyerId === currentUserBuyerId) return false;
 
-      // 1. PRODUCT CATEGORY MATCH
+      // 1. PRODUCT CATEGORY MATCH & FILTER QUOTED
       const sellerCategories = user.categories || []
-      const matchingItems = inq.items.filter(item => sellerCategories.includes(item.product))
+      const matchingItems = inq.items.filter(item => {
+        if (!sellerCategories.includes(item.product)) return false;
+        // Hide items that have already been quoted
+        if (myOffers?.some((o: any) => o.inquiryItemId === item.id)) return false;
+        return true;
+      })
 
       if (matchingItems.length === 0) return false
 
@@ -84,7 +95,15 @@ export default function SellerPendingPage() {
       const sellerOptionsData = user.sellerProductOptions || {}
 
       const hasValidOptionMatch = matchingItems.some(item => {
-        const sellerVariants = sellerOptionsData[item.product] || []
+        let sellerVariants = sellerOptionsData[item.product] || []
+
+        if (!Array.isArray(sellerVariants)) {
+          if (typeof sellerVariants === 'object' && Object.keys(sellerVariants).length > 0) {
+            sellerVariants = [sellerVariants]
+          } else {
+            sellerVariants = []
+          }
+        }
 
         if (sellerVariants.length === 0) return true
 
@@ -114,7 +133,7 @@ export default function SellerPendingPage() {
 
       return true
     })
-  }, [inquiries, user])
+  }, [inquiries, user, myOffers])
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
   const [quoteItem, setQuoteItem] = useState<InquiryItem | null>(null)
   const [pricePerTon, setPricePerTon] = useState("")
@@ -168,11 +187,7 @@ export default function SellerPendingPage() {
   const [locations, setLocations] = useState<any[]>([])
   const [dispatchLocation, setDispatchLocation] = useState({ state: "", district: "" })
 
-  const { data: myOffers } = useSWR(
-    user ? `seller-offers-${user.id}` : null,
-    () => getOffersBySellerId(user!.id),
-    { refreshInterval: 5000 }
-  )
+
 
   // Pre-fill contact info when user data is loaded
   if (user && !contactEmail && !contactPhone) {
@@ -241,7 +256,7 @@ export default function SellerPendingPage() {
 
   const submitQuote = async () => {
     if (!pricePerTon || !quoteItem || !selectedInquiry) {
-      toast.error("Please enter a price per ton")
+      toast.error("Please enter a price per unit")
       return
     }
 
@@ -307,6 +322,9 @@ export default function SellerPendingPage() {
       // Reset contact info to user defaults
       setContactEmail(user?.email || "")
       setContactPhone(user?.phone || "")
+      
+      // Update global cache immediately
+      mutateMyOffers()
     } catch (e: any) {
       toast.error(e.message || "Failed to save quote")
     } finally {
@@ -722,7 +740,7 @@ export default function SellerPendingPage() {
                   <h3 className="text-lg font-semibold text-foreground text-center mb-2">Confirm Your Offer</h3>
                   <div className="bg-background rounded-md border border-border p-4 space-y-3">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Price per Piece/Ton:</span>
+                      <span className="text-muted-foreground">Price per unit:</span>
                       <span className="font-semibold">₹ {Number(pricePerTon).toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
@@ -747,7 +765,7 @@ export default function SellerPendingPage() {
                 <>
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label className="text-foreground font-medium">Price per Piece/Ton (INR) <span className="text-red-500">*</span></Label>
+                      <Label className="text-foreground font-medium">Price per unit (INR) <span className="text-red-500">*</span></Label>
                       <Input
                         type="number"
                         min="0.000001"
@@ -799,7 +817,7 @@ export default function SellerPendingPage() {
                   </div>
 
                   <div>
-                    <Label className="text-foreground">Additional Comments / Terms</Label>
+                    <Label className="text-foreground">Additional Comments / Terms (OPTIONAL)</Label>
                     <Textarea
                       placeholder="e.g. Validity of quote, specific delivery timeline, material source..."
                       value={quoteComments}
@@ -812,7 +830,7 @@ export default function SellerPendingPage() {
 
                   {/* Multi-attachment Section */}
                   <div className="space-y-3">
-                    <Label className="text-foreground font-medium">Attach Quote Document (Max 5 files, 5MB each)</Label>
+                    <Label className="text-foreground font-medium">Attach Quote Document (Max 5 files, 10MB each) (OPTIONAL)</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {/* File List */}
                       {((editingOffer?.attachments || []) as string[]).map((url, idx) => (
@@ -866,7 +884,7 @@ export default function SellerPendingPage() {
                                 let sizeError = false;
 
                                 files.slice(0, availableSlots).forEach(file => {
-                                  if (file.size > 5 * 1024 * 1024) {
+                                  if (file.size > 10 * 1024 * 1024) {
                                     sizeError = true;
                                   } else {
                                     validFiles.push(file);
@@ -875,7 +893,7 @@ export default function SellerPendingPage() {
 
                                 if (files.length > availableSlots) countError = true;
 
-                                if (sizeError) toast.error("Some files exceed the 5MB limit");
+                                if (sizeError) toast.error("Some files exceed the 10MB limit");
                                 if (countError) toast.error("Maximum 5 documents allowed");
 
                                 if (validFiles.length > 0) {

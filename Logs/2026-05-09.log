@@ -1,0 +1,2 @@
+[2026-05-09T05:48:56.698Z] INFO New offer submitted {"inquiryId":"INQ-0016"}
+[2026-05-09T05:48:56.798Z] ERROR Failed to send notification for new offer {"error":"Missing or insufficient permissions."}

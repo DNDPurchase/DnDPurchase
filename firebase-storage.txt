@@ -17,11 +17,11 @@ service firebase.storage {
     }
 
     // Documents Folder (e.g. GST docs, Aadhaar cards)
-    // - Authenticated users can upload documents (max 5MB, image only)
+    // - Authenticated users can upload documents (max 10MB, image only)
     // - Authenticated users and Admins can view documents
     match /documents/{fileName} {
       allow read: if true;
-      allow write: if request.resource.size < 5 * 1024 * 1024 // 5MB max
+      allow write: if request.resource.size < 10 * 1024 * 1024 // 10MB max
                    && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
     }
 
@@ -31,7 +31,7 @@ service firebase.storage {
     match /products/{fileName} {
       allow read: if true;
       allow write: if isAdmin()
-                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
 
@@ -40,7 +40,7 @@ service firebase.storage {
     match /quotes/{fileName} {
       allow read: if true;
       allow create, update: if isAuthenticated()
-                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.size < 10 * 1024 * 1024
                    && (request.resource.contentType.matches('application/.*pdf.*') || request.resource.contentType.matches('image/.*'));
       allow delete: if isAuthenticated();
     }
@@ -59,16 +59,16 @@ service firebase.storage {
 /*
   /documents/{uid}/{fileName}
   - Purpose: User verification documents for roles (GST Cert, Aadhaar)
-  - Constraints: Max 5MB, PDF or Image only
+  - Constraints: Max 10MB, PDF or Image only
   - Access: Public Read (for verification), Owner/Admin Write
 
   /products/{fileName}
   - Purpose: Product catalog images
-  - Constraints: Max 5MB, Image only
+  - Constraints: Max 10MB, Image only
   - Access: Public Read, Admin Write
 
   /quotes/{fileName}
   - Purpose: Official quotation documents (PDF/Images) attached to offers
-  - Constraints: Max 5MB per file, PDF/JPEG/JPG/PNG only
+  - Constraints: Max 10MB per file, PDF/JPEG/JPG/PNG only
   - Access: Public Read, Authenticated User Write (Buyers or Sellers)
 */

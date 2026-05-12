@@ -395,10 +395,10 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <LinkIcon className="h-5 w-5 text-primary" />
-                        Connected Accounts
+                        One-Click Sign-in
                     </CardTitle>
                     <CardDescription>
-                        Manage your linked third-party authentication providers.
+                        Link your Google account to enable one-click sign-in to DND Purchase.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -429,8 +429,8 @@ export default function SettingsPage() {
                                 <h3 className="font-medium text-foreground">Google</h3>
                                 <p className="text-sm text-muted-foreground">
                                     {user?.googleConnected
-                                        ? "Your account is linked with Google."
-                                        : "Link your Google account for quicker logins."}
+                                        ? "Your account is linked for one-click sign-in with Google."
+                                        : "Link your Google account for a faster sign-in experience."}
                                 </p>
                             </div>
                         </div>

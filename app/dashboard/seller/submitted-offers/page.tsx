@@ -44,7 +44,7 @@ function statusBadge(status: string, inquiryStatus?: string) {
   }
 }
 
-export default function SellerMyOffersPage() {
+export default function SellerSubmittedOffersPage() {
   const { user } = useAuth()
   const { data: offers, isLoading, mutate } = useSWR(
     user ? `seller-offers-${user.id}` : null,
@@ -61,28 +61,18 @@ export default function SellerMyOffersPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [pdfUploadProgress, setPdfUploadProgress] = useState(false)
 
-  const { activeOffers, historyOffers } = useMemo(() => {
-    if (!Array.isArray(offers)) return { activeOffers: [], historyOffers: [] }
-
-    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000)
+  const { activeOffers } = useMemo(() => {
+    if (!Array.isArray(offers)) return { activeOffers: [] }
 
     const active: any[] = []
-    const history: any[] = []
 
     offers.forEach(offer => {
-      const isTerminal = ["accepted", "rejected", "disqualified"].includes(offer.status) || offer.inquiryStatus === "deleted" || offer.inquiryStatus === "closed"
-      const isOld = new Date(offer.createdAt).getTime() < thirtyDaysAgo
-
-      if (offer.inquiryStatus !== "active") {
-        if (offer.archived || (isTerminal && isOld)) {
-          history.push(offer)
-        } else {
-          active.push(offer)
-        }
+      if (offer.inquiryStatus === "active") {
+        active.push(offer)
       }
     })
 
-    return { activeOffers: active, historyOffers: history }
+    return { activeOffers: active }
   }, [offers])
 
   const handleArchiveOffer = async (id: string) => {
@@ -397,9 +387,9 @@ export default function SellerMyOffersPage() {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-8">
-        <h2 className="font-serif text-2xl font-bold text-foreground">My Bidding</h2>
+        <h2 className="font-serif text-2xl font-bold text-foreground">My Offers</h2>
         <p className="mt-1 text-muted-foreground">
-          Track all your submitted quotes and see your competitive ranking.
+          Track all your newly submitted quotes before bidding starts.
         </p>
       </div>
 
@@ -413,38 +403,18 @@ export default function SellerMyOffersPage() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs defaultValue="current" className="space-y-4">
-          <TabsList className="grid w-full max-w-[400px] grid-cols-2">
-            <TabsTrigger value="current">Active Bidding ({activeOffers.length})</TabsTrigger>
-            <TabsTrigger value="history">Closed Bidding ({historyOffers.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="current" className="space-y-4">
-            {activeOffers.length === 0 ? (
-              <Card className="border-border">
-                <CardContent className="flex flex-col items-center gap-3 py-16">
-                  <Tag className="h-10 w-10 text-muted-foreground/30" />
-                  <p className="text-muted-foreground">No active offers.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              renderOfferTable(activeOffers, true)
-            )}
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-4">
-            {historyOffers.length === 0 ? (
-              <Card className="border-border">
-                <CardContent className="flex flex-col items-center gap-3 py-16">
-                  <Clock className="h-10 w-10 text-muted-foreground/30" />
-                  <p className="text-muted-foreground">History is empty.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              renderOfferTable(historyOffers, false)
-            )}
-          </TabsContent>
-        </Tabs>
+        <div className="space-y-4">
+          {activeOffers.length === 0 ? (
+            <Card className="border-border">
+              <CardContent className="flex flex-col items-center gap-3 py-16">
+                <Tag className="h-10 w-10 text-muted-foreground/30" />
+                <p className="text-muted-foreground">No active offers.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            renderOfferTable(activeOffers, true)
+          )}
+        </div>
       )}
 
       {/* Competitive Intelligence Note */}

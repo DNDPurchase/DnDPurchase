@@ -304,7 +304,7 @@ function OffersContent() {
                           <TableHeader>
                             <TableRow className="border-border">
                               <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Seller</TableHead>
-                              <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Price/Ton</TableHead>
+                              <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Price/unit</TableHead>
                               <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Total Est.</TableHead>
                               <TableHead className="whitespace-nowrap text-muted-foreground px-2 py-3 text-xs">Rank</TableHead>
                               <TableHead className="text-muted-foreground px-2 py-3 text-xs">Specs</TableHead>
@@ -458,7 +458,7 @@ function OffersContent() {
                               <div className="flex flex-col items-end gap-1">
                                 <div className="flex flex-col items-end">
                                   <span className="font-bold text-lg text-primary">₹{offer.pricePerTon.toLocaleString("en-IN")}</span>
-                                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Per Ton</span>
+                                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Per unit</span>
                                 </div>
                                 <div className="flex flex-col items-end pt-1 border-t border-border/50">
                                   {(() => {

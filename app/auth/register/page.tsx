@@ -119,9 +119,9 @@ export default function RegisterPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB")
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size must be less than 10MB")
       return
     }
 
@@ -264,8 +264,8 @@ export default function RegisterPage() {
                   <p className="flex items-center gap-2 text-sm text-foreground">
                     <ShieldCheck className="h-4 w-4 text-primary" />
                     {form.entityType === "company"
-                      ? "Companies require GSTIN certificate upload (Image/PDF, max 5MB)"
-                      : "Individuals require Aadhaar card upload (Image/PDF, max 5MB)"}
+                      ? "Companies require GSTIN certificate upload (Image/PDF, max 10MB)"
+                      : "Individuals require Aadhaar card upload (Image/PDF, max 10MB)"}
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -506,7 +506,7 @@ export default function RegisterPage() {
                           >
                             <Upload className="h-10 w-10 text-muted-foreground" />
                             <p className="mt-2 text-sm font-medium text-foreground">Click to upload</p>
-                            <p className="text-xs text-muted-foreground">Image or PDF only, max 5MB</p>
+                            <p className="text-xs text-muted-foreground">Image or PDF only, max 10MB</p>
                           </label>
                         )}
                       </div>
@@ -558,7 +558,7 @@ export default function RegisterPage() {
                           >
                             <Upload className="h-10 w-10 text-muted-foreground" />
                             <p className="mt-2 text-sm font-medium text-foreground">Click to upload</p>
-                            <p className="text-xs text-muted-foreground">Image or PDF only, max 5MB</p>
+                            <p className="text-xs text-muted-foreground">Image or PDF only, max 10MB</p>
                           </label>
                         )}
                       </div>
@@ -676,7 +676,7 @@ export default function RegisterPage() {
                         >
                           <Upload className="h-10 w-10 text-muted-foreground" />
                           <p className="mt-2 text-sm font-medium text-foreground">Click to upload</p>
-                          <p className="text-xs text-muted-foreground">Image or PDF only, max 5MB</p>
+                          <p className="text-xs text-muted-foreground">Image or PDF only, max 10MB</p>
                         </label>
                       )}
                     </div>

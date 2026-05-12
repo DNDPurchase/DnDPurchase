@@ -28,7 +28,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
 
 const BUYER_NAV = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/inquiry/new", label: "New Inquiry", icon: FileText },
   { href: "/dashboard/inquiries", label: "My Inquiries", icon: ShoppingCart },
   { href: "/dashboard/settings", label: "Profile and Settings", icon: User },
@@ -37,6 +37,7 @@ const BUYER_NAV = [
 const SELLER_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/seller/pending", label: "New Inquiries", icon: ShoppingCart },
+  { href: "/dashboard/seller/submitted-offers", label: "My Offers", icon: FileText },
   { href: "/dashboard/seller/my-offers", label: "My Bidding", icon: Tag },
   { href: "/dashboard/seller/my-products", label: "My Products", icon: Package },
   { href: "/dashboard/settings", label: "Profile and Setting", icon: User },

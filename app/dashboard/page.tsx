@@ -88,7 +88,7 @@ export default function DashboardOverview() {
   const openInquiryCount = useMemo(() => {
     if (!Array.isArray(openInquiries) || !user) return 0
 
-    const currentUserBuyerId = allUsers?.find(u => u.role === "buyer")?.id
+    const currentUserBuyerId = allUsers?.find(u => u.role === "buyer" && u.email === user.email)?.id
 
     return openInquiries.filter((inq: any) => {
       // Exclude own inquiries
@@ -130,7 +130,7 @@ export default function DashboardOverview() {
             const sellerValsArr = Array.isArray(sellerVal) ? sellerVal : [sellerVal].filter(Boolean)
             if (sellerValsArr.length > 0) {
               let buyerVal = (item.options || {})[optName]
-              if (optName === "Sub-Products" && !buyerVal) buyerVal = item.sub_product
+              if ((optName === "Sub-Products" || optName === "Sub-Product") && !buyerVal) buyerVal = item.sub_product
               if (buyerVal !== undefined && buyerVal !== null && String(buyerVal).trim() !== "") {
                 const buyerValsArr = Array.isArray(buyerVal) ? buyerVal : [buyerVal].filter(Boolean)
                 if (!buyerValsArr.some((bv: any) => sellerValsArr.includes(bv))) return false

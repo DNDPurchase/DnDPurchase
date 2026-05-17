@@ -1,24 +1,20 @@
-import nodemailer from "nodemailer"
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
 import { logger } from "./logger"
 
-// Ensure we have correct SMTP config in a real app,
-// but handle missing ones gracefully during development.
-const smtpConfig = {
-    host: process.env.SMTP_HOST || "smtp.example.com",
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-        user: process.env.SMTP_USER || "test@example.com",
-        pass: process.env.SMTP_PASS || "password",
-    },
-}
-
-const transporter = nodemailer.createTransport(smtpConfig)
+// AWS SES Configuration
+const REGION = process.env.AWS_REGION || "ap-south-1"
+const sesClient = new SESClient({
+    region: REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+    }
+})
 
 const TEST_MODE = process.env.EMAIL_TEST_MODE === "true"
 
 /**
- * Generic email sender using SMTP
+ * Generic email sender using AWS SES
  */
 export async function sendEmail({
     to,
@@ -34,18 +30,37 @@ export async function sendEmail({
         return { success: true, messageId: "test-mode-email-" + Date.now() }
     }
 
+    if (!process.env.AWS_ACCESS_KEY_ID) {
+        logger.warn("AWS_ACCESS_KEY_ID not configured. Simulating email send.", { to, subject })
+        return { success: true, simulated: true }
+    }
+
     try {
-        const info = await transporter.sendMail({
-            from: `"DND App" <${process.env.SMTP_FROM || smtpConfig.auth.user}>`,
-            to,
-            subject,
-            html,
+        const command = new SendEmailCommand({
+            Destination: {
+                ToAddresses: [to],
+            },
+            Message: {
+                Body: {
+                    Html: {
+                        Charset: "UTF-8",
+                        Data: html,
+                    },
+                },
+                Subject: {
+                    Charset: "UTF-8",
+                    Data: subject,
+                },
+            },
+            Source: process.env.EMAIL_FROM_ADDRESS || "no-reply@example.com",
         })
 
-        logger.info("Email sent successfully", { to, messageId: info.messageId })
-        return { success: true, messageId: info.messageId }
+        const response = await sesClient.send(command)
+
+        logger.info("Email sent successfully via AWS SES", { to, messageId: response.MessageId })
+        return { success: true, messageId: response.MessageId }
     } catch (error) {
-        logger.error("Failed to send email", { error: (error as Error).message, to })
+        logger.error("Failed to send email via AWS SES", { error: (error as Error).message, to })
         throw error
     }
 }
@@ -139,6 +154,32 @@ export async function notifySellerOfRejectionEmail(to: string, offerId: string) 
       <h2>Offer Status Update</h2>
       <p>Your Offer #${offerId} was not accepted this time.</p>
       <p>Thank you for participating! Check out other active inquiries in your dashboard.</p>
+      <p>Best regards,<br/>The DND Team</p>
+    </div>
+  `
+    return sendEmail({ to, subject, html })
+}
+
+export async function notifyBuyerOfInquiryClosedEmail(to: string, inquiryId: string) {
+    const subject = "Inquiry Closed"
+    const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+      <h2>Inquiry Closed</h2>
+      <p>Your Inquiry #${inquiryId} has been closed.</p>
+      <p>Thank you for using DND.</p>
+      <p>Best regards,<br/>The DND Team</p>
+    </div>
+  `
+    return sendEmail({ to, subject, html })
+}
+
+export async function notifySellerOfInquiryClosedEmail(to: string, inquiryId: string) {
+    const subject = "Inquiry Closed"
+    const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+      <h2>Inquiry Update</h2>
+      <p>The Inquiry #${inquiryId} has been closed by the buyer or system.</p>
+      <p>Any pending offers for this inquiry will no longer be considered.</p>
       <p>Best regards,<br/>The DND Team</p>
     </div>
   `

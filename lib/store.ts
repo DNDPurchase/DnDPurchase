@@ -728,22 +728,22 @@ export async function reopenInquiry(inquiryId: string): Promise<void> {
   }
 }
 
-export async function getSellerPhonesFromOffers(inquiryId: string): Promise<string[]> {
+export async function getSellerContactInfoFromOffers(inquiryId: string): Promise<{phone: string, email: string}[]> {
   const q = query(collection(db, "offers"), where("inquiry_id", "==", inquiryId))
   const snap = await getDocs(q)
   if (snap.empty) return []
 
   const sellerIds = [...new Set(snap.docs.map(d => d.data().seller_id))]
 
-  const phones: string[] = []
+  const contacts: {phone: string, email: string}[] = []
   const chunkSize = 10;
   for (let i = 0; i < sellerIds.length; i += chunkSize) {
     const chunk = sellerIds.slice(i, i + chunkSize);
     const sq = query(collection(db, "sellers"), where("id", "in", chunk))
     const sSnap = await getDocs(sq)
-    phones.push(...sSnap.docs.map(d => d.data().phone))
+    contacts.push(...sSnap.docs.map(d => ({ phone: d.data().phone, email: d.data().email })))
   }
-  return phones;
+  return contacts;
 }
 
 export async function getAllSellerPhones(): Promise<string[]> {
@@ -752,7 +752,7 @@ export async function getAllSellerPhones(): Promise<string[]> {
   return snap.docs.map(d => d.data().phone).filter(p => !!p)
 }
 
-export async function getSellerPhonesByCategories(categories: string[]): Promise<string[]> {
+export async function getSellersContactInfoByCategories(categories: string[]): Promise<{phone: string, email: string}[]> {
   if (!categories || categories.length === 0) return []
 
   // We fetch all verified sellers and filter in memory since firestore array-contains-any 
@@ -768,8 +768,8 @@ export async function getSellerPhonesByCategories(categories: string[]): Promise
       // Check if there is any intersection between seller categories and required categories
       return sellerCategories.some(c => categories.includes(c))
     })
-    .map(seller => seller.phone)
-    .filter(p => !!p)
+    .map(seller => ({ phone: seller.phone, email: seller.email }))
+    .filter(contact => !!contact.phone || !!contact.email)
 }
 
 export async function activateBidding(inquiryId: string, durationInDays: number): Promise<void> {

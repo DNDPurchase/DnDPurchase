@@ -21,35 +21,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { getProducts } from "@/lib/store"
 import { useEffect, useState, useRef } from "react"
 
-const FEATURES = [
-  {
-    icon: Shield,
-    title: "Verified Suppliers",
-    desc: "Every seller is verified via GST or Aadhar before they can quote.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Competitive Bidding",
-    desc: "Activate bidding to drive prices down and find the best deal.",
-  },
-  {
-    icon: BarChart3,
-    title: "Real-time Ranking",
-    desc: "Sellers see their competitive rank, encouraging better pricing.",
-  },
-  {
-    icon: Users,
-    title: "Multi-item Inquiries",
-    desc: "Bundle multiple products in a single inquiry for streamlined procurement.",
-  },
-]
 
-const STEPS = [
-  { step: "01", title: "Register & Verify", desc: "Create your account and complete GST or Aadhar verification." },
-  { step: "02", title: "Create Inquiry", desc: "Specify materials, grades, quantities, and delivery terms." },
-  { step: "03", title: "Receive Offers", desc: "Verified sellers submit competitive price quotes per unit." },
-  { step: "04", title: "Finalize Deal", desc: "Compare offers, activate bidding, and accept the best quote." },
-]
 
 export default function LandingPage() {
   const [products, setProducts] = useState<any[]>([])
@@ -60,9 +32,6 @@ export default function LandingPage() {
     target: heroRef,
     offset: ["start start", "end start"]
   })
-
-  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0])
 
   useEffect(() => {
     getProducts().then(setProducts)
@@ -119,7 +88,7 @@ export default function LandingPage() {
           </motion.div>
 
           <nav className="hidden items-center gap-8 md:flex">
-            {["features", "how-it-works", "products"].map((item, i) => (
+            {["how-it-works", "products"].map((item, i) => (
               <motion.a
                 key={item}
                 href={`#${item}`}
@@ -177,7 +146,7 @@ export default function LandingPage() {
               style={{ borderTop: `1px solid ${v('border')}` }}
             >
               <div className="px-4 py-4 flex flex-col gap-3">
-                {["features", "how-it-works", "products"].map((item) => (
+                {["how-it-works", "products"].map((item) => (
                   <a
                     key={item}
                     href={`#${item}`}
@@ -228,7 +197,7 @@ export default function LandingPage() {
           style={{ backgroundColor: v('accent') }}
         />
 
-        <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative mx-auto max-w-7xl px-6 py-24 md:py-36 w-full">
+        <motion.div className="relative mx-auto max-w-7xl px-6 py-6 md:py-10 w-full">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -240,10 +209,10 @@ export default function LandingPage() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2, duration: 2, ease: "easeOut" }}
-              className="mb-8 flex flex-col items-center justify-center select-none"
+              className="mb-4 flex flex-col items-center justify-center select-none"
             >
               <div 
-                className="flex items-center text-[8rem] sm:text-[11rem] md:text-[14rem] leading-none font-serif font-bold tracking-tighter drop-shadow-sm dark:drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]" 
+                className="flex items-center text-[6rem] sm:text-[9rem] md:text-[12rem] leading-none font-serif font-bold tracking-tighter drop-shadow-sm dark:drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]" 
               >
                 <span className="relative inline-flex items-center justify-center">
                   <span className="bg-gradient-to-b from-black to-neutral-700 bg-clip-text text-transparent dark:from-white dark:via-neutral-400 dark:to-neutral-600">D</span>
@@ -270,7 +239,7 @@ export default function LandingPage() {
                 </span>
               </div>
               <div 
-                className="text-4xl sm:text-5xl md:text-6xl font-serif mt-2 tracking-tight bg-gradient-to-b from-black to-neutral-700 bg-clip-text text-transparent dark:from-white dark:via-neutral-400 dark:to-neutral-600 drop-shadow-sm dark:drop-shadow-[0_8px_15px_rgba(0,0,0,0.4)]" 
+                className="text-3xl sm:text-4xl md:text-5xl font-serif mt-1 tracking-tight bg-gradient-to-b from-black to-neutral-700 bg-clip-text text-transparent dark:from-white dark:via-neutral-400 dark:to-neutral-600 drop-shadow-sm dark:drop-shadow-[0_8px_15px_rgba(0,0,0,0.4)]" 
               >
                 Purchase
               </div>
@@ -280,88 +249,76 @@ export default function LandingPage() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.6, duration: 1.5, ease: "easeOut" }}
-              className="mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
+              className="mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
               style={{ border: `1px solid ${v('badge-border')}`, backgroundColor: v('badge-bg'), color: v('accent') }}
             >
               <CheckCircle className="h-4 w-4" />
               Trusted by 500+ verified businesses
             </motion.div>
 
-            <h1 className="text-balance font-serif text-4xl font-bold leading-tight tracking-tight md:text-6xl" style={{ color: v('heading') }}>
-              Industrial Raw Materials, <br />
-              <span className="italic" style={{ color: v('accent') }}>Precision Pricing</span>
+            <div className="mt-4 mb-4">
+              <span className="text-xl md:text-2xl font-bold tracking-tight" style={{ color: v('accent') }}>
+                Best Pricing. No Calls.
+              </span>
+            </div>
+
+            <h1 className="text-balance font-bold leading-tight tracking-tight text-3xl md:text-5xl lg:text-6xl mt-2" style={{ color: v('heading') }}>
+              <span className="opacity-80">Buy/Sell</span> <br />
+              <span style={{ color: v('accent') }}>
+                Steel and Cement
+              </span> <br />
+              <span className="text-xl md:text-3xl font-medium opacity-60">in just 2-step process</span>
             </h1>
 
-            <p className="mt-6 text-pretty text-lg leading-relaxed md:text-xl" style={{ color: v('text-muted') }}>
-              Connect with verified buyers and sellers of Steel, Cement, TMT Rebars and more.
-              Get competitive quotes through our transparent inquiry-to-offer workflow.
+            <p className="mt-4 text-pretty text-base md:text-lg font-medium tracking-[0.2em] uppercase opacity-40" style={{ color: v('text') }}>
+              Simple <span className="mx-2">•</span> Efficient <span className="mx-2">•</span> Transparent
             </p>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mx-auto max-w-2xl">
+              <div className="flex flex-col gap-3 p-6 rounded-[1.5rem] border border-white/5 bg-white/[0.03] backdrop-blur-md">
+                <div className="flex items-center gap-3 text-red-500/70">
+                  <X className="h-4 w-4 shrink-0" /> <span className="text-base font-medium">No Phone Calls</span>
+                </div>
+                <div className="flex items-center gap-3 text-red-500/70">
+                  <X className="h-4 w-4 shrink-0" /> <span className="text-base font-medium">No Follow-ups</span>
+                </div>
+                <div className="flex items-center gap-3 text-red-500/70">
+                  <X className="h-4 w-4 shrink-0" /> <span className="text-base font-medium">No Disturbance</span>
+                </div>
+                <div className="flex items-center gap-3 text-red-500/70">
+                  <X className="h-4 w-4 shrink-0" /> <span className="text-base font-medium">No Waste of Time</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-center p-6 rounded-[1.5rem] border border-green-500/20 bg-green-500/[0.05] backdrop-blur-md group transition-all hover:bg-green-500/[0.08]">
+                <div className="flex items-center gap-4 text-green-400">
+                  <div className="p-2 rounded-full bg-green-500/20 group-hover:scale-110 transition-transform">
+                    <CheckCircle className="h-8 w-8" />
+                  </div>
+                  <span className="text-xl font-bold tracking-tight">Complete Peace of Mind</span>
+                </div>
+              </div>
+            </div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.0, duration: 1.5, ease: "easeOut" }}
-              className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
+              className="mt-6 flex flex-col items-center justify-center gap-4 sm:flex-row"
             >
-              <Button asChild size="lg" className="gap-2 px-8 text-base group relative overflow-hidden font-semibold" style={{ backgroundColor: v('accent'), color: v('cta-text'), boxShadow: `0 4px 30px ${v('accent-glow-strong')}` }}>
-                <Link href="/auth/register" className="relative z-10">
-                  Start as Buyer <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              <Button asChild size="lg" className="h-14 gap-2 px-10 text-lg group relative overflow-hidden font-bold transition-all hover:scale-105 active:scale-95 rounded-xl shadow-2xl" style={{ backgroundColor: v('accent'), color: '#000000' }}>
+                <Link href="/auth/register" className="relative z-10 flex items-center gap-2">
+                  Create new account <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="gap-2 px-8 text-base transition-all active:scale-95" style={{ backgroundColor: 'transparent', borderColor: v('outline-btn-border'), color: v('outline-btn-text') }}>
-                <Link href="/auth/register">Register as Seller</Link>
+              <Button asChild size="lg" className="h-14 gap-2 px-10 text-lg border border-white/10 bg-neutral-800/50 backdrop-blur-md transition-all hover:bg-neutral-800/80 hover:border-white/20 active:scale-95 font-bold rounded-xl shadow-xl" style={{ color: '#FFFFFF' }}>
+                <Link href="/auth/login">Sign In</Link>
               </Button>
             </motion.div>
           </motion.div>
         </motion.div>
       </section>
 
-      {/* ─── Features ─── */}
-      <section id="features" className="relative mx-auto max-w-7xl px-6 py-24 overflow-hidden z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
-          className="mx-auto mb-16 max-w-2xl text-center"
-        >
-          <div className="inline-flex items-center rounded-full px-3 py-1 text-sm mb-6" style={{ border: `1px solid ${v('badge-border')}`, backgroundColor: v('badge-bg'), color: v('accent') }}>
-            <span className="flex h-2 w-2 rounded-full mr-2 animate-pulse" style={{ backgroundColor: v('accent') }} />
-            Why Choose Us
-          </div>
-          <h2 className="text-balance font-serif text-4xl font-bold tracking-tight md:text-5xl" style={{ color: v('heading') }}>
-            Built for Industrial Procurement
-          </h2>
-          <p className="mt-6 text-pretty text-lg leading-relaxed" style={{ color: v('text-muted') }}>
-            Every feature is designed to bring transparency and efficiency to B2B raw material sourcing.
-          </p>
-        </motion.div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.15, duration: 1.5, ease: "easeOut" }}
-              whileHover={{ y: -5, scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="group relative overflow-hidden rounded-2xl p-6 backdrop-blur-xl transition-all duration-300 h-full hover:shadow-2xl" style={{ border: `1px solid ${v('border')}`, backgroundColor: v('surface') }}>
-                <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: `linear-gradient(to bottom right, ${v('surface-hover')}, transparent)` }} />
-                <div className="relative z-10">
-                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl shadow-inner transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" style={{ background: v('icon-bg'), color: v('accent') }}>
-                    <f.icon className="h-7 w-7 drop-shadow-sm" />
-                  </div>
-                  <h3 className="font-serif text-xl font-semibold tracking-tight mb-3 transition-colors" style={{ color: v('heading') }}>{f.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: v('text-muted') }}>{f.desc}</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
 
       {/* ─── How it Works ─── */}
       <section id="how-it-works" className="relative z-10" style={{ borderTop: `1px solid ${v('border')}`, borderBottom: `1px solid ${v('border')}`, backgroundColor: v('surface') }}>
@@ -375,32 +332,67 @@ export default function LandingPage() {
             className="mx-auto mb-16 max-w-2xl text-center"
           >
             <h2 className="text-balance font-serif text-4xl font-bold tracking-tight md:text-5xl" style={{ color: v('heading') }}>
-              How It Works
+              How it works?
             </h2>
-            <p className="mt-6 text-pretty text-lg leading-relaxed" style={{ color: v('text-muted') }}>
-              From registration to deal finalization in four simple steps.
+            <p className="mt-6 text-pretty text-2xl font-medium" style={{ color: v('accent') }}>
+              Just 2 steps...
             </p>
           </motion.div>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map((s, i) => (
-              <motion.div
-                key={s.step}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.2, duration: 1.5, ease: "easeOut" }}
-                className="group relative overflow-hidden rounded-2xl p-8 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl"
-                style={{ border: `1px solid ${v('border')}`, backgroundColor: v('surface') }}
-              >
-                <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: `linear-gradient(to bottom right, ${v('surface-hover')}, transparent)` }} />
-                <div className="relative z-10">
-                  <div className="mb-6 font-serif text-5xl font-extrabold transition-colors duration-300" style={{ color: v('step-num') }}>{s.step}</div>
-                  <h3 className="font-serif text-xl font-semibold mb-3 transition-colors" style={{ color: v('heading') }}>{s.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: v('text-muted') }}>{s.desc}</p>
+          <div className="grid gap-8 md:grid-cols-2">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2, duration: 1.5, ease: "easeOut" }}
+              className="group relative overflow-hidden rounded-2xl p-8 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl"
+              style={{ border: `1px solid ${v('border')}`, backgroundColor: v('surface') }}
+            >
+              <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: `linear-gradient(to bottom right, ${v('surface-hover')}, transparent)` }} />
+              <div className="relative z-10">
+                <h3 className="font-serif text-3xl font-bold mb-6 transition-colors" style={{ color: v('heading') }}>For Buyer:</h3>
+                <div className="space-y-4" style={{ color: v('text-muted') }}>
+                  <div className="flex gap-4">
+                    <span className="font-bold text-xl" style={{ color: v('step-num') }}>1.</span>
+                    <p className="text-lg leading-relaxed">Send Inquiry to get Offers from Sellers</p>
+                  </div>
+                  <div className="flex gap-4">
+                    <span className="font-bold text-xl" style={{ color: v('step-num') }}>2.</span>
+                    <p className="text-lg leading-relaxed">Start Bidding to get Best Prices from Sellers <br /> <span className="text-sm opacity-80">(No negotiations required)</span></p>
+                  </div>
+                  <div className="flex gap-4 items-center text-green-600 dark:text-green-400 font-medium pt-4">
+                    <CheckCircle className="h-6 w-6" /> <span className="text-lg">Done</span>
+                  </div>
                 </div>
-              </motion.div>
-            ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4, duration: 1.5, ease: "easeOut" }}
+              className="group relative overflow-hidden rounded-2xl p-8 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl"
+              style={{ border: `1px solid ${v('border')}`, backgroundColor: v('surface') }}
+            >
+              <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: `linear-gradient(to bottom right, ${v('surface-hover')}, transparent)` }} />
+              <div className="relative z-10">
+                <h3 className="font-serif text-3xl font-bold mb-6 transition-colors" style={{ color: v('heading') }}>For Seller:</h3>
+                <div className="space-y-4" style={{ color: v('text-muted') }}>
+                  <div className="flex gap-4">
+                    <span className="font-bold text-xl" style={{ color: v('step-num') }}>1.</span>
+                    <p className="text-lg leading-relaxed">Send Offer to each Inquiry</p>
+                  </div>
+                  <div className="flex gap-4">
+                    <span className="font-bold text-xl" style={{ color: v('step-num') }}>2.</span>
+                    <p className="text-lg leading-relaxed">Participate in Bidding to give Best Price <br /> <span className="text-sm opacity-80">(No negotiations required)</span></p>
+                  </div>
+                  <div className="flex gap-4 items-center text-green-600 dark:text-green-400 font-medium pt-4">
+                    <CheckCircle className="h-6 w-6" /> <span className="text-lg">Done</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -423,7 +415,7 @@ export default function LandingPage() {
             Product Categories
           </h2>
           <p className="mt-6 text-pretty text-lg leading-relaxed" style={{ color: v('text-muted') }}>
-            Source from a comprehensive catalog of high-quality industrial raw materials, directly from verified manufacturers.
+            Source prime-quality Steel and Cement from verified Sellers
           </p>
         </motion.div>
 

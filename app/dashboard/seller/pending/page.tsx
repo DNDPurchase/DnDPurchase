@@ -61,7 +61,7 @@ export default function SellerPendingPage() {
     if (!inquiries || !user) return []
     if (!Array.isArray(inquiries)) return []
 
-    const currentUserBuyerId = allUsers?.find(u => u.role === "buyer")?.id;
+    const currentUserBuyerId = allUsers?.find(u => u.role === "buyer" && u.email === user.email)?.id;
 
     return inquiries.filter((inq: Inquiry) => {
       // 0. EXCLUDE OWN INQUIRIES
@@ -112,8 +112,8 @@ export default function SellerPendingPage() {
             const sellerValsArr = Array.isArray(sellerVal) ? sellerVal : [sellerVal].filter(Boolean)
 
             if (sellerValsArr.length > 0) {
-              let buyerVal = (item.options || {})[optName]
-              if (optName === "Sub-Products" && !buyerVal) {
+              let buyerVal: string | string[] | undefined = (item.options || {})[optName]
+              if ((optName === "Sub-Products" || optName === "Sub-Product") && !buyerVal) {
                 buyerVal = item.sub_product
               }
 

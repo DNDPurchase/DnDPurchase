@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger"
-import { activateBidding, closeInquiry, deleteInquiryItem, getInquiryById, getSellerPhonesFromOffers, updateInquiryItem } from "@/lib/store"
-// import { notifySellersOfBiddingEmail } from "@/lib/email"
-// import { notifySellersOfBiddingSMS } from "@/lib/sms"
+import { activateBidding, closeInquiry, deleteInquiryItem, getInquiryById, getSellerContactInfoFromOffers, updateInquiryItem, getUserById } from "@/lib/store"
+import { notifySellersOfBiddingEmail, notifyBuyerOfInquiryClosedEmail, notifySellerOfInquiryClosedEmail } from "@/lib/email"
+import { notifySellersOfBiddingSMS, notifyBuyerOfInquiryClosedSMS, notifySellerOfInquiryClosedSMS } from "@/lib/sms"
 import { NextResponse } from "next/server"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -27,27 +27,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       const durationInDays = body.durationInDays || 3 // Default 3 days
       await activateBidding(id, durationInDays)
 
-      /*
-      // Send WhatsApp notifications to all sellers who submitted offers
+      // Send notifications to all sellers who submitted offers
       try {
         const inquiry = await getInquiryById(id)
         if (inquiry) {
-          const sellerPhones = await getSellerPhonesFromOffers(id)
+          const sellerContacts = await getSellerContactInfoFromOffers(id)
 
-          logger.info("Bidding activated", { inquiryId: id, sellerCount: sellerPhones.length })
+          logger.info("Bidding activated", { inquiryId: id, sellerCount: sellerContacts.length })
 
-          if (sellerPhones.length > 0) {
-            // Create detailed items string with product
-            const itemsStr = inquiry.items.map(i =>
-              `${i.product}`
-            ).join("\n   • ")
-
+          if (sellerContacts.length > 0) {
             const deadline = new Date()
             deadline.setDate(deadline.getDate() + durationInDays)
 
-            await Promise.all(sellerPhones.map(async (phone) => {
-              // We only have phones right now from getSellerPhonesFromOffers
-              await notifySellersOfBiddingSMS(phone, id).catch(e => logger.error("Failed to send SMS", { error: (e as Error).message }))
+            await Promise.all(sellerContacts.map(async (contact) => {
+              const productName = inquiry.items[0]?.product || "Product";
+              const tasks = []
+              if (contact.phone) tasks.push(notifySellersOfBiddingSMS(contact.phone, id).catch(e => logger.error("Failed to send SMS", { error: (e as Error).message })))
+              if (contact.email) tasks.push(notifySellersOfBiddingEmail(contact.email, id, productName).catch(e => logger.error("Failed to send Email", { error: (e as Error).message })))
+              await Promise.all(tasks)
             }))
             logger.info("Bidding notifications sent")
           } else {
@@ -58,13 +55,38 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         logger.error("Failed to send notifications for bidding", { error: (notificationError as Error)?.message })
         // Don't fail the request if notification fails
       }
-      */
 
       return NextResponse.json({ success: true })
     }
 
     if (body.action === "close") {
       await closeInquiry(id)
+      
+      try {
+        const inquiry = await getInquiryById(id)
+        if (inquiry) {
+          // Notify buyer
+          const buyer = await getUserById(inquiry.buyerId)
+          const productName = inquiry.items[0]?.product || "Product";
+          
+          if (buyer) {
+            if (buyer.email) await notifyBuyerOfInquiryClosedEmail(buyer.email, id, productName).catch(() => {})
+            if (buyer.phone) await notifyBuyerOfInquiryClosedSMS(buyer.phone, id).catch(() => {})
+          }
+          
+          // Notify sellers
+          const sellerContacts = await getSellerContactInfoFromOffers(id)
+          await Promise.all(sellerContacts.map(async (contact) => {
+            const tasks = []
+            if (contact.phone) tasks.push(notifySellerOfInquiryClosedSMS(contact.phone, id).catch(() => {}))
+            if (contact.email) tasks.push(notifySellerOfInquiryClosedEmail(contact.email, id, productName).catch(() => {}))
+            await Promise.all(tasks)
+          }))
+        }
+      } catch (notificationError) {
+        logger.error("Failed to send notifications for inquiry close", { error: (notificationError as Error)?.message })
+      }
+
       return NextResponse.json({ success: true })
     }
 

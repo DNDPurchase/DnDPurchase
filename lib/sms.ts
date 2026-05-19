@@ -118,3 +118,17 @@ export async function notifySellerOfRejectionSMS(to: string, offerId: string) {
         recipients: [{ mobiles: to, offerId }] // Maps to {#offerId#} in template
     })
 }
+
+export async function notifyBuyerOfInquiryClosedSMS(to: string, inquiryId: string) {
+    return sendSMS({
+        template_id: process.env.MSG91_TEMPLATE_INQUIRY_CLOSED || "SIMULATED",
+        recipients: [{ mobiles: to, inquiryId }] // Maps to {#inquiryId#} in template
+    })
+}
+
+export async function notifySellerOfInquiryClosedSMS(to: string, inquiryId: string) {
+    return sendSMS({
+        template_id: process.env.MSG91_TEMPLATE_INQUIRY_CLOSED || "SIMULATED",
+        recipients: [{ mobiles: to, inquiryId }] // Maps to {#inquiryId#} in template
+    })
+}

@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger"
 import { acceptOffer, closeInquiry, createOffer, disqualifyOffer, getInquiryById, getOfferById, getOffersByInquiryId, getOffersBySellerId, getUserById } from "@/lib/store"
-// import { notifyBuyerOfAcceptanceEmail, notifyBuyerOfNewOfferEmail, notifySellerOfAcceptanceEmail, notifySellerOfRejectionEmail } from "@/lib/email"
-// import { notifyBuyerOfAcceptanceSMS, notifyBuyerOfNewOfferSMS, notifySellerOfAcceptanceSMS, notifySellerOfRejectionSMS } from "@/lib/sms"
+import { notifyBuyerOfAcceptanceEmail, notifyBuyerOfNewOfferEmail, notifySellerOfAcceptanceEmail, notifySellerOfRejectionEmail } from "@/lib/email"
+import { notifyBuyerOfAcceptanceSMS, notifyBuyerOfNewOfferSMS, notifySellerOfAcceptanceSMS, notifySellerOfRejectionSMS } from "@/lib/sms"
 import { NextResponse } from "next/server"
 
 export async function GET(req: Request) {
@@ -61,10 +61,12 @@ export async function POST(req: Request) {
 
       logger.info("Notifying buyer of new offer", { buyerId: buyer.id })
 
-      /* 
       // Send Email if available
       if (buyer.email) {
-        await notifyBuyerOfNewOfferEmail(buyer.email, inquiryId).catch(e =>
+        const allOffers = await getOffersByInquiryId(inquiryId);
+        const offerCount = allOffers.length;
+        const productName = inquiry.items[0]?.product || "Product";
+        await notifyBuyerOfNewOfferEmail(buyer.email, inquiryId, productName, offerCount).catch(e =>
           logger.error("Failed to send Email notification for new offer", { error: e.message })
         )
       }
@@ -75,7 +77,6 @@ export async function POST(req: Request) {
           logger.error("Failed to send SMS notification for new offer", { error: e.message })
         )
       }
-      */
 
       logger.info("New offer notifications sent to buyer")
     } catch (notificationError) {
@@ -102,11 +103,11 @@ export async function PATCH(req: Request) {
         const offer = await getOfferById(body.offerId)
         if (offer) {
           const seller = await getUserById(offer.sellerId)
+          const inquiry = await getInquiryById(offer.inquiryId)
+          const productName = inquiry?.items[0]?.product || "Product";
           if (seller) {
-            /*
-            if (seller.email) await notifySellerOfRejectionEmail(seller.email, offer.id).catch(e => logger.error("Failed rejection email", { error: (e as Error).message }))
+            if (seller.email) await notifySellerOfRejectionEmail(seller.email, offer.id, offer.inquiryId, productName).catch(e => logger.error("Failed rejection email", { error: (e as Error).message }))
             if (seller.phone) await notifySellerOfRejectionSMS(seller.phone, offer.id).catch(e => logger.error("Failed rejection SMS", { error: (e as Error).message }))
-            */
           }
         }
       } catch (e) {
@@ -146,11 +147,12 @@ export async function PATCH(req: Request) {
         logger.info("Offer accepted", { offerId: offer.id })
 
         if (seller && inquiry && buyer) {
-          /*
+          const productName = inquiry.items[0]?.product || "Product";
+
           // Send notification to seller
           logger.info("Notifying seller", { sellerId: seller.id })
           if (seller.email) {
-            await notifySellerOfAcceptanceEmail(seller.email, offer.id).catch(e => logger.error("Email seller acceptance failed", { error: (e as Error).message }))
+            await notifySellerOfAcceptanceEmail(seller.email, offer.id, offer.inquiryId, productName).catch(e => logger.error("Email seller acceptance failed", { error: (e as Error).message }))
           }
           if (seller.phone && seller.phone.trim() !== "") {
             if (seller.smsNotificationsEnabled) {
@@ -164,13 +166,12 @@ export async function PATCH(req: Request) {
           // Send notification to buyer
           logger.info("Notifying buyer", { buyerId: buyer.id })
           if (buyer.email) {
-            await notifyBuyerOfAcceptanceEmail(buyer.email, inquiryId).catch(e => logger.error("Email buyer acceptance failed", { error: (e as Error).message }))
+            await notifyBuyerOfAcceptanceEmail(buyer.email, offer.id, offer.inquiryId, productName).catch(e => logger.error("Email buyer acceptance failed", { error: (e as Error).message }))
           }
           if (buyer.phone && buyer.phone.trim() !== "") {
-            await notifyBuyerOfAcceptanceSMS(buyer.phone, inquiryId).catch(e => logger.error("SMS buyer acceptance failed", { error: (e as Error).message }))
+            await notifyBuyerOfAcceptanceSMS(buyer.phone, offer.inquiryId).catch(e => logger.error("SMS buyer acceptance failed", { error: (e as Error).message }))
           }
           logger.info("Acceptance notifications sent to buyer")
-          */
         } else {
           logger.warn("Missing required data for acceptance", { seller: !!seller, buyer: !!buyer, inquiry: !!inquiry })
         }

@@ -40,9 +40,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             deadline.setDate(deadline.getDate() + durationInDays)
 
             await Promise.all(sellerContacts.map(async (contact) => {
+              const productName = inquiry.items[0]?.product || "Product";
               const tasks = []
               if (contact.phone) tasks.push(notifySellersOfBiddingSMS(contact.phone, id).catch(e => logger.error("Failed to send SMS", { error: (e as Error).message })))
-              if (contact.email) tasks.push(notifySellersOfBiddingEmail(contact.email, id).catch(e => logger.error("Failed to send Email", { error: (e as Error).message })))
+              if (contact.email) tasks.push(notifySellersOfBiddingEmail(contact.email, id, productName).catch(e => logger.error("Failed to send Email", { error: (e as Error).message })))
               await Promise.all(tasks)
             }))
             logger.info("Bidding notifications sent")
@@ -66,8 +67,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         if (inquiry) {
           // Notify buyer
           const buyer = await getUserById(inquiry.buyerId)
+          const productName = inquiry.items[0]?.product || "Product";
+          
           if (buyer) {
-            if (buyer.email) await notifyBuyerOfInquiryClosedEmail(buyer.email, id).catch(() => {})
+            if (buyer.email) await notifyBuyerOfInquiryClosedEmail(buyer.email, id, productName).catch(() => {})
             if (buyer.phone) await notifyBuyerOfInquiryClosedSMS(buyer.phone, id).catch(() => {})
           }
           
@@ -76,7 +79,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           await Promise.all(sellerContacts.map(async (contact) => {
             const tasks = []
             if (contact.phone) tasks.push(notifySellerOfInquiryClosedSMS(contact.phone, id).catch(() => {}))
-            if (contact.email) tasks.push(notifySellerOfInquiryClosedEmail(contact.email, id).catch(() => {}))
+            if (contact.email) tasks.push(notifySellerOfInquiryClosedEmail(contact.email, id, productName).catch(() => {}))
             await Promise.all(tasks)
           }))
         }

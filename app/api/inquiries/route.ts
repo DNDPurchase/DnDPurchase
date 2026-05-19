@@ -58,15 +58,16 @@ export async function POST(req: Request) {
           deadline.setDate(deadline.getDate() + Number(biddingDuration));
         }
 
+        const productName = items[0]?.product || "Product";
         // Send notifications in parallel
         const promises = sellerContacts.map((contact: any) => {
           const tasks = [];
           if (biddingDuration) {
             if (contact.phone) tasks.push(notifySellersOfBiddingSMS(contact.phone, inquiryId).catch(() => false));
-            if (contact.email) tasks.push(notifySellersOfBiddingEmail(contact.email, inquiryId).catch(() => false));
+            if (contact.email) tasks.push(notifySellersOfBiddingEmail(contact.email, inquiryId, productName).catch(() => false));
           } else {
             if (contact.phone) tasks.push(notifySellerOfNewInquirySMS(contact.phone).catch(() => false));
-            if (contact.email) tasks.push(notifySellerOfNewInquiryEmail(contact.email).catch(() => false));
+            if (contact.email) tasks.push(notifySellerOfNewInquiryEmail(contact.email, inquiryId, productName).catch(() => false));
           }
           return Promise.allSettled(tasks);
         }).flat()

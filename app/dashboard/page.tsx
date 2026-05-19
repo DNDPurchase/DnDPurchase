@@ -231,7 +231,7 @@ export default function DashboardOverview() {
           {/* Quick Stats Row */}
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="Open Opportunities"
+              title="New Inquiry"
               value={openInquiryCount}
               subtitle="Available inquiries"
               icon={<Eye className="h-4 w-4" />}

@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger"
-import { createInquiry, getAllSellerPhones, getInquiriesByBuyerId, getOpenInquiries, getSellerPhonesByCategories } from "@/lib/store"
-// import { notifySellerOfNewInquiryEmail, notifySellersOfBiddingEmail } from "@/lib/email"
-// import { notifySellerOfNewInquirySMS, notifySellersOfBiddingSMS } from "@/lib/sms"
+import { createInquiry, getAllSellerPhones, getInquiriesByBuyerId, getOpenInquiries, getSellersContactInfoByCategories } from "@/lib/store"
+import { notifySellerOfNewInquiryEmail, notifySellersOfBiddingEmail } from "@/lib/email"
+import { notifySellerOfNewInquirySMS, notifySellersOfBiddingSMS } from "@/lib/sms"
 import { getUserById } from "@/lib/store"
 import { NextResponse } from "next/server"
 
@@ -39,50 +39,42 @@ export async function POST(req: Request) {
 
     // No longer creating inquiry here directly. Client provides inquiryId.
 
-    /*
     // Send notifications to targeted sellers about new inquiry
     try {
       const categories = Array.from(new Set(items.map((item: any) => item.product))) as string[]
-      const sellerPhones = await getSellerPhonesByCategories(categories)
+      const sellerContacts = await getSellersContactInfoByCategories(categories)
 
       logger.info("New inquiry created, sending targeted notifications", {
         inquiryId,
         categories,
-        targetedSellerCount: sellerPhones.length
+        targetedSellerCount: sellerContacts.length
       })
 
-      if (sellerPhones.length > 0) {
-        logger.debug("Seller phones for inquiry notification", { sellerPhones })
-
-        const itemsStr = items.map((item: any) =>
-          `${item.product}`
-        ).join(", ")
-
-        logger.debug("Inquiry item details", { items: itemsStr })
+      if (sellerContacts.length > 0) {
+        logger.debug("Seller contacts for inquiry notification", { count: sellerContacts.length })
 
         const deadline = new Date();
         if (biddingDuration) {
           deadline.setDate(deadline.getDate() + Number(biddingDuration));
         }
 
+        const productName = items[0]?.product || "Product";
         // Send notifications in parallel
-        const promises = sellerPhones.map((phone: string) => {
+        const promises = sellerContacts.map((contact: any) => {
+          const tasks = [];
           if (biddingDuration) {
-            return notifySellersOfBiddingSMS(phone, inquiryId).catch(e => false);
+            if (contact.phone) tasks.push(notifySellersOfBiddingSMS(contact.phone, inquiryId).catch(() => false));
+            if (contact.email) tasks.push(notifySellersOfBiddingEmail(contact.email, inquiryId, productName).catch(() => false));
           } else {
-            return notifySellerOfNewInquirySMS(phone).catch(e => false);
+            if (contact.phone) tasks.push(notifySellerOfNewInquirySMS(contact.phone).catch(() => false));
+            if (contact.email) tasks.push(notifySellerOfNewInquiryEmail(contact.email, inquiryId, productName).catch(() => false));
           }
-        })
+          return Promise.allSettled(tasks);
+        }).flat()
 
         const results = await Promise.allSettled(promises)
-
-        const successful = results.filter((r: any) => r.status === 'fulfilled' && r.value === true).length
-        const failed = results.filter((r: any) => r.status === 'rejected' || (r.status === 'fulfilled' && r.value === false)).length
-
-        logger.info("New inquiry notifications complete", { successful, failed })
-        if (failed > 0) {
-          logger.warn("Some inquiry notifications failed")
-        }
+        
+        logger.info("New inquiry notifications complete")
       } else {
         logger.warn("No verified sellers found for inquiry notification")
       }
@@ -90,7 +82,6 @@ export async function POST(req: Request) {
       logger.error("Failed to send notifications for new inquiry", { error: (notificationError as Error)?.message })
       // Don't fail the request
     }
-    */
 
     return NextResponse.json({ success: true }, { status: 201 })
   } catch (error: any) {

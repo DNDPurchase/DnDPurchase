@@ -295,7 +295,7 @@ export default function LandingPage() {
                 {[
                   { label: 'Verified Sellers', value: '100+' },
                   { label: 'Categories', value: '9' },
-                  { label: 'Avg. Saving', value: '5%' },
+                  { label: 'Avg. Saving', value: '3%' },
                 ].map((stat) => (
                   <div key={stat.label} className="flex flex-col items-center p-4 rounded-xl card-glossy text-center shadow-xl">
                     <span className="text-2xl font-black text-glow-red">{stat.value}</span>

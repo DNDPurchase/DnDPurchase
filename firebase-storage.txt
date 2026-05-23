@@ -1,0 +1,74 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if the user is the official admin
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'admin@dnd.com' ||
+        request.auth.token.email == 'contact@dndpurchase.com'
+      );
+    }
+
+    // Documents Folder (e.g. GST docs, Aadhaar cards)
+    // - Authenticated users can upload documents (max 10MB, image only)
+    // - Authenticated users and Admins can view documents
+    match /documents/{fileName} {
+      allow read: if true;
+      allow write: if request.resource.size < 10 * 1024 * 1024 // 10MB max
+                   && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
+    }
+
+    // Product Images Folder
+    // - Anyone can view product images
+    // - Only Admins can upload, modify, or delete product images
+    match /products/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Quotes Folder
+    // - Authenticated users (sellers) can upload, modify, delete quotes.
+    match /quotes/{fileName} {
+      allow read: if true;
+      allow create, update: if isAuthenticated()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && (request.resource.contentType.matches('application/.*pdf.*') || request.resource.contentType.matches('image/.*'));
+      allow delete: if isAuthenticated();
+    }
+
+    // Default fallback - deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// ==========================================
+// Firebase Storage Structure Documentation
+// ==========================================
+
+/*
+  /documents/{uid}/{fileName}
+  - Purpose: User verification documents for roles (GST Cert, Aadhaar)
+  - Constraints: Max 10MB, PDF or Image only
+  - Access: Public Read (for verification), Owner/Admin Write
+
+  /products/{fileName}
+  - Purpose: Product catalog images
+  - Constraints: Max 10MB, Image only
+  - Access: Public Read, Admin Write
+
+  /quotes/{fileName}
+  - Purpose: Official quotation documents (PDF/Images) attached to offers
+  - Constraints: Max 10MB per file, PDF/JPEG/JPG/PNG only
+  - Access: Public Read, Authenticated User Write (Buyers or Sellers)
+*/

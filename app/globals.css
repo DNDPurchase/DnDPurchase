@@ -1,0 +1,299 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .scrollbar-show-x::-webkit-scrollbar {
+    height: 8px;
+    display: block;
+  }
+  .scrollbar-show-x::-webkit-scrollbar-track {
+    @apply bg-muted/20 rounded-full;
+  }
+  .scrollbar-show-x::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full border-2 border-transparent bg-clip-padding hover:bg-muted-foreground/50 transition-colors;
+  }
+  /* For Firefox */
+  .scrollbar-show-x {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 5 80% 48%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 5 80% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 84% 60%;
+    --chart-1: 0 84% 60%;
+    --chart-2: 5 80% 48%;
+    --chart-3: 160 50% 50%;
+    --chart-4: 0 72% 60%;
+    --chart-5: 280 50% 60%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 84% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 0 84% 60%;
+    --success: 160 60% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 5 80% 48%;
+    --warning-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 5 80% 48%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 5 80% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 84% 60%;
+    --chart-1: 0 84% 60%;
+    --chart-2: 5 80% 48%;
+    --chart-3: 160 50% 50%;
+    --chart-4: 0 72% 60%;
+    --chart-5: 280 50% 60%;
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 84% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 0 84% 60%;
+    --success: 160 60% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 5 80% 48%;
+    --warning-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply text-foreground min-h-screen text-base md:text-sm;
+    background-color: hsl(var(--background));
+    background-image: url('/dark-texture-bg.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+
+  h1 {
+    @apply text-2xl md:text-3xl font-bold;
+  }
+
+  h2 {
+    @apply text-xl md:text-2xl font-bold;
+  }
+
+  h3 {
+    @apply text-lg md:text-xl font-semibold;
+  }
+
+  /* Compact spacing for mobile */
+  .container {
+    @apply px-4 md:px-6;
+  }
+}
+
+/* ── Landing Page Theme Tokens ── */
+:root {
+  --lp-bg: #0A0A0A;
+  --lp-bg-alt: rgba(15, 15, 15, 0.85);
+  --lp-surface: rgba(20, 20, 20, 0.7);
+  --lp-surface-hover: rgba(239, 68, 68, 0.04);
+  --lp-heading: #FFFFFF;
+  --lp-text: #CCCCCC;
+  --lp-text-muted: rgba(200, 200, 200, 0.5);
+  --lp-border: rgba(255, 255, 255, 0.08);
+  --lp-border-hover: rgba(239, 68, 68, 0.25);
+  --lp-accent: #EF4444;
+  --lp-accent-glow: rgba(239, 68, 68, 0.15);
+  --lp-accent-glow-strong: rgba(239, 68, 68, 0.4);
+  --lp-step-num: rgba(239, 68, 68, 0.2);
+  --lp-overlay: rgba(0, 0, 0, 0.45);
+  --lp-cta-text: #FFFFFF;
+  --lp-footer-bg: rgba(10, 10, 10, 0.95);
+  --lp-grid-line: rgba(255, 255, 255, 0.02);
+  --lp-orb-opacity-min: 0.1;
+  --lp-orb-opacity-max: 0.25;
+  --lp-badge-border: rgba(239, 68, 68, 0.35);
+  --lp-badge-bg: rgba(239, 68, 68, 0.08);
+  --lp-scroll-bar: linear-gradient(to right, #EF4444, #888888);
+  --lp-outline-btn-border: rgba(255, 255, 255, 0.15);
+  --lp-outline-btn-text: #CCCCCC;
+  --lp-cta-section-bg: radial-gradient(circle at center, #7F1D1D 0%, #1A0505 100%);
+  --lp-cta-section-text: #FFFFFF;
+  --lp-cta-section-sub: rgba(255, 255, 255, 0.7);
+  --lp-cta-btn-bg: #EF4444;
+  --lp-cta-btn-text: #FFFFFF;
+  --lp-icon-bg: linear-gradient(to bottom right, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.02));
+}
+
+.dark {
+  --lp-bg: #0A0A0A;
+  --lp-bg-alt: rgba(15, 15, 15, 0.85);
+  --lp-surface: rgba(20, 20, 20, 0.7);
+  --lp-surface-hover: rgba(239, 68, 68, 0.04);
+  --lp-heading: #FFFFFF;
+  --lp-text: #CCCCCC;
+  --lp-text-muted: rgba(200, 200, 200, 0.5);
+  --lp-border: rgba(255, 255, 255, 0.08);
+  --lp-border-hover: rgba(239, 68, 68, 0.25);
+  --lp-accent: #EF4444;
+  --lp-accent-glow: rgba(239, 68, 68, 0.15);
+  --lp-accent-glow-strong: rgba(239, 68, 68, 0.4);
+  --lp-step-num: rgba(239, 68, 68, 0.2);
+  --lp-overlay: rgba(0, 0, 0, 0.45);
+  --lp-cta-text: #FFFFFF;
+  --lp-footer-bg: rgba(10, 10, 10, 0.95);
+  --lp-grid-line: rgba(255, 255, 255, 0.02);
+  --lp-orb-opacity-min: 0.1;
+  --lp-orb-opacity-max: 0.25;
+  --lp-badge-border: rgba(239, 68, 68, 0.35);
+  --lp-badge-bg: rgba(239, 68, 68, 0.08);
+  --lp-scroll-bar: linear-gradient(to right, #EF4444, #888888);
+  --lp-outline-btn-border: rgba(255, 255, 255, 0.15);
+  --lp-outline-btn-text: #CCCCCC;
+  --lp-cta-section-bg: radial-gradient(circle at center, #7F1D1D 0%, #1A0505 100%);
+  --lp-cta-section-text: #FFFFFF;
+  --lp-cta-section-sub: rgba(255, 255, 255, 0.7);
+  --lp-cta-btn-bg: #EF4444;
+  --lp-cta-btn-text: #FFFFFF;
+  --lp-icon-bg: linear-gradient(to bottom right, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.02));
+}
+
+/* ── Brand Specific Utility Classes ── */
+.text-metallic {
+  background: linear-gradient(to bottom, #FFFFFF 30%, #D1D5DB 70%, #9CA3AF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-metallic-muted {
+  background: linear-gradient(to bottom, #E5E7EB 0%, #9CA3AF 60%, #4B5563 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-glow-red {
+  color: #EF4444;
+  text-shadow: 0 0 15px rgba(239, 68, 68, 0.6), 0 0 5px rgba(239, 68, 68, 0.3);
+}
+
+.shadow-red-glow {
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.25), 0 0 10px rgba(239, 68, 68, 0.1);
+}
+
+.shadow-red-glow-strong {
+  box-shadow: 0 0 35px rgba(239, 68, 68, 0.45), 0 0 15px rgba(239, 68, 68, 0.2);
+}
+
+.card-glossy {
+  background: rgba(20, 20, 20, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-glossy:hover {
+  background: rgba(25, 25, 25, 0.7);
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7), 0 0 20px rgba(239, 68, 68, 0.1);
+}
+
+/* ── Red Square Action Icon Buttons (Edit / Cancel / Delete) ── */
+.btn-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: #C0392B;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+  flex-shrink: 0;
+}
+
+.btn-action-icon:hover {
+  background-color: #E74C3C;
+  box-shadow: 0 0 10px rgba(231, 76, 60, 0.45);
+  transform: scale(1.07);
+}
+
+.btn-action-icon:active {
+  transform: scale(0.96);
+}
+
+.btn-action-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-action-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: #ffffff;
+}
+
+.btn-action-icon-green {
+  background-color: #059669; /* emerald-600 */
+}
+
+.btn-action-icon-green:hover {
+  background-color: #10b981; /* emerald-500 */
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+}

@@ -418,19 +418,19 @@ export default function SettingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="min-w-0">
                                 <label className="text-sm font-medium text-muted-foreground block">Name</label>
-                                <p className="font-medium text-foreground break-words">{user?.name}</p>
+                                <p className="font-medium text-foreground break-words [word-break:break-word] [overflow-wrap:anywhere] whitespace-pre-wrap">{user?.name}</p>
                             </div>
                             <div className="min-w-0">
                                 <label className="text-sm font-medium text-muted-foreground block">{user?.role === 'buyer' ? 'Buyer Code' : 'Seller Code'}</label>
-                                <p className="font-medium text-foreground break-all">{user?.userCode}</p>
+                                <p className="font-medium text-foreground break-all [word-break:break-word] [overflow-wrap:anywhere] whitespace-pre-wrap">{user?.userCode}</p>
                             </div>
                             <div className="min-w-0">
                                 <label className="text-sm font-medium text-muted-foreground block">Email</label>
-                                <p className="font-medium text-foreground break-all">{user?.email}</p>
+                                <p className="font-medium text-foreground break-all [word-break:break-word] [overflow-wrap:anywhere] whitespace-pre-wrap">{user?.email}</p>
                             </div>
                             <div className="min-w-0">
                                 <label className="text-sm font-medium text-muted-foreground block">Phone</label>
-                                <p className="font-medium text-foreground break-all">{user?.phone}</p>
+                                <p className="font-medium text-foreground break-all [word-break:break-word] [overflow-wrap:anywhere] whitespace-pre-wrap">{user?.phone}</p>
                             </div>
                             <div className="col-span-2 min-w-0">
                                 <label className="text-sm font-medium text-muted-foreground block">Secondary Emails</label>

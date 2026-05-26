@@ -174,7 +174,12 @@ export default function SellerSubmittedOffersPage() {
                   <TableCell>
                     {offer.status === "accepted" ? (
                       <div className="flex flex-col space-y-1 text-xs">
-                        {offer.buyerAlias && <div className="font-medium text-foreground">{offer.buyerAlias}</div>}
+                        {offer.buyerName && (
+                          <div className="font-semibold text-foreground">
+                            Name: {offer.buyerName} {offer.buyerCompany && `(${offer.buyerCompany})`}
+                          </div>
+                        )}
+                        {offer.buyerAlias && <div className="font-medium text-muted-foreground">({offer.buyerAlias})</div>}
                         {offer.buyerEmail && (
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Mail className="h-3 w-3" /> {offer.buyerEmail}
@@ -282,8 +287,13 @@ export default function SellerSubmittedOffersPage() {
                 <div className="rounded-lg bg-muted/30 p-3">
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Buyer Contact</div>
                   {offer.status === "accepted" ? (
-                    <div className="flex flex-col gap-1.5 ">
-                      {offer.buyerAlias && <div className="text-sm font-bold text-foreground">{offer.buyerAlias}</div>}
+                    <div className="flex flex-col gap-1.5">
+                      {offer.buyerName && (
+                        <div className="text-sm font-bold text-foreground">
+                          Name: {offer.buyerName} {offer.buyerCompany && `(${offer.buyerCompany})`}
+                        </div>
+                      )}
+                      {offer.buyerAlias && <div className="text-xs text-muted-foreground">({offer.buyerAlias})</div>}
                       {offer.buyerEmail && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground break-all">
                           <Mail className="h-3 w-3 shrink-0" /> {offer.buyerEmail}

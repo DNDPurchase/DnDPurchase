@@ -34,6 +34,7 @@ export interface User {
   secondaryEmails?: string[]
   notificationEmails?: string[]
   verifiedSecondaryEmails?: string[]
+  nonStandardColorCoilsLastUpdated?: string
 }
 
 export interface InquiryItem {
@@ -81,6 +82,7 @@ export interface Offer {
   buyerName?: string
   buyerEmail?: string
   buyerPhone?: string
+  buyerCompany?: string | null
   sellerOptions?: Record<string, string | string[]>
   requestedQuantity?: number
   createdAt: string
@@ -151,6 +153,7 @@ function mapSellerFromDb(row: any, id: string): User {
     secondaryEmails: row.secondary_emails || [],
     notificationEmails: (row.notification_emails && row.notification_emails.length > 0) ? row.notification_emails : [row.email],
     verifiedSecondaryEmails: row.verified_secondary_emails || [],
+    nonStandardColorCoilsLastUpdated: row.nonStandardColorCoilsLastUpdated || null,
   }
 }
 
@@ -246,6 +249,7 @@ function mapOfferFromDb(row: any, id: string): Offer {
     buyerName: row.buyer_name,
     buyerEmail: row.buyer_email,
     buyerPhone: row.buyer_phone,
+    buyerCompany: row.buyer_company || null,
     sellerOptions: row.seller_options || {},
     sellerAlias: row.seller_alias || null,
     createdAt: row.created_at,
@@ -868,12 +872,21 @@ export async function createOffer(data: Omit<Offer, "id" | "rank" | "createdAt" 
     alias = await getNextSellerAlias()
   }
 
+  // Resolve sellerName dynamically if not provided
+  let finalSellerName = data.sellerName
+  if (!finalSellerName && data.sellerId) {
+    const seller = await getUserById(data.sellerId)
+    finalSellerName = seller?.company || seller?.name || "Anonymous Seller"
+  } else if (!finalSellerName) {
+    finalSellerName = "Anonymous Seller"
+  }
+
   await setDoc(doc(db, "offers", id), {
     id,
     inquiry_id: data.inquiryId,
     inquiry_item_id: data.inquiryItemId,
     seller_id: data.sellerId,
-    seller_name: data.sellerName || "Anonymous Seller",
+    seller_name: finalSellerName,
     price_per_ton: data.pricePerTon,
     comments: data.comments || "",
     pdf_url: data.pdfUrl || null,
@@ -888,7 +901,7 @@ export async function createOffer(data: Omit<Offer, "id" | "rank" | "createdAt" 
     archived: data.archived || false,
   })
 
-  return { ...data, id, createdAt, updatedAt, sellerAlias: alias, sellerName: data.sellerName || "Anonymous Seller" } as Offer
+  return { ...data, id, createdAt, updatedAt, sellerAlias: alias, sellerName: finalSellerName } as Offer
 }
 
 export async function updateOffer(offerId: string, data: Partial<Offer>): Promise<void> {
@@ -975,6 +988,20 @@ export async function getOffersByInquiryId(inquiryId: string): Promise<Offer[]> 
     if (rankIndex !== -1) offer.rank = rankIndex + 1
   })
 
+  const sellerIds = [...new Set(offers.map(o => o.sellerId))]
+  const sellers: any[] = []
+  if (sellerIds.length > 0) {
+    for (let i = 0; i < sellerIds.length; i += 10) {
+      const chunk = sellerIds.slice(i, i + 10);
+      const sQ = query(collection(db, "sellers"), where("id", "in", chunk))
+      const sSnap = await getDocs(sQ)
+      sellers.push(...sSnap.docs.map(d => d.data()))
+    }
+  }
+
+  const sellerProfileMap = new Map()
+  sellers.forEach(s => sellerProfileMap.set(s.id, s))
+
   const sellerMap = new Map<string, number>()
   let sellerCounter = 1
 
@@ -982,8 +1009,11 @@ export async function getOffersByInquiryId(inquiryId: string): Promise<Offer[]> 
     if (!sellerMap.has(offer.sellerId)) {
       sellerMap.set(offer.sellerId, sellerCounter++)
     }
+    const sellerInfo = sellerProfileMap.get(offer.sellerId)
+    const realSellerName = sellerInfo?.company || sellerInfo?.name || offer.sellerName || "Anonymous Seller"
     return {
       ...offer,
+      sellerName: realSellerName,
       anonymizedSeller: offer.sellerAlias || `Seller ${sellerMap.get(offer.sellerId)}`
     }
   })
@@ -1128,6 +1158,7 @@ export async function getOffersBySellerId(sellerId: string): Promise<Offer[]> {
                 offer.buyerName = buyerInfo.name
                 offer.buyerEmail = buyerInfo.email
                 offer.buyerPhone = buyerInfo.phone
+                offer.buyerCompany = buyerInfo.company || null
               }
             }
           }
@@ -1337,6 +1368,7 @@ export interface UpdateUserData {
   secondaryEmails?: string[]
   notificationEmails?: string[]
   verifiedSecondaryEmails?: string[]
+  nonStandardColorCoilsLastUpdated?: string
 }
 
 export async function updateUser(userId: string, updates: UpdateUserData): Promise<User | null> {
@@ -1354,6 +1386,7 @@ export async function updateUser(userId: string, updates: UpdateUserData): Promi
   if (updates.secondaryEmails !== undefined) updateData.secondary_emails = updates.secondaryEmails
   if (updates.notificationEmails !== undefined) updateData.notification_emails = updates.notificationEmails
   if (updates.verifiedSecondaryEmails !== undefined) updateData.verified_secondary_emails = updates.verifiedSecondaryEmails
+  if (updates.nonStandardColorCoilsLastUpdated !== undefined) updateData.nonStandardColorCoilsLastUpdated = updates.nonStandardColorCoilsLastUpdated
 
   try {
     if (userId.startsWith("BUY-")) {

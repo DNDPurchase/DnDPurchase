@@ -13,6 +13,8 @@ import {
   VolumeX,
   Menu,
   X,
+  Phone,
+  Mail,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -486,19 +488,65 @@ export default function LandingPage() {
       </section>
 
       {/* ─── Footer ─── */}
-      <footer className="z-10 relative" style={{ borderTop: `1px solid ${v('border')}`, backgroundColor: v('footer-bg') }}>
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-8 sm:flex-row">
-          <motion.div
-            whileHover={{ scale: 1.05, rotate: 1 }}
-            transition={{ type: "spring", stiffness: 400, damping: 10 }}
-          >
-            <Link href="/" className="flex items-center gap-2.5">
-              <img src="/logo-asset-4.png" alt="DND Purchase" className="h-14 w-auto object-contain" />
-            </Link>
-          </motion.div>
-          <p className="text-sm" style={{ color: v('text-muted') }}>
-            &copy; {new Date().getFullYear()} DND Purchase. All rights reserved.
-          </p>
+      <footer className="z-10 relative border-t" style={{ borderColor: v('border'), backgroundColor: v('footer-bg') }}>
+        <div className="mx-auto max-w-7xl px-6 py-12">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {/* Logo and Tagline */}
+            <div className="flex flex-col gap-4">
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="self-start"
+              >
+                <Link href="/" className="flex items-center gap-2.5">
+                  <img src="/logo-asset-4.png" alt="DND Purchase" className="h-14 w-auto object-contain" />
+                </Link>
+              </motion.div>
+              <p className="text-sm font-medium leading-relaxed max-w-sm" style={{ color: v('text-muted') }}>
+                Buy and sell steel & cement in just a simple 2-step process. No follow-ups, no calls, just best pricing and peace of mind.
+              </p>
+            </div>
+
+            {/* Quick Links / Empty for spacing */}
+            <div className="hidden lg:block">
+              {/* Spacer */}
+            </div>
+
+            {/* Contact Us */}
+            <div className="flex flex-col gap-4">
+              <h3 className="text-lg font-bold tracking-wider text-metallic">Contact Us</h3>
+              <div className="flex flex-col gap-3">
+                <a 
+                  href="tel:9510461387" 
+                  className="flex items-center gap-3 transition-colors hover:text-red-500 text-sm font-semibold group"
+                  style={{ color: v('text') }}
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-black/40 group-hover:border-red-500/30 group-hover:bg-red-500/10 transition-colors" style={{ borderColor: v('border') }}>
+                    <Phone className="h-4 w-4 text-red-500 transition-transform group-hover:scale-110" />
+                  </div>
+                  <span>+91 95104 61387</span>
+                </a>
+                <a 
+                  href="mailto:contact@dndpurchase.com" 
+                  className="flex items-center gap-3 transition-colors hover:text-red-500 text-sm font-semibold group"
+                  style={{ color: v('text') }}
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-black/40 group-hover:border-red-500/30 group-hover:bg-red-500/10 transition-colors" style={{ borderColor: v('border') }}>
+                    <Mail className="h-4 w-4 text-red-500 transition-transform group-hover:scale-110" />
+                  </div>
+                  <span className="break-all">contact@dndpurchase.com</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4" style={{ borderColor: v('border') }}>
+            <p className="text-xs font-medium" style={{ color: v('text-muted') }}>
+              &copy; {new Date().getFullYear()} DND Purchase. All rights reserved.
+            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-glow-red">
+              No Phone Calls • Best Pricing
+            </p>
+          </div>
         </div>
       </footer>
     </div>

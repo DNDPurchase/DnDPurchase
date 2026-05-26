@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/auth-context"
 import { logger } from "@/lib/logger"
-import { Loader2, Package, X, Save, MapPin, Pencil, ChevronDown, ChevronRight, CheckCircle2, Circle, ShieldCheck, Layers, Globe, Plus } from "lucide-react"
+import { Loader2, Package, X, Save, MapPin, Pencil, ChevronDown, ChevronRight, CheckCircle2, Circle, ShieldCheck, Layers, Globe, Plus, AlertCircle } from "lucide-react"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { updateUser } from "@/lib/store"
@@ -249,10 +249,16 @@ export default function MyProductsPage() {
                 [catName]: finalItems,
             } as Record<string, any[]>
 
-            const data = await updateUser(user.id, {
+            const updates: any = {
                 categories: newCategories,
-                sellerProductOptions: newOptions as Record<string, any[]>,
-            })
+                sellerProductOptions: newOptions,
+            }
+
+            if (catName === "Stock of non-standard Color-coated coils/sheets") {
+                updates.nonStandardColorCoilsLastUpdated = new Date().toISOString()
+            }
+
+            const data = await updateUser(user.id, updates)
 
             if (!data) throw new Error("Failed to update product")
 
@@ -387,6 +393,48 @@ export default function MyProductsPage() {
                 </div>
             </div>
 
+            {user?.categories?.includes("Stock of non-standard Color-coated coils/sheets") && (
+                <Card className={`mb-6 border-l-4 ${(() => {
+                    const lastUpdated = user?.nonStandardColorCoilsLastUpdated;
+                    const needsUpdate = !lastUpdated || (new Date().getTime() - new Date(lastUpdated).getTime() > 90 * 24 * 60 * 60 * 1000);
+                    return needsUpdate ? "border-l-destructive bg-destructive/5" : "border-l-primary bg-primary/5";
+                })()}`}>
+                    <CardContent className="flex items-start gap-3 p-4">
+                        {(() => {
+                            const lastUpdated = user?.nonStandardColorCoilsLastUpdated;
+                            const needsUpdate = !lastUpdated || (new Date().getTime() - new Date(lastUpdated).getTime() > 90 * 24 * 60 * 60 * 1000);
+                            return (
+                                <>
+                                    <AlertCircle className={`mt-0.5 h-5 w-5 shrink-0 ${needsUpdate ? "text-destructive" : "text-primary"}`} />
+                                    <div className="flex-1">
+                                        <p className={`text-sm font-semibold ${needsUpdate ? "text-destructive" : "text-foreground"}`}>
+                                            {needsUpdate ? "Stock Update Required" : "Stock Update Policy"}
+                                        </p>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Sellers are required to update their stock details for <strong className="font-semibold text-foreground">"Stock of non-standard Color-coated coils/sheets"</strong> at least once every 3 months.
+                                        </p>
+                                        {lastUpdated ? (
+                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                Last updated: <span className="font-medium text-foreground">{new Date(lastUpdated).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                                                {needsUpdate ? (
+                                                    <span className="text-destructive font-semibold ml-1.5">(Out of date - Please update your configuration below)</span>
+                                                ) : (
+                                                    <span className="text-emerald-600 font-medium ml-1.5">(Up to date)</span>
+                                                )}
+                                            </p>
+                                        ) : (
+                                            <p className="mt-2 text-xs text-destructive font-semibold">
+                                                Never updated - Please set your initial stock configuration below.
+                                            </p>
+                                        )}
+                                    </div>
+                                </>
+                            );
+                        })()}
+                    </CardContent>
+                </Card>
+            )}
+
             <div className="space-y-14">
                 {/* ═══════════════════════ Products Section ═══════════════════════ */}
                 <section>
@@ -514,6 +562,14 @@ export default function MyProductsPage() {
                                         <div className="border-t border-border/50">
                                             {(isEditing || (isExpanded && !isActive)) ? (
                                                 <div className="p-5">
+                                                    {catName === "Stock of non-standard Color-coated coils/sheets" && (
+                                                        <div className="mb-4 rounded-lg bg-primary/5 border border-primary/20 p-3 text-xs text-muted-foreground flex items-center gap-2">
+                                                            <AlertCircle className="h-4 w-4 text-primary shrink-0" />
+                                                            <span>
+                                                                Note: You are required to update your stock details for this product every 3 months.
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     {/* Preview of added items */}
                                                     {renderItemsTable(tempProductItems, (idx) => {
                                                         setTempProductItems(prev => prev.filter((_, i) => i !== idx))

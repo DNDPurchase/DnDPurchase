@@ -1,0 +1,10 @@
+[2026-05-26T09:00:26.414Z] ERROR Error updating inquiry {"error":"Missing or insufficient permissions."}
+[2026-05-26T09:00:34.143Z] ERROR Error updating inquiry {"error":"Missing or insufficient permissions."}
+[2026-05-26T09:43:46.496Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****8391","inquiryId":"INQ-0003"}]}}
+[2026-05-26T09:43:46.488Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"+****1006","inquiryId":"INQ-0003"}]}}
+[2026-05-26T09:43:46.485Z] INFO Bidding started, notifying matching sellers {"inquiryId":"INQ-0003","sellerCount":2}
+[2026-05-26T09:43:48.987Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-26T09:43:49.101Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-26T09:43:49.313Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-26T09:43:49.493Z] INFO Bidding started notifications sent
+[2026-05-26T09:43:49.491Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}

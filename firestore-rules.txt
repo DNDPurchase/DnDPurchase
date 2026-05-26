@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions (retained for reference)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isBuyerOwner(buyerId) {
+      let buyerDoc = get(/databases/$(database)/documents/buyers/$(buyerId));
+      return isAuthenticated() && buyerDoc != null && (
+        buyerDoc.data.get('auth_uid', '') == request.auth.uid || 
+        buyerDoc.data.get('email', '').lower() == request.auth.token.get('email', '').lower() || 
+        buyerDoc.data.get('google_email', '').lower() == request.auth.token.get('email', '').lower()
+      );
+    }
+
+    function isSellerOwner(sellerId) {
+      let sellerDoc = get(/databases/$(database)/documents/sellers/$(sellerId));
+      return isAuthenticated() && sellerDoc != null && (
+        sellerDoc.data.get('auth_uid', '') == request.auth.uid || 
+        sellerDoc.data.get('email', '').lower() == request.auth.token.get('email', '').lower() || 
+        sellerDoc.data.get('google_email', '').lower() == request.auth.token.get('email', '').lower()
+      );
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'admin@dnd.com' ||
+        request.auth.token.email == 'contact@dndpurchase.com'
+      );
+    }
+
+    // Buyers Collection
+    match /buyers/{userId} {
+      allow read, write: if true;
+    }
+
+    // Sellers Collection
+    match /sellers/{userId} {
+      allow read, write: if true;
+    }
+
+    // Products & Product Options Collection
+    match /products/{productId} {
+      allow read, write: if true;
+    }
+
+    match /product_options/{optionId} {
+      allow read, write: if true;
+    }
+
+    // Locations Collection
+    match /locations/{stateId} {
+      allow read, write: if true;
+    }
+
+    // Settings Collection
+    match /settings/{docId} {
+      allow read, write: if true;
+    }
+
+    // Inquiries Collection
+    match /inquiries/{inquiryId} {
+      allow read, write: if true;
+    }
+
+    // Inquiry Items Collection
+    match /inquiry_items/{itemId} {
+      allow read, write: if true;
+    }
+
+    // Offers Collection
+    match /offers/{offerId} {
+      allow read, write: if true;
+    }
+
+    // Soft Deleted Inquiries Collection
+    match /soft_deleted_inquiries/{inquiryId} {
+      allow read, write: if true;
+    }
+
+    // Default fallback - allow all access
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

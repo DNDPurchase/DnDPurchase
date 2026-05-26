@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/auth-context"
 import { logger } from "@/lib/logger"
-import { Loader2, Pencil, Save, X, BadgeCheck, Link as LinkIcon, Package, Plus, Trash2 } from "lucide-react"
+import { Loader2, Pencil, Save, X, BadgeCheck, Link as LinkIcon, Package, Plus, Trash2, Phone, Mail } from "lucide-react"
 import { auth } from "@/lib/firebase"
 import { linkWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { useState, useEffect } from "react"
@@ -570,6 +570,45 @@ export default function SettingsPage() {
                             </Button>
                         )}
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card className="mt-6 border-border">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-foreground font-semibold">
+                        <Phone className="h-5 w-5 text-primary" />
+                        Support & Contact Us
+                    </CardTitle>
+                    <CardDescription>
+                        Need help or have questions? Get in touch with our team.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <a 
+                        href="tel:9510461387" 
+                        className="flex items-center gap-4 p-4 border rounded-lg bg-card transition-all hover:bg-accent/5 hover:border-primary/30 group cursor-pointer"
+                    >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                            <Phone className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-foreground text-base">Phone Support</h3>
+                            <p className="text-sm text-muted-foreground mt-0.5 hover:text-primary transition-colors">+91 95104 61387</p>
+                        </div>
+                    </a>
+                    
+                    <a 
+                        href="mailto:contact@dndpurchase.com" 
+                        className="flex items-center gap-4 p-4 border rounded-lg bg-card transition-all hover:bg-accent/5 hover:border-primary/30 group cursor-pointer"
+                    >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                            <Mail className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="font-semibold text-foreground text-base">Email Support</h3>
+                            <p className="text-sm text-muted-foreground mt-0.5 truncate hover:text-primary transition-colors">contact@dndpurchase.com</p>
+                        </div>
+                    </a>
                 </CardContent>
             </Card>
 

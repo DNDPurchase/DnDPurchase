@@ -331,7 +331,9 @@ function OffersContent() {
                             {itemOffers.map((offer: any) => (
                               <TableRow key={offer.id} className="border-border hover:bg-muted/30">
                                 <TableCell className="whitespace-nowrap font-medium text-foreground px-2 py-4">
-                                  {offer.sellerAlias || "Seller-???"}
+                                  {(item.product === "Stock of non-standard Color-coated coils/sheets" || offer.status === "accepted")
+                                    ? (offer.sellerName || "Seller-???")
+                                    : (offer.sellerAlias || "Seller-???")}
                                 </TableCell>
                                 <TableCell className="whitespace-nowrap font-semibold text-foreground px-2 py-4">
                                   {"₹"}{offer.pricePerTon.toLocaleString("en-IN")}
@@ -412,19 +414,24 @@ function OffersContent() {
                                   </div>
                                 </TableCell>
                                 <TableCell className="px-2 py-4">
-                                  {offer.status === "accepted" ? (
-                                    <div className="flex flex-col text-[11px]">
+                                  {offer.status === "accepted" || item.product === "Stock of non-standard Color-coated coils/sheets" ? (
+                                    <div className="flex flex-col text-[11px] space-y-1">
+                                      {offer.sellerName && (
+                                        <div className="font-semibold text-foreground">
+                                          Name: {offer.sellerName}
+                                        </div>
+                                      )}
                                       {offer.contactEmail && (
                                         <div className="flex items-center gap-1 text-foreground break-all">
                                           <Mail className="h-3 w-3 text-muted-foreground shrink-0" /> {offer.contactEmail}
                                         </div>
                                       )}
                                       {offer.contactPhone && (
-                                        <div className="flex items-center gap-1 text-foreground mt-1">
+                                        <div className="flex items-center gap-1 text-foreground">
                                           <Phone className="h-3 w-3 text-muted-foreground shrink-0" /> {offer.contactPhone}
                                         </div>
                                       )}
-                                      {!offer.contactEmail && !offer.contactPhone && <span className="text-muted-foreground">-</span>}
+                                      {!offer.sellerName && !offer.contactEmail && !offer.contactPhone && <span className="text-muted-foreground">-</span>}
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-1 text-[11px] text-muted-foreground italic">
@@ -465,7 +472,9 @@ function OffersContent() {
                           <div key={offer.id} className="flex flex-col gap-3 rounded-xl border border-border p-4 shadow-sm bg-card relative overflow-hidden">
                             <div className="flex items-center justify-between">
                               <span className="font-semibold text-foreground text-sm flex items-center gap-2">
-                                {offer.sellerAlias || "Seller-???"}
+                                {(item.product === "Stock of non-standard Color-coated coils/sheets" || offer.status === "accepted")
+                                  ? (offer.sellerName || "Seller-???")
+                                  : (offer.sellerAlias || "Seller-???")}
                               </span>
                               <div className="flex flex-col items-end gap-1">
                                 <div className="flex flex-col items-end">
@@ -566,8 +575,13 @@ function OffersContent() {
                             )}
 
                             {/* Contact Info */}
-                            {offer.status === "accepted" ? (
+                            {offer.status === "accepted" || item.product === "Stock of non-standard Color-coated coils/sheets" ? (
                               <div className="flex flex-col gap-1.5 text-sm bg-primary/5 border border-primary/10 p-3 rounded-md mt-1">
+                                {offer.sellerName && (
+                                  <div className="text-sm font-bold text-foreground">
+                                    Name: {offer.sellerName}
+                                  </div>
+                                )}
                                 {offer.contactEmail && (
                                    <div className="flex items-center gap-2 text-foreground">
                                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">

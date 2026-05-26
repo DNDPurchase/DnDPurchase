@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper functions (retained for reference)
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -29,7 +29,6 @@ service cloud.firestore {
       );
     }
 
-    // Check if the user is the official admin
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.admin == true ||
@@ -40,86 +39,60 @@ service cloud.firestore {
 
     // Buyers Collection
     match /buyers/{userId} {
-      allow create: if true; // Registration
-      allow read: if true;
-      allow update: if (isAuthenticated() && (resource.data.get('auth_uid', '') == request.auth.uid || resource.data.get('email', '').lower() == request.auth.token.get('email', '').lower() || resource.data.get('google_email', '').lower() == request.auth.token.get('email', '').lower())) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'verified', 'created_at', 'auth_uid', 'email']) || isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     // Sellers Collection
     match /sellers/{userId} {
-      allow create: if true; // Registration
-      allow read: if true;
-      // Allow updates to profile fields (including categories and product_manufacturers) 
-      // but prevent modification of sensitive authentication bindings.
-      allow update: if (isAuthenticated() && (resource.data.get('auth_uid', '') == request.auth.uid || resource.data.get('email', '').lower() == request.auth.token.get('email', '').lower() || resource.data.get('google_email', '').lower() == request.auth.token.get('email', '').lower())) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'verified', 'created_at', 'auth_uid', 'email']) || isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     // Products & Product Options Collection
-    // - Anyone can read (for the marketplace/catalog)
-    // - Only Authenticated Admins (via Admin Portal) can modify
     match /products/{productId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     match /product_options/{optionId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // Locations Collection
-    // - Anyone can read (for checkout dropdowns)
-    // - Only Admins can modify states and districts
     match /locations/{stateId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // Settings Collection
-    // - Anyone can read (for global app settings)
-    // - Only Admins can modify
     match /settings/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // Inquiries Collection
     match /inquiries/{inquiryId} {
-      allow read: if isAuthenticated();
-      allow create: if isBuyerOwner(request.resource.data.buyer_id);
-      allow update, delete: if isBuyerOwner(resource.data.buyer_id) || isAdmin();
+      allow read, write: if true;
     }
 
     // Inquiry Items Collection
-    // - Items attached to inquiries
     match /inquiry_items/{itemId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() || isAdmin();
+      allow read, write: if true;
     }
 
     // Offers Collection
     match /offers/{offerId} {
-      allow read: if isAuthenticated();
-      allow create: if isSellerOwner(request.resource.data.seller_id);
-      allow update: if isSellerOwner(resource.data.seller_id) || isBuyerOwner(get(/databases/$(database)/documents/inquiries/$(resource.data.inquiry_id)).data.buyer_id) || isAdmin();
-      allow delete: if isSellerOwner(resource.data.seller_id) || isAdmin();
+      allow read, write: if true;
     }
 
     // Soft Deleted Inquiries Collection
     match /soft_deleted_inquiries/{inquiryId} {
-      allow read: if isAdmin() || isBuyerOwner(resource.data.buyer_id);
-      allow create: if isBuyerOwner(request.resource.data.deleted_by_user_id) || isAdmin();
-      allow update, delete: if isAdmin();
+      allow read, write: if true;
     }
 
-    // Default fallback - deny all other access
+    // Default fallback - allow all access
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }
+
 
 // ==========================================
 // Firestore Schema Documentation

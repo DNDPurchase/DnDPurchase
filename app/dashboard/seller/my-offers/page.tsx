@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import useSWR from "swr"
 import { useState, useMemo, useEffect, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
@@ -48,7 +48,12 @@ function statusBadge(status: string, inquiryStatus?: string) {
 function SellerMyOffersContent() {
   const { user } = useAuth()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const tabParam = searchParams.get("tab")
+
+  const lastUpdated = user?.nonStandardColorCoilsLastUpdated;
+  const needsUpdate = user?.categories?.includes("Stock of non-standard Color-coated coils/sheets") &&
+    (!lastUpdated || (new Date().getTime() - new Date(lastUpdated).getTime() > 90 * 24 * 60 * 60 * 1000));
 
   const [activeTab, setActiveTab] = useState(() => {
     if (tabParam === "history") return tabParam
@@ -198,7 +203,12 @@ function SellerMyOffersContent() {
                   <TableCell>
                     {offer.status === "accepted" ? (
                       <div className="flex flex-col space-y-1 text-xs">
-                        {offer.buyerAlias && <div className="font-medium text-foreground">{offer.buyerAlias}</div>}
+                        {offer.buyerName && (
+                          <div className="font-semibold text-foreground">
+                            Name: {offer.buyerName} {offer.buyerCompany && `(${offer.buyerCompany})`}
+                          </div>
+                        )}
+                        {offer.buyerAlias && <div className="font-medium text-muted-foreground">({offer.buyerAlias})</div>}
                         {offer.buyerEmail && (
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Mail className="h-3 w-3" /> {offer.buyerEmail}
@@ -306,8 +316,13 @@ function SellerMyOffersContent() {
                 <div className="rounded-lg bg-muted/30 p-3">
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Buyer Contact</div>
                   {offer.status === "accepted" ? (
-                    <div className="flex flex-col gap-1.5 ">
-                      {offer.buyerAlias && <div className="text-sm font-bold text-foreground">{offer.buyerAlias}</div>}
+                    <div className="flex flex-col gap-1.5">
+                      {offer.buyerName && (
+                        <div className="text-sm font-bold text-foreground">
+                          Name: {offer.buyerName} {offer.buyerCompany && `(${offer.buyerCompany})`}
+                        </div>
+                      )}
+                      {offer.buyerAlias && <div className="text-xs text-muted-foreground">({offer.buyerAlias})</div>}
                       {offer.buyerEmail && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground break-all">
                           <Mail className="h-3 w-3 shrink-0" /> {offer.buyerEmail}
@@ -404,6 +419,24 @@ function SellerMyOffersContent() {
 
   return (
     <div className="mx-auto max-w-6xl">
+      {needsUpdate && (
+        <Card className="mb-6 border-l-4 border-l-destructive bg-destructive/5">
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div>
+                <p className="text-sm font-semibold text-destructive">Action Required: Update Stock Details</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your stock details for <strong className="font-semibold text-foreground">"Stock of non-standard Color-coated coils/sheets"</strong> are out of date (required every 3 months). Please update them now.
+                </p>
+              </div>
+            </div>
+            <Button size="sm" variant="destructive" className="shrink-0" onClick={() => router.push("/dashboard/seller/my-products")}>
+              Update Now
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       <div className="mb-8">
         <h2 className="font-serif text-2xl font-bold text-foreground">My Bidding</h2>
         <p className="mt-1 text-muted-foreground">

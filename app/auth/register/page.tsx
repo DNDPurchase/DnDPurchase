@@ -278,18 +278,16 @@ export default function RegisterPage() {
             {/* Step 3: Personal/Company Details */}
             {step === 3 && (
               <div className="flex flex-col gap-4">
-                {(form.entityType === "individual" || form.entityType === "both") && (
-                  <div>
-                    <Label htmlFor="name" className="text-foreground">Full Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="John Doe"
-                      value={form.name}
-                      onChange={(e) => updateForm("name", e.target.value)}
-                      className="mt-1.5"
-                    />
-                  </div>
-                )}
+                <div>
+                  <Label htmlFor="name" className="text-foreground">Full Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="John Doe"
+                    value={form.name}
+                    onChange={(e) => updateForm("name", e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
                 {(form.entityType === "company" || form.entityType === "both") && (
                   <div>
                     <Label htmlFor="company" className="text-foreground">Company Name</Label>
@@ -364,8 +362,12 @@ export default function RegisterPage() {
                   <Button
                     className="flex-1"
                     onClick={async () => {
-                      if (!form.email.toLowerCase().endsWith("@gmail.com")) {
-                        toast.error("Only Gmail addresses (@gmail.com) are allowed for registration")
+                      if (!form.name.trim()) {
+                        toast.error("Please enter your name")
+                        return
+                      }
+                      if ((form.entityType === "company" || form.entityType === "both") && !form.company.trim()) {
+                        toast.error("Please enter your company name")
                         return
                       }
                       setLoading(true)

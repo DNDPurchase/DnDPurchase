@@ -1,0 +1,90 @@
+=========================================================
+            AIRTEL DLT REGISTRATION SETUP GUIDE
+=========================================================
+
+This guide walks you through registering your Header (Sender ID) and SMS Content Templates on the Airtel DLT (Distributed Ledger Technology) platform to comply with TRAI regulations for sending SMS in India.
+
+---------------------------------------------------------
+PREREQUISITE: PRINCIPAL ENTITY (PE) REGISTRATION
+---------------------------------------------------------
+Before registering headers or templates, your business entity must be registered and approved on the DLT platform.
+
+1. Go to Airtel DLT Portal: https://dltconnect.airtel.in/
+2. Click "Sign Up" and register as a "Principal Entity" (PE).
+3. Upload business details, KYC documents (PAN, Business Registration, GST certificate, etc.), and Authorized Signatory details.
+4. Once verified, you will receive a unique 15-digit "Principal Entity ID" (PE ID). Keep this handy!
+
+---------------------------------------------------------
+PART 1: HEADER (SENDER ID) REGISTRATION
+---------------------------------------------------------
+A Header (formerly Sender ID) is the unique 6-character alphanumeric code that appears at the top of the SMS on the customer's phone (e.g., "DNDPUR").
+
+1. LOG IN:
+   - Access the Airtel DLT Portal (https://dltconnect.airtel.in/) using your Principal Entity credentials.
+
+2. NAVIGATE:
+   - Go to "SMS Header" in the left sidebar menu.
+   - Click on "Add Header" or "Register New Header" (located at the top right).
+
+3. DEFINE HEADER DETAILS:
+   - TYPE OF COMMUNICATION: Choose "PROMOTIONAL" or "OTHER" (Transactional / Service Implicit / Service Explicit).
+     * Promotional: Used for advertising or marketing offers. Usually numeric (e.g., "560601").
+     * Service Implicit (Common for App): Transactional OTPs, alerts, order updates, bids, and invoices. Must be exactly 6 alphabetic characters (e.g., "DNDPUR").
+     * Transactional: Reserved strictly for banking and financial OTPs.
+   - PROMOTIONAL CATEGORY: Select your business domain/industry category (e.g., Real Estate, Food & Beverage, Consumer Goods).
+   - HEADER: Enter your desired 6-character header value (e.g., "DNDPUR").
+   - ADD VALIDITY / JUSTIFICATION: Provide an explanation/justification of why this header represents your company name. Attach document proof if necessary.
+
+4. SUBMIT:
+   - Click "Submit" to send it for approval.
+   - Headers are usually approved or verified by Airtel registrar within 24 to 72 hours.
+
+---------------------------------------------------------
+PART 2: CONTENT TEMPLATE REGISTRATION
+---------------------------------------------------------
+Every SMS layout (body text) sent by your system must be registered and approved as a Content Template on the DLT portal. Messages not matching registered templates will be blocked by telecom operators.
+
+1. LOG IN & NAVIGATE:
+   - Log in to the Airtel DLT Portal.
+   - Go to "Templates" -> "Content Template" in the left sidebar.
+   - Click on "Add New Template".
+
+2. DEFINE TEMPLATE SETTINGS:
+   - TEMPLATE TYPE: Choose "Service Implicit" (for login OTPs, bidding notifications, alerts) or "Promotional" (for marketing campaigns).
+   - CATEGORY: Select your business category (matches entity category).
+   - SENDER ID / HEADER: Select your approved Header (e.g., "DNDPUR") from the dropdown list. This binds the template to that specific sender header.
+
+3. WRITE TEMPLATE CONTENT:
+   - Give the template a descriptive name (e.g., "Inquiry_Bidding_Notification").
+   - Enter your SMS text in the content box.
+   - FOR DYNAMIC VALUES (like IDs, Names, OTPs, Amounts):
+     * Click the "Insert Variable" button to insert dynamic placeholders.
+     * Placeholders look like: {#var#}
+     * Example Content:
+       "Hello {#var#}, a new bid has been started for Inquiry ID {#var#}. - DND Purchase"
+   - Keep variable lengths flexible (usually up to 30 characters each).
+
+4. SUBMIT & VERIFY:
+   - Review your text carefully (avoid typos and extra spaces).
+   - Click "Submit" to send it for DLT approval.
+   - Templates are reviewed and approved on the ledger within 24 to 48 hours.
+   - Once approved, note the unique "Template ID" generated for each template.
+
+---------------------------------------------------------
+PART 3: INTEGRATING WITH YOUR SMS GATEWAY (e.g., MSG91)
+---------------------------------------------------------
+Once your PE ID, Header, and Template IDs are approved by Airtel DLT, you must configure them in your SMS aggregator dashboard (such as MSG91) to send messages successfully.
+
+1. Add your DLT Principal Entity ID (PE ID) in your MSG91 account settings/profile.
+2. Bind your approved DLT Headers to your MSG91 Sender IDs section.
+3. Map your DLT Template IDs to MSG91 Flow Templates:
+   - For every flow template in MSG91, specify the corresponding DLT Template ID and DLT Sender Header.
+4. Ensure the variables in MSG91 flow match the variables in the DLT template.
+
+---------------------------------------------------------
+TRAI COMPLIANCE TIPS:
+---------------------------------------------------------
+* All commercial SMS must terminate with your brand identity or website reference.
+* Do not use special characters such as @, $, %, &, or # in the template unless strictly approved.
+* Always check the status of your Headers and Templates in the Airtel DLT portal regularly before attempting to send notifications using those configurations.
+=========================================================

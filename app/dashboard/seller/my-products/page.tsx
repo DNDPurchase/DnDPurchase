@@ -26,6 +26,7 @@ export default function MyProductsPage() {
     const [tempProductItems, setTempProductItems] = useState<any[]>([])
     const [tempProductOptions, setTempProductOptions] = useState<Record<string, any>>({})
     const [tempLocationDistricts, setTempLocationDistricts] = useState<string[]>([])
+    const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null)
 
     type SellerFormData = {
         categories: string[]
@@ -143,7 +144,12 @@ export default function MyProductsPage() {
         return [];
     }
 
-    const renderItemsTable = (items: any[], onRemove?: (index: number) => void) => {
+    const renderItemsTable = (
+        items: any[], 
+        onRemove?: (index: number) => void,
+        onEdit?: (index: number) => void,
+        editingIndex?: number | null
+    ) => {
         const safeItems = getSafeItemsArray(items);
         if (safeItems.length === 0) return null;
         
@@ -165,12 +171,12 @@ export default function MyProductsPage() {
                                 {columns.map(col => (
                                     <th key={col} className="px-4 py-2.5 whitespace-nowrap">{col}</th>
                                 ))}
-                                {onRemove && <th className="px-4 py-2.5 text-right w-16">Action</th>}
+                                {(onRemove || onEdit) && <th className="px-4 py-2.5 text-right w-20">Action</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/60">
                             {safeItems.map((item, idx) => (
-                                <tr key={idx} className="bg-card hover:bg-muted/20 transition-colors">
+                                <tr key={idx} className={`bg-card transition-colors ${editingIndex === idx ? 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary' : 'hover:bg-muted/20'}`}>
                                     <td className="px-4 py-3 text-center text-muted-foreground font-medium">{idx + 1}</td>
                                     {columns.map(col => {
                                         const val = item[col];
@@ -181,17 +187,32 @@ export default function MyProductsPage() {
                                             </td>
                                         )
                                     })}
-                                    {onRemove && (
+                                    {(onRemove || onEdit) && (
                                         <td className="px-4 py-3 text-right">
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                                onClick={() => onRemove(idx)}
-                                                title="Remove item"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
+                                            <div className="flex gap-1 justify-end">
+                                                {onEdit && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className={`h-7 w-7 p-0 ${editingIndex === idx ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
+                                                        onClick={() => onEdit(idx)}
+                                                        title="Edit configuration"
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                {onRemove && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                        onClick={() => onRemove(idx)}
+                                                        title="Remove item"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </td>
                                     )}
                                 </tr>
@@ -212,6 +233,25 @@ export default function MyProductsPage() {
 
         setTempProductItems(prev => [...prev, { ...tempProductOptions }])
         setTempProductOptions({})
+    }
+
+    const handleUpdateItem = (catName: string) => {
+        if (editingItemIndex === null) return
+
+        const error = validateProduct(catName, tempProductOptions)
+        if (error) {
+            toast.error(error)
+            return
+        }
+
+        setTempProductItems(prev => {
+            const next = [...prev]
+            next[editingItemIndex] = { ...tempProductOptions }
+            return next
+        })
+        setEditingItemIndex(null)
+        setTempProductOptions({})
+        toast.success("Configuration updated. Click 'Save' to persist changes.")
     }
 
     const saveProduct = async (catName: string) => {
@@ -265,6 +305,8 @@ export default function MyProductsPage() {
             if (updateUserData) updateUserData(data)
             toast.success(`${catName} updated successfully`)
             setEditingProduct(null)
+            setEditingItemIndex(null)
+            setTempProductOptions({})
             if (!expandedProducts.includes(catName)) {
                 setExpandedProducts(prev => [...prev, catName])
             }
@@ -503,6 +545,8 @@ export default function MyProductsPage() {
                                                             className="btn-action-icon"
                                                             onClick={() => {
                                                                 setEditingProduct(null)
+                                                                setEditingItemIndex(null)
+                                                                setTempProductOptions({})
                                                                 if (!isActive) setExpandedProducts(prev => prev.filter(c => c !== catName))
                                                             }}
                                                             disabled={loading}
@@ -533,6 +577,7 @@ export default function MyProductsPage() {
                                                                     setEditingProduct(catName)
                                                                     setTempProductItems(getSafeItemsArray(formData.sellerProductOptions[catName]))
                                                                     setTempProductOptions({})
+                                                                    setEditingItemIndex(null)
                                                                 }}
                                                                 disabled={loading}
                                                                 title="Edit product"
@@ -571,9 +616,23 @@ export default function MyProductsPage() {
                                                         </div>
                                                     )}
                                                     {/* Preview of added items */}
-                                                    {renderItemsTable(tempProductItems, (idx) => {
-                                                        setTempProductItems(prev => prev.filter((_, i) => i !== idx))
-                                                    })}
+                                                    {renderItemsTable(
+                                                        tempProductItems, 
+                                                        (idx) => {
+                                                            setTempProductItems(prev => prev.filter((_, i) => i !== idx))
+                                                            if (editingItemIndex === idx) {
+                                                                setEditingItemIndex(null)
+                                                                setTempProductOptions({})
+                                                            } else if (editingItemIndex !== null && editingItemIndex > idx) {
+                                                                setEditingItemIndex(editingItemIndex - 1)
+                                                            }
+                                                        },
+                                                        (idx) => {
+                                                            setEditingItemIndex(idx)
+                                                            setTempProductOptions({ ...tempProductItems[idx] })
+                                                        },
+                                                        editingItemIndex
+                                                    )}
 
                                                     <div className="space-y-5 rounded-lg border border-border bg-muted/10 p-5">
                                                         <h4 className="text-sm font-semibold text-foreground">Add New Variant</h4>
@@ -660,16 +719,39 @@ export default function MyProductsPage() {
                                                                 )
                                                             })}
                                                         
-                                                        {/* Add Item Button */}
-                                                        <div className="pt-2 flex justify-end">
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                onClick={() => handleAddItem(catName)}
-                                                                className="gap-2"
-                                                            >
-                                                                <Plus className="h-4 w-4" /> Add Configuration
-                                                            </Button>
+                                                        {/* Add/Update Item Button */}
+                                                        <div className="pt-2 flex justify-end gap-2">
+                                                            {editingItemIndex !== null ? (
+                                                                <>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        onClick={() => {
+                                                                            setEditingItemIndex(null)
+                                                                            setTempProductOptions({})
+                                                                        }}
+                                                                        className="text-muted-foreground"
+                                                                    >
+                                                                        Cancel Edit
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        onClick={() => handleUpdateItem(catName)}
+                                                                        className="gap-2"
+                                                                    >
+                                                                        <CheckCircle2 className="h-4 w-4" /> Update Configuration
+                                                                    </Button>
+                                                                </>
+                                                            ) : (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    onClick={() => handleAddItem(catName)}
+                                                                    className="gap-2"
+                                                                >
+                                                                    <Plus className="h-4 w-4" /> Add Configuration
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

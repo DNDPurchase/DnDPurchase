@@ -64,13 +64,28 @@ export async function sendEmail({
 export async function sendWelcomeEmail(to: string, name: string) {
     const subject = "Welcome to DND Purchase!"
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>Hello ${name},</h2>
-      <p>Welcome to our platform! We're excited to have you on board. Now you can Buy/Sell 'Steel' & 'Cement' products in just '2-step' process</p>
-      <p>If you have any questions, feel free to reach out to our support team.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px;" />
-      </p>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal; letter-spacing: 1px;">Welcome to DND Purchase</h2>
+      </div>
+      <div style="padding: 24px;">
+        <h2>Hello ${name},</h2>
+        <p>Welcome to our platform! We're excited to have you on board. Now you can Buy/Sell 'Steel' & 'Cement' products in just a '2-step' process.</p>
+        <p>If you have any questions, feel free to reach out to our support team.</p>
+        
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to Go to Dashboard
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
     </div>
   `
     return sendEmail({ to, subject, html })
@@ -79,14 +94,28 @@ export async function sendWelcomeEmail(to: string, name: string) {
 export async function notifySellerOfNewInquiryEmail(to: string, inquiryId: string, productName: string) {
     const subject = `New Inquiry Alert: ${productName}`
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>New Inquiry Alert</h2>
-      <p>A new inquiry (#${inquiryId}) for <strong>${productName}</strong> has been posted that matches your categories.</p>
-      <p>Log in to your dashboard to view the details and submit an offer.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="Asset 4.png" alt="Asset 4" style="max-width: 100%; height: auto; display: block; margin-top: 12px;" />
-      </p>
-          </div>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal;">New Inquiry Alert</h2>
+      </div>
+      <div style="padding: 24px;">
+        <p>A new inquiry (#${inquiryId}) for <strong>${productName}</strong> has been posted that matches your categories.</p>
+        <p>Log in to your dashboard to view the details and submit an offer.</p>
+        
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Dashboard
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
+    </div>
   `
     return sendEmail({ to, subject, html })
 }
@@ -94,13 +123,28 @@ export async function notifySellerOfNewInquiryEmail(to: string, inquiryId: strin
 export async function notifySellersOfBiddingEmail(to: string, inquiryId: string, productName: string) {
     const subject = `Bidding Initiated for ${productName}`
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>Bidding Started</h2>
-      <p>The buyer has finalized Draft Inquiry #${inquiryId} for <strong>${productName}</strong> and bidding has started.</p>
-      <p>Log in to submit or update your offers before the timer ends!</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="Asset 4.png" alt="Asset 4" style="max-width: 100%; height: auto; display: block; margin-top: 12px;" />
-      </p>    </div>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal;">Bidding Started</h2>
+      </div>
+      <div style="padding: 24px;">
+        <p>The buyer has finalized Draft Inquiry #${inquiryId} for <strong>${productName}</strong> and bidding has started.</p>
+        <p>Log in to submit or update your offers before the timer ends!</p>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Active Bidding
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
+    </div>
   `
     return sendEmail({ to, subject, html })
 }
@@ -113,13 +157,28 @@ export async function notifyBuyerOfNewOfferEmail(to: string, inquiryId: string, 
 
     const subject = `New Offers Received on ${productName}`
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>Offer Milestone Reached!</h2>
-      <p>Your Inquiry #${inquiryId} for <strong>${productName}</strong> has now received <strong>${offerCount} offers</strong>.</p>
-      <p>Log in to review all current offers.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="Asset 4.png" alt="Asset 4" style="max-width: 100%; height: auto; display: block; margin-top: 12px;" />
-      </p>    </div>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal;">Offer Milestone Reached!</h2>
+      </div>
+      <div style="padding: 24px;">
+        <p>Your Inquiry #${inquiryId} for <strong>${productName}</strong> has now received <strong>${offerCount} offers</strong>.</p>
+        <p>Log in to review all current offers.</p>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard/offers?inquiryId=${inquiryId}" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to Review Offers
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
+    </div>
   `
     return sendEmail({ to, subject, html })
 }
@@ -150,9 +209,20 @@ export async function notifyBuyerOfAcceptanceEmail(
         </div>
         
         <p style="margin-top: 24px;">You can now communicate directly with the seller to finalize shipment, payment, and delivery details.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="Asset 4.png" alt="Asset 4" style="max-width: 100%; height: auto; display: block; margin-top: 12px;" />
-      </p>      </div>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard/offers?inquiryId=${inquiryId}" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Inquiry Details
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
     </div>
   `
     return sendEmail({ to, subject, html })
@@ -184,9 +254,20 @@ export async function notifySellerOfAcceptanceEmail(
         </div>
         
         <p style="margin-top: 24px;">Please connect with the buyer directly to arrange the delivery and billing details for the order.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="Asset 4.png" alt="Asset 4" style="max-width: 100%; height: auto; display: block; margin-top: 12px;" />
-      </p>      </div>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard/seller/submitted-offers" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Submitted Offers
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
     </div>
   `
     return sendEmail({ to, subject, html })
@@ -220,7 +301,7 @@ export async function sendInquirySubmissionReceiptEmail(to: string, inquiry: any
     const deliveryHtml = `
         <p style="margin: 4px 0; font-size: 14px;"><strong>District:</strong> ${inquiry.district || "N/A"}</p>
         <p style="margin: 4px 0; font-size: 14px;"><strong>State:</strong> ${inquiry.state || "N/A"}</p>
-            `;
+    `;
 
     const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
@@ -261,9 +342,24 @@ export async function sendInquirySubmissionReceiptEmail(to: string, inquiry: any
             ` : ""}
         </div>
 
+        <div style="margin: 32px 0 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard/inquiries" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 13px; font-weight: bold; margin: 5px;">
+            Click Here to Track Inquiry
+          </a>
+          <a href="https://www.dndpurchase.com/dashboard/inquiry/new" style="background-color: #ffffff; color: #1a1a1a; border: 1px solid #1a1a1a; padding: 11px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 13px; font-weight: bold; margin: 5px;">
+            Submit Another Inquiry
+          </a>
+        </div>
+
         <p style="margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px; font-size: 13px; color: #888; text-align: center;">
             Thank you for utilizing DND Purchase.<br/>
             You will receive updates when sellers submit offers.
+        </p>
+        <p style="margin-top: 16px; text-align: center; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: inline-block; margin-top: 12px; border: 0;" />
+          </a>
         </p>
       </div>
     </div>
@@ -274,13 +370,28 @@ export async function sendInquirySubmissionReceiptEmail(to: string, inquiry: any
 export async function notifySellerOfRejectionEmail(to: string, offerId: string, inquiryId: string, productName: string) {
     const subject = `Offer Update for ${productName}`
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>Offer Status Update</h2>
-      <p>Your Offer #${offerId} on Inquiry #${inquiryId} for <strong>${productName}</strong> was not accepted this time.</p>
-      <p>Thank you for participating! Check out other active inquiries in your dashboard.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="Asset 4.png" alt="Asset 4" style="max-width: 100%; height: auto; display: block; margin-top: 12px;" />
-      </p>    </div>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal;">Offer Status Update</h2>
+      </div>
+      <div style="padding: 24px;">
+        <p>Your Offer #${offerId} on Inquiry #${inquiryId} for <strong>${productName}</strong> was not accepted this time.</p>
+        <p>Thank you for participating! Check out other active inquiries in your dashboard.</p>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Active Inquiries
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
+    </div>
   `
     return sendEmail({ to, subject, html })
 }
@@ -288,13 +399,28 @@ export async function notifySellerOfRejectionEmail(to: string, offerId: string, 
 export async function notifyBuyerOfInquiryClosedEmail(to: string, inquiryId: string, productName: string) {
     const subject = `Inquiry Closed: ${productName}`
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>Inquiry Closed</h2>
-      <p>Your Inquiry #${inquiryId} for <strong>${productName}</strong> has been closed.</p>
-      <p>Thank you for using DND.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="Asset 4.png" alt="Asset 4" style="max-width: 100%; height: auto; display: block; margin-top: 12px;" />
-      </p>    </div>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal;">Inquiry Closed</h2>
+      </div>
+      <div style="padding: 24px;">
+        <p>Your Inquiry #${inquiryId} for <strong>${productName}</strong> has been closed.</p>
+        <p>Thank you for using DND.</p>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard/inquiries" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Inquiries
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
+    </div>
   `
     return sendEmail({ to, subject, html })
 }
@@ -302,13 +428,28 @@ export async function notifyBuyerOfInquiryClosedEmail(to: string, inquiryId: str
 export async function notifySellerOfInquiryClosedEmail(to: string, inquiryId: string, productName: string) {
     const subject = `Inquiry Closed: ${productName}`
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>Inquiry Update</h2>
-      <p>The Inquiry #${inquiryId} for <strong>${productName}</strong> has been closed by the buyer or system.</p>
-      <p>Any pending offers for this inquiry will no longer be considered.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="Asset 4.png" alt="Asset 4" style="max-width: 100%; height: auto; display: block; margin-top: 12px;" />
-      </p>    </div>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal;">Inquiry Closed</h2>
+      </div>
+      <div style="padding: 24px;">
+        <p>The Inquiry #${inquiryId} for <strong>${productName}</strong> has been closed by the buyer or system.</p>
+        <p>Any pending offers for this inquiry will no longer be considered.</p>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Active Inquiries
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
+    </div>
   `
     return sendEmail({ to, subject, html })
 }
@@ -316,12 +457,26 @@ export async function notifySellerOfInquiryClosedEmail(to: string, inquiryId: st
 export async function notifyBuyerOfInquiryDeletedEmail(to: string, inquiryId: string, productName: string) {
     const subject = `Inquiry Cancelled: ${productName}`
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>Inquiry Cancelled</h2>
-      <p>Your Inquiry #${inquiryId} for <strong>${productName}</strong> has been successfully cancelled/deleted.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px;" />
-      </p>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal;">Inquiry Cancelled</h2>
+      </div>
+      <div style="padding: 24px;">
+        <p>Your Inquiry #${inquiryId} for <strong>${productName}</strong> has been successfully cancelled/deleted.</p>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard/inquiries" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Inquiries
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
     </div>
   `
     return sendEmail({ to, subject, html })
@@ -330,14 +485,29 @@ export async function notifyBuyerOfInquiryDeletedEmail(to: string, inquiryId: st
 export async function notifySellerOfInquiryDeletedEmail(to: string, inquiryId: string, productName: string) {
     const subject = `Inquiry Cancelled: ${productName}`
     const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2>Inquiry Update</h2>
-      <p>The Inquiry #${inquiryId} for <strong>${productName}</strong> has been cancelled/deleted by the buyer.</p>
-      <p>Any pending offers for this inquiry will no longer be considered.</p>
-      <p>Best Regards,<br/>DND Purchase Team <br>www.dndpurchase.com  <br>
-        <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px;" />
-      </p>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-weight: normal;">Inquiry Cancelled</h2>
+      </div>
+      <div style="padding: 24px;">
+        <p>The Inquiry #${inquiryId} for <strong>${productName}</strong> has been cancelled/deleted by the buyer.</p>
+        <p>Any pending offers for this inquiry will no longer be considered.</p>
+
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="https://www.dndpurchase.com/dashboard" style="background-color: #1a1a1a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 14px; font-weight: bold;">
+            Click Here to View Active Inquiries
+          </a>
+        </div>
+
+        <p style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Best Regards,<br/>DND Purchase Team<br/>
+          <a href="https://www.dndpurchase.com/" style="color: #0066cc; text-decoration: none;">www.dndpurchase.com</a><br/>
+          <a href="https://www.dndpurchase.com/">
+            <img src="https://www.dndpurchase.com/logo-asset-4.png" alt="DND Purchase Logo" style="max-width: 150px; height: auto; display: block; margin-top: 12px; border: 0;" />
+          </a>
+        </p>
+      </div>
     </div>
   `
     return sendEmail({ to, subject, html })
 }
+

@@ -250,7 +250,7 @@ export default function NewInquiryPage() {
             }
             rows.push({
               sellerId: doc.id,
-              sellerName: seller.name || seller.company_name || "Seller",
+              sellerName: (seller.name && seller.company) ? `${seller.name} (${seller.company})` : (seller.company || seller.name || "Seller"),
               contactEmail: seller.email || "",
               contactPhone: seller.phone || "",
               values,

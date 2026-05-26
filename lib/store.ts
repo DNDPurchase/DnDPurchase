@@ -876,7 +876,11 @@ export async function createOffer(data: Omit<Offer, "id" | "rank" | "createdAt" 
   let finalSellerName = data.sellerName
   if (!finalSellerName && data.sellerId) {
     const seller = await getUserById(data.sellerId)
-    finalSellerName = seller?.company || seller?.name || "Anonymous Seller"
+    if (seller?.name && seller?.company) {
+      finalSellerName = `${seller.name} (${seller.company})`
+    } else {
+      finalSellerName = seller?.company || seller?.name || "Anonymous Seller"
+    }
   } else if (!finalSellerName) {
     finalSellerName = "Anonymous Seller"
   }
@@ -1010,7 +1014,16 @@ export async function getOffersByInquiryId(inquiryId: string): Promise<Offer[]> 
       sellerMap.set(offer.sellerId, sellerCounter++)
     }
     const sellerInfo = sellerProfileMap.get(offer.sellerId)
-    const realSellerName = sellerInfo?.company || sellerInfo?.name || offer.sellerName || "Anonymous Seller"
+    let realSellerName = "Anonymous Seller"
+    if (sellerInfo) {
+      if (sellerInfo.name && sellerInfo.company) {
+        realSellerName = `${sellerInfo.name} (${sellerInfo.company})`
+      } else {
+        realSellerName = sellerInfo.company || sellerInfo.name || "Anonymous Seller"
+      }
+    } else {
+      realSellerName = offer.sellerName || "Anonymous Seller"
+    }
     return {
       ...offer,
       sellerName: realSellerName,

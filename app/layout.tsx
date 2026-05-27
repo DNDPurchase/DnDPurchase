@@ -16,8 +16,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'DND Purchase - B2B Industrial Raw Materials Marketplace',
-  description: 'High-precision B2B marketplace for industrial raw materials. Connect verified buyers and sellers for Steel, Cement, TMT Rebars and more.',
+  title: 'DND Purchase - Buy/Sell Steel and Cement in 2-steps',
+  description: 'Best Pricing. Zero Calls.',
   keywords: [
     "dnd",
     "dnd purchase",

@@ -186,7 +186,7 @@ export default function LandingPage() {
             {/* Ambient Background Glow matching the red in the logo */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[200px] sm:w-[500px] sm:h-[300px] md:w-[600px] md:h-[350px] bg-red-600/10 rounded-full blur-[80px] pointer-events-none -z-10 animate-pulse duration-[6000ms]" />
 
-            <div className="relative mb-8 transition-transform duration-500 hover:scale-[1.02]">
+            <div className="relative mb-4 transition-transform duration-500 hover:scale-[1.02]">
               <Image
                 src="/logo-asset-4.png"
                 alt="DND Purchase - Best Price, No Calls"
@@ -196,6 +196,15 @@ export default function LandingPage() {
                 priority
               />
             </div>
+
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 1.0 }}
+              className="text-2xl md:text-3xl lg:text-4xl font-bold mb-8 text-metallic tracking-widest uppercase opacity-90"
+            >
+              Best Pricing. <span className="text-red-500">Zero Calls.</span>
+            </motion.p>
 
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

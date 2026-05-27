@@ -201,9 +201,9 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 1.0 }}
-              className="text-2xl md:text-3xl lg:text-4xl font-bold mb-8 text-metallic tracking-widest uppercase opacity-90"
+              className="text-lg sm:text-xl font-bold mb-6 text-glow-red tracking-wider uppercase opacity-90 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
             >
-              Best Pricing. <span className="text-red-500">Zero Calls.</span>
+              Best Pricing. Zero Calls.
             </motion.p>
 
             <motion.div
@@ -268,7 +268,7 @@ export default function LandingPage() {
               {/* No-hassle list card */}
               <div className="flex flex-col gap-4 p-7 rounded-2xl card-glossy shadow-2xl">
                 <p className="text-sm font-bold tracking-wider opacity-65 text-metallic" style={{ textAlign: 'center' }}>Why DND Purchase?</p>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   {/* Left Column - Red Points */}
                   <div className="flex flex-col gap-4">
@@ -355,11 +355,11 @@ export default function LandingPage() {
                 <div className="space-y-5" style={{ color: v('text') }}>
                   <div className="flex gap-4">
                     <span className="font-black text-xl text-glow-red">1.</span>
-                    <p className="text-lg leading-relaxed font-medium">Send Inquiry to get Offers from Sellers</p>
+                    <p className="text-lg leading-relaxed font-medium">"Send Inquiry" to get Offers from Sellers</p>
                   </div>
                   <div className="flex gap-4">
                     <span className="font-black text-xl text-glow-red">2.</span>
-                    <p className="text-lg leading-relaxed font-medium">Start Bidding to get Best Prices from Sellers <br /> <span className="text-sm opacity-60 font-normal">(No manual phone negotiations required)</span></p>
+                    <p className="text-lg leading-relaxed font-medium">"Start Bidding" to get Best Prices from Sellers <br /> <span className="text-sm opacity-60 font-normal">(No manual phone negotiations required)</span></p>
                   </div>
                   <div className="flex gap-4 items-center text-green-500 font-semibold pt-4">
                     <CheckCircle className="h-6 w-6 stroke-[3]" /> <span className="text-lg uppercase tracking-wide">Done</span>
@@ -381,11 +381,11 @@ export default function LandingPage() {
                 <div className="space-y-5" style={{ color: v('text') }}>
                   <div className="flex gap-4">
                     <span className="font-black text-xl text-glow-red">1.</span>
-                    <p className="text-lg leading-relaxed font-medium">Send Offer to each Inquiry</p>
+                    <p className="text-lg leading-relaxed font-medium">"Send Offer" to each Inquiry</p>
                   </div>
                   <div className="flex gap-4">
                     <span className="font-black text-xl text-glow-red">2.</span>
-                    <p className="text-lg leading-relaxed font-medium">Participate in Bidding to give Best Price <br /> <span className="text-sm opacity-60 font-normal">(No manual phone negotiations required)</span></p>
+                    <p className="text-lg leading-relaxed font-medium">"Participate in Bidding" to give Best Price <br /> <span className="text-sm opacity-60 font-normal">(No manual phone negotiations required)</span></p>
                   </div>
                   <div className="flex gap-4 items-center text-green-500 font-semibold pt-4">
                     <CheckCircle className="h-6 w-6 stroke-[3]" /> <span className="text-lg uppercase tracking-wide">Done</span>
@@ -524,8 +524,8 @@ export default function LandingPage() {
             <div className="flex flex-col gap-4">
               <h3 className="text-lg font-bold tracking-wider text-metallic">Contact Us</h3>
               <div className="flex flex-col gap-3">
-                <a 
-                  href="tel:9510461387" 
+                <a
+                  href="tel:9510461387"
                   className="flex items-center gap-3 transition-colors hover:text-red-500 text-sm font-semibold group"
                   style={{ color: v('text') }}
                 >
@@ -534,8 +534,8 @@ export default function LandingPage() {
                   </div>
                   <span>+91 95104 61387</span>
                 </a>
-                <a 
-                  href="mailto:contact@dndpurchase.com" 
+                <a
+                  href="mailto:contact@dndpurchase.com"
                   className="flex items-center gap-3 transition-colors hover:text-red-500 text-sm font-semibold group"
                   style={{ color: v('text') }}
                 >
@@ -553,7 +553,7 @@ export default function LandingPage() {
               &copy; {new Date().getFullYear()} DND Purchase. All rights reserved.
             </p>
             <p className="text-xs font-semibold uppercase tracking-wider text-glow-red">
-              No Phone Calls • Best Pricing
+              Best Pricing. Zero Calls.
             </p>
           </div>
         </div>

@@ -24,6 +24,7 @@ export interface User {
   displayName: string
   userCode: string
   verified: boolean
+  primaryEmailVerified?: boolean
   googleConnected: boolean
   createdAt: string
   categories?: string[]
@@ -109,6 +110,7 @@ function mapBuyerFromDb(row: any, id: string): User {
     displayName: row.display_name,
     userCode: row.user_code || row.display_name,
     verified: Boolean(row.verified),
+    primaryEmailVerified: row.primary_email_verified !== false,
     googleConnected: Boolean(row.google_connected),
     createdAt: row.created_at,
     smsNotificationsEnabled: row.sms_notifications_enabled !== false, // default to true
@@ -143,6 +145,7 @@ function mapSellerFromDb(row: any, id: string): User {
     displayName: row.display_name,
     userCode: row.user_code || row.display_name,
     verified: Boolean(row.verified),
+    primaryEmailVerified: row.primary_email_verified !== false,
     googleConnected: Boolean(row.google_connected),
     createdAt: row.created_at,
     categories: row.categories || [],
@@ -159,9 +162,10 @@ function mapSellerFromDb(row: any, id: string): User {
 
 /**
  * Helper to get all verified notification emails for a buyer/seller.
- * The primary email is always considered verified.
+ * The primary email is considered verified unless primaryEmailVerified is explicitly false.
+ * If user.verified is true, all their primary and secondary emails are automatically considered verified.
  * Secondary emails are included only if they are present in notificationEmails
- * AND present in verifiedSecondaryEmails.
+ * AND present in verifiedSecondaryEmails (or user.verified is true).
  */
 export function getVerifiedNotificationEmails(user: User): string[] {
   if (!user) return []
@@ -173,9 +177,10 @@ export function getVerifiedNotificationEmails(user: User): string[] {
   return preferences.filter(email => {
     if (!email) return false
     const isPrimary = email.toLowerCase() === primary.toLowerCase()
+    const isPrimaryVerified = user.verified || user.primaryEmailVerified !== false
     const isVerifiedSecondary = secondaries.some(s => s.toLowerCase() === email.toLowerCase()) && 
-                               verifiedSecondaries.some(vs => vs.toLowerCase() === email.toLowerCase())
-    return isPrimary || isVerifiedSecondary
+                               (user.verified || verifiedSecondaries.some(vs => vs.toLowerCase() === email.toLowerCase()))
+    return (isPrimary && isPrimaryVerified) || isVerifiedSecondary
   })
 }
 
@@ -377,6 +382,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       display_name: displayName,
       user_code: userCode,
       verified: false,
+      primary_email_verified: false,
       google_connected: false,
       created_at: createdAt,
       auth_uid: auth.currentUser?.uid || null,
@@ -400,6 +406,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       displayName,
       userCode,
       verified: false,
+      primaryEmailVerified: false,
       googleConnected: false,
       createdAt,
       smsNotificationsEnabled: true,
@@ -427,6 +434,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       display_name: displayName,
       user_code: userCode,
       verified: false,
+      primary_email_verified: false,
       google_connected: false,
       created_at: createdAt,
       auth_uid: auth.currentUser?.uid || null,
@@ -452,6 +460,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       displayName,
       userCode,
       verified: false,
+      primaryEmailVerified: false,
       googleConnected: false,
       createdAt,
       categories: data.categories || [],
@@ -1381,6 +1390,7 @@ export interface UpdateUserData {
   secondaryEmails?: string[]
   notificationEmails?: string[]
   verifiedSecondaryEmails?: string[]
+  primaryEmailVerified?: boolean
   nonStandardColorCoilsLastUpdated?: string
 }
 
@@ -1399,6 +1409,7 @@ export async function updateUser(userId: string, updates: UpdateUserData): Promi
   if (updates.secondaryEmails !== undefined) updateData.secondary_emails = updates.secondaryEmails
   if (updates.notificationEmails !== undefined) updateData.notification_emails = updates.notificationEmails
   if (updates.verifiedSecondaryEmails !== undefined) updateData.verified_secondary_emails = updates.verifiedSecondaryEmails
+  if (updates.primaryEmailVerified !== undefined) updateData.primary_email_verified = updates.primaryEmailVerified
   if (updates.nonStandardColorCoilsLastUpdated !== undefined) updateData.nonStandardColorCoilsLastUpdated = updates.nonStandardColorCoilsLastUpdated
 
   try {

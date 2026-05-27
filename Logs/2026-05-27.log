@@ -1,0 +1,27 @@
+[2026-05-27T08:30:46.862Z] INFO Server signed in successfully as buyer {"email":"[redacted-email]"}
+[2026-05-27T08:30:47.096Z] INFO Sending inquiry receipt emails to buyer {"buyerId":"BUY-0001","inquiryId":"INQ-0001","targetEmails":["[redacted-email]"]}
+[2026-05-27T08:30:52.114Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T08:30:52.165Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"+****1006"}]}}
+[2026-05-27T08:30:52.164Z] INFO New inquiry created, sending targeted notifications {"inquiryId":"INQ-0001","categories":["Cement"],"targetedSellerCount":2}
+[2026-05-27T08:30:52.171Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****8391"}]}}
+[2026-05-27T08:30:54.459Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T08:30:54.665Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T08:30:54.878Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T08:30:55.124Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T08:30:55.125Z] INFO New inquiry notifications complete
+[2026-05-27T09:04:43.018Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T09:14:43.652Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****8391","inquiryId":"INQ-0002"}]}}
+[2026-05-27T09:14:43.651Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T09:14:44.338Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T09:14:44.339Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****8391","inquiryId":"INQ-0001"}]}}
+[2026-05-27T09:21:29.876Z] INFO Server signed in successfully as buyer {"email":"[redacted-email]"}
+[2026-05-27T09:21:30.112Z] INFO Sending inquiry receipt emails to buyer {"buyerId":"BUY-0001","inquiryId":"INQ-0003","targetEmails":["[redacted-email]"]}
+[2026-05-27T09:21:32.413Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T09:21:32.469Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****8391"}]}}
+[2026-05-27T09:21:32.464Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"+****1006"}]}}
+[2026-05-27T09:21:32.462Z] INFO New inquiry created, sending targeted notifications {"inquiryId":"INQ-0003","categories":["Cement"],"targetedSellerCount":2}
+[2026-05-27T09:21:34.903Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T09:21:35.113Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T09:21:35.279Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-27T09:21:35.435Z] INFO New inquiry notifications complete
+[2026-05-27T09:21:35.433Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}

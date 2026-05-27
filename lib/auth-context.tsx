@@ -19,6 +19,7 @@ interface AuthUser {
   userCode: string
   gstCertificateName?: string
   verified: boolean
+  primaryEmailVerified?: boolean
   googleConnected: boolean
   createdAt: string;
   categories?: string[]

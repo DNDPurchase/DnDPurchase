@@ -245,7 +245,7 @@ export default function SettingsPage() {
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {formData.secondaryEmails.map((email, index) => {
-                                            const isVerified = user?.verifiedSecondaryEmails?.includes(email) ?? false;
+                                            const isVerified = user?.verified || (user?.verifiedSecondaryEmails?.includes(email) ?? false);
                                             return (
                                                 <div key={index} className="flex gap-2 items-end">
                                                     <div className="flex-1 space-y-2">
@@ -307,15 +307,21 @@ export default function SettingsPage() {
                                                     }
                                                 }}
                                             />
-                                            <Label htmlFor="notify-primary" className="text-sm font-medium cursor-pointer">
-                                                {formData.email} <span className="text-muted-foreground text-xs">(Primary Email)</span>
+                                            <Label htmlFor="notify-primary" className="text-sm font-medium cursor-pointer flex items-center gap-1.5">
+                                                {formData.email} 
+                                                <span className="text-muted-foreground text-xs">(Primary Email)</span>
+                                                {user?.verified || user?.primaryEmailVerified !== false ? (
+                                                    <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-500/10" />
+                                                ) : (
+                                                    <span className="text-xs text-amber-500 font-normal">(Pending verification)</span>
+                                                )}
                                             </Label>
                                         </div>
 
                                         {formData.secondaryEmails.map((email, index) => {
                                             if (!email || email.trim() === "") return null;
                                             const isChecked = formData.notificationEmails?.includes(email) ?? false;
-                                            const isVerified = user?.verifiedSecondaryEmails?.includes(email) ?? false;
+                                            const isVerified = user?.verified || (user?.verifiedSecondaryEmails?.includes(email) ?? false);
                                             return (
                                                 <div key={index} className="flex items-center space-x-2">
                                                     <Checkbox 
@@ -437,7 +443,7 @@ export default function SettingsPage() {
                                 <div className="mt-1 flex flex-wrap gap-2">
                                     {user?.secondaryEmails && user.secondaryEmails.length > 0 ? (
                                         user.secondaryEmails.map((email, i) => {
-                                            const isVerified = user?.verifiedSecondaryEmails?.includes(email) ?? false;
+                                            const isVerified = user?.verified || (user?.verifiedSecondaryEmails?.includes(email) ?? false);
                                             return (
                                                 <span key={i} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 break-all">
                                                     {email}
@@ -455,10 +461,18 @@ export default function SettingsPage() {
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
                                         <Checkbox checked={user?.notificationEmails?.includes(user.email) ?? true} disabled />
-                                        <span className="text-sm text-foreground">{user?.email} <span className="text-muted-foreground text-xs">(Primary)</span></span>
+                                        <span className="text-sm text-foreground flex items-center gap-1.5">
+                                            {user?.email} 
+                                            <span className="text-muted-foreground text-xs">(Primary)</span>
+                                            {user?.verified || user?.primaryEmailVerified !== false ? (
+                                                <BadgeCheck className="h-3.5 w-3.5 text-blue-500 fill-blue-500/10 flex-shrink-0" />
+                                            ) : (
+                                                <span className="text-xs text-amber-500">(Pending verification)</span>
+                                            )}
+                                        </span>
                                     </div>
                                     {user?.secondaryEmails?.map((email, i) => {
-                                        const isVerified = user?.verifiedSecondaryEmails?.includes(email) ?? false;
+                                        const isVerified = user?.verified || (user?.verifiedSecondaryEmails?.includes(email) ?? false);
                                         return (
                                             <div key={i} className="flex items-center gap-2">
                                                 <Checkbox checked={user?.notificationEmails?.includes(email) ?? false} disabled />

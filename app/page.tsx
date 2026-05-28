@@ -355,11 +355,11 @@ export default function LandingPage() {
                 <div className="space-y-5" style={{ color: v('text') }}>
                   <div className="flex gap-4">
                     <span className="font-black text-xl text-glow-red">1.</span>
-                    <p className="text-lg leading-relaxed font-medium">"Send Inquiry" to get Offers from Sellers</p>
+                    <p className="text-lg leading-relaxed font-medium">"Send Inquiry" - to get Offers from Sellers</p>
                   </div>
                   <div className="flex gap-4">
                     <span className="font-black text-xl text-glow-red">2.</span>
-                    <p className="text-lg leading-relaxed font-medium">"Start Bidding" to get Best Prices from Sellers <br /> <span className="text-sm opacity-60 font-normal">(No manual phone negotiations required)</span></p>
+                    <p className="text-lg leading-relaxed font-medium">"Start Bidding" - to get Best Prices from Sellers <br /> <span className="text-sm opacity-60 font-normal">(Negotiation calls not required)</span></p>
                   </div>
                   <div className="flex gap-4 items-center text-green-500 font-semibold pt-4">
                     <CheckCircle className="h-6 w-6 stroke-[3]" /> <span className="text-lg uppercase tracking-wide">Done</span>
@@ -381,11 +381,11 @@ export default function LandingPage() {
                 <div className="space-y-5" style={{ color: v('text') }}>
                   <div className="flex gap-4">
                     <span className="font-black text-xl text-glow-red">1.</span>
-                    <p className="text-lg leading-relaxed font-medium">"Send Offer" to each Inquiry</p>
+                    <p className="text-lg leading-relaxed font-medium">"Send Offer" - to each Inquiry</p>
                   </div>
                   <div className="flex gap-4">
                     <span className="font-black text-xl text-glow-red">2.</span>
-                    <p className="text-lg leading-relaxed font-medium">"Participate in Bidding" to give Best Price <br /> <span className="text-sm opacity-60 font-normal">(No manual phone negotiations required)</span></p>
+                    <p className="text-lg leading-relaxed font-medium">"Participate in Bidding" - to give Best Price <br /> <span className="text-sm opacity-60 font-normal">(Negotiation calls not required)</span></p>
                   </div>
                   <div className="flex gap-4 items-center text-green-500 font-semibold pt-4">
                     <CheckCircle className="h-6 w-6 stroke-[3]" /> <span className="text-lg uppercase tracking-wide">Done</span>
@@ -511,7 +511,7 @@ export default function LandingPage() {
                 </Link>
               </motion.div>
               <p className="text-sm font-medium leading-relaxed max-w-sm" style={{ color: v('text-muted') }}>
-                Buy and sell steel & cement in just a simple 2-step process. No follow-ups, no calls, just best pricing and peace of mind.
+                Buy and sell steel & cement in just a simple 2-step process. <br/>No follow-ups, no calls, just best pricing and peace of mind.
               </p>
             </div>
 

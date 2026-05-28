@@ -26,6 +26,19 @@ const nextConfig = {
     }
     return config;
   },
+  turbopack: {
+    resolveAlias: {
+      fs: {
+        browser: './lib/empty.ts',
+      },
+      'fs/promises': {
+        browser: './lib/empty.ts',
+      },
+      path: {
+        browser: './lib/empty.ts',
+      },
+    },
+  },
 }
 
 export default nextConfig

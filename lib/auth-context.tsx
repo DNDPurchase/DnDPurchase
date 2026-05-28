@@ -197,11 +197,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         gstin: (payload.entityType === "company" || payload.entityType === "both") ? payload.gstin : undefined,
         gstCertificatePath: (payload.entityType === "company" || payload.entityType === "both") ? payload.documentPath : undefined,
         aadhaarNumber: (payload.entityType === "individual" || payload.entityType === "both") ? payload.aadhaarNumber : undefined,
-        aadhaarDocumentPath: (payload.entityType === "individual" || payload.entityType === "both") ? payload.documentPath : undefined,
+        aadhaarDocumentPath: (payload.entityType === "individual" || payload.entityType === "both")
+          ? (payload.aadhaarDocumentPath || payload.documentPath)
+          : undefined,
         googleConnected: false,
         categories: payload.categories
           ? (typeof payload.categories === 'string' ? JSON.parse(payload.categories) : payload.categories)
           : undefined,
+        productManufacturers: payload.productManufacturers || undefined,
+        sellerProductOptions: payload.sellerProductOptions || undefined,
+        availableLocations: payload.availableLocations || undefined,
         smsNotificationsEnabled: true,
       } as any) as any
     } catch (e: any) {

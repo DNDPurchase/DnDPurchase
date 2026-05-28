@@ -436,7 +436,9 @@ export default function MyProductsPage() {
             <div className="mb-10">
                 <h2 className="font-serif text-3xl font-bold text-foreground tracking-tight">My Products & Locations</h2>
                 <p className="mt-2 text-muted-foreground text-[15px]">
-                    Configure the products you supply and the regions you deliver to.
+                    {user?.role === "both"
+                        ? "Select the product and location to receive the inquiry. Please note that inquiries you post from your Buyer account will not be visible to yourself even if the product are selected in Seller Account."
+                        : "Select the product and location to receive the inquiry."}
                 </p>
                 {/* Summary Stats */}
                 <div className="mt-5 flex flex-wrap gap-3">

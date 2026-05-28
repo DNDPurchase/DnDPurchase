@@ -65,6 +65,7 @@ export default function SellerPendingPage() {
 
     return inquiries.filter((inq: Inquiry) => {
       // 0. EXCLUDE OWN INQUIRIES
+      if (inq.buyerId === user.id) return false;
       if (currentUserBuyerId && inq.buyerId === currentUserBuyerId) return false;
 
       // 1. PRODUCT CATEGORY MATCH & FILTER QUOTED

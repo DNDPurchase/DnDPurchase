@@ -1,0 +1,13 @@
+[2026-05-28T19:57:58.459Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****7890","name":"qwertyuio"}]}}
+[2026-05-28T19:57:58.454Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-28T20:16:56.618Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****8391","inquiryId":"INQ-0004"}]}}
+[2026-05-28T20:16:56.616Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-28T20:16:56.704Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****3968","inquiryId":"INQ-0004"}]}}
+[2026-05-28T20:17:02.331Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-28T20:17:02.493Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-28T20:17:03.775Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-28T20:17:03.776Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"****8391","inquiryId":"INQ-0003"}]}}
+[2026-05-28T20:17:03.852Z] WARN MSG91_AUTH_KEY not configured. Simulating SMS send. {"payload":{"template_id":"SIMULATED","recipients":[{"mobiles":"+****1006","inquiryId":"INQ-0003"}]}}
+[2026-05-28T20:17:06.180Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-28T20:17:06.329Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-05-28T20:17:06.502Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}

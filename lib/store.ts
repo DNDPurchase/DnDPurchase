@@ -440,6 +440,8 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       auth_uid: auth.currentUser?.uid || null,
       categories: data.categories || [],
       product_manufacturers: data.productManufacturers || {},
+      seller_product_options: data.sellerProductOptions || {},
+      available_locations: data.availableLocations || {},
       sms_notifications_enabled: true,
     })
 
@@ -465,6 +467,8 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       createdAt,
       categories: data.categories || [],
       productManufacturers: data.productManufacturers || {},
+      sellerProductOptions: data.sellerProductOptions || {},
+      availableLocations: data.availableLocations || {},
       smsNotificationsEnabled: true,
     })
   }

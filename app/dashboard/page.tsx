@@ -93,6 +93,7 @@ export default function DashboardOverview() {
 
     return openInquiries.filter((inq: any) => {
       // Exclude own inquiries
+      if (inq.buyerId === user.id) return false
       if (currentUserBuyerId && inq.buyerId === currentUserBuyerId) return false
 
       // Product category match & filter already quoted

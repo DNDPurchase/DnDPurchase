@@ -87,43 +87,87 @@ function OffersContent() {
 
 
   const handleDisqualifyOffer = async (offerId: string) => {
-    // 1. Direct mutation
-    await disqualifyOffer(offerId)
+    // 1. Optimistic Update of Offers SWR cache
+    if (offers) {
+      const updatedOffers = offers.map((o: any) =>
+        o.id === offerId ? { ...o, status: "disqualified" } : o
+      )
+      mutate(updatedOffers, false)
+    }
 
-    // 2. Ping backend for seller rejection notification
-    await fetch("/api/offers", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "disqualify", offerId, buyerId: user?.id }),
-    })
+    try {
+      // 2. Direct Firestore mutation
+      await disqualifyOffer(offerId)
 
-    mutate()
-    if (user) globalMutate(`buyer-inquiries-${user.id}`)
-    globalMutate("open-inquiries")
-    toast.success("Offer disqualified")
+      // 3. Ping backend for seller rejection notification in background
+      fetch("/api/offers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disqualify", offerId, buyerId: user?.id }),
+      }).catch((err) => console.error("Rejection notification failed", err))
+
+      toast.success("Offer disqualified")
+    } catch (error) {
+      console.error("Failed to disqualify offer", error)
+      toast.error("Failed to disqualify offer")
+      mutate() // Revert/refresh SWR cache on error
+    } finally {
+      mutate()
+      if (user) globalMutate(`buyer-inquiries-${user.id}`)
+      globalMutate("open-inquiries")
+    }
   }
 
   const handleAcceptOffer = async (offerId: string) => {
-    // 1. Direct mutation
-    await acceptOffer(offerId)
-    // Close the inquiry natively
-    if (inquiryId) await closeInquiry(inquiryId)
+    // 1. Optimistic Update of SWR cache
+    if (offers) {
+      const updatedOffers = offers.map((o: any) =>
+        o.id === offerId ? { ...o, status: "accepted" } : o
+      )
+      mutate(updatedOffers, false)
+    }
+    if (inquiry) {
+      mutateInquiry({ ...inquiry, status: "closed" }, false)
+    }
 
-    // 2. Ping backend for Whatsapp notifications to buyer & seller
-    await fetch("/api/offers", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "accept", offerId, buyerId: user?.id }),
-    })
+    try {
+      // 2. Direct Firestore mutation
+      await acceptOffer(offerId)
+      if (inquiryId) await closeInquiry(inquiryId)
 
-    mutate()
-    if (mutateInquiry) mutateInquiry()
-    if (user) globalMutate(`buyer-inquiries-${user.id}`)
-    globalMutate("open-inquiries")
-    toast.success("Offer accepted! Seller notified via Email and SMS.")
+      // 3. Ping backend for Whatsapp/email notifications in background
+      fetch("/api/offers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "accept", offerId, buyerId: user?.id }),
+      }).catch((err) => console.error("Acceptance notification failed", err))
+
+      toast.success("Offer accepted! Seller notified via Email and SMS.")
+    } catch (error) {
+      console.error("Failed to accept offer", error)
+      toast.error("Failed to accept offer")
+      mutate() // Revert/refresh SWR cache on error
+      if (mutateInquiry) mutateInquiry()
+    } finally {
+      mutate()
+      if (mutateInquiry) mutateInquiry()
+      if (user) globalMutate(`buyer-inquiries-${user.id}`)
+      globalMutate("open-inquiries")
+    }
   }
 
   const handleRebid = async (offerId?: string) => {
+    // 1. Optimistic Update of SWR cache
+    if (offerId && offers) {
+      const updatedOffers = offers.map((o: any) =>
+        o.id === offerId ? { ...o, status: "pending" } : o
+      )
+      mutate(updatedOffers, false)
+    }
+    if (inquiry) {
+      mutateInquiry({ ...inquiry, status: "bidding" }, false)
+    }
+
     try {
       if (offerId) {
         await revertOfferToPending(offerId)
@@ -137,13 +181,17 @@ function OffersContent() {
         if (!res.ok) throw new Error("Failed to resume bidding via API")
       }
 
+      toast.success(offerId ? "Bidding resumed for 3 days. The accepted offer has been moved back to pending." : "Bidding resumed for 3 days.")
+    } catch (error) {
+      console.error("Failed to resume bidding", error)
+      toast.error("Failed to resume bidding")
+      mutate() // Revert/refresh SWR cache on error
+      if (mutateInquiry) mutateInquiry()
+    } finally {
       mutate()
       if (mutateInquiry) mutateInquiry()
       if (user) globalMutate(`buyer-inquiries-${user.id}`)
       globalMutate("open-inquiries")
-      toast.success(offerId ? "Bidding resumed for 3 days. The accepted offer has been moved back to pending." : "Bidding resumed for 3 days.")
-    } catch (error) {
-      toast.error("Failed to resume bidding")
     }
   }
 

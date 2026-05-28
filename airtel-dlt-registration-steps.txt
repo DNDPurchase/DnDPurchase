@@ -82,9 +82,80 @@ Once your PE ID, Header, and Template IDs are approved by Airtel DLT, you must c
 4. Ensure the variables in MSG91 flow match the variables in the DLT template.
 
 ---------------------------------------------------------
+PART 4: REQUIRED HEADERS AND DLT CONTENT TEMPLATES
+---------------------------------------------------------
+Below are the approved Header names and exact SMS Content Templates that must be registered on the Airtel DLT portal for DND Purchase.
+
+1. APPROVED HEADER (SENDER ID)
+   - Header: DNDPUR
+   - Type: Service Implicit (for transactional/alert SMS)
+   - Justification: "DNDPUR" is the primary 6-letter identifier representing our business brand "DND Purchase" (www.dndpurchase.com), which facilitates 2-step steel and cement procurement.
+
+2. REQUIRED CONTENT TEMPLATES
+   All templates below should be registered under the "Service Implicit" category using the approved Header "DNDPUR".
+   Note: All dynamic variables are represented by {#var#} for DLT registration.
+
+   Template 1: Welcome SMS
+   - Description: Sent to welcome a new buyer or seller upon registration.
+   - Template Name: Welcome_SMS
+   - DLT Content:
+     "Hello {#var#}, welcome to DND Purchase! You can now buy and sell Steel & Cement in just 2 steps. Log in at www.dndpurchase.com - DND Purchase"
+   - MSG91 Env Variable: MSG91_TEMPLATE_WELCOME
+
+   Template 2: New Inquiry Alert
+   - Description: Sent to sellers when a new inquiry matching their category is posted.
+   - Template Name: New_Inquiry_Alert
+   - DLT Content:
+     "A new inquiry matching your product categories has been posted. Log in to your dashboard to submit an offer: www.dndpurchase.com - DND Purchase"
+   - MSG91 Env Variable: MSG91_TEMPLATE_NEW_INQUIRY
+
+   Template 3: Bidding Started
+   - Description: Sent to sellers when bidding starts on an inquiry.
+   - Template Name: Bidding_Started
+   - DLT Content:
+     "Bidding has started for Inquiry ID {#var#}. Log in to submit or update your offer before the timer ends: www.dndpurchase.com - DND Purchase"
+   - MSG91 Env Variable: MSG91_TEMPLATE_BIDDING_STARTED
+
+   Template 4: New Offer Milestone
+   - Description: Sent to buyers when their inquiry receives new offers.
+   - Template Name: New_Offer_Milestone
+   - DLT Content:
+     "New offers have been received on your Inquiry ID {#var#}. Log in to your dashboard to review them: www.dndpurchase.com - DND Purchase"
+   - MSG91 Env Variable: MSG91_TEMPLATE_NEW_OFFER
+
+   Template 5: Offer Accepted (Buyer Notice)
+   - Description: Sent to the buyer containing delivery next steps.
+   - Template Name: Offer_Accepted_Buyer
+   - DLT Content:
+     "You have accepted Offer ID {#var#}. Connect directly with the seller to finalize shipment & billing details: www.dndpurchase.com - DND Purchase"
+   - MSG91 Env Variable: MSG91_TEMPLATE_OFFER_ACCEPTED_BUYER
+
+   Template 6: Offer Accepted (Seller Notice)
+   - Description: Sent to the seller when their offer is accepted.
+   - Template Name: Offer_Accepted_Seller
+   - DLT Content:
+     "Congratulations! Your Offer ID {#var#} has been accepted by the buyer. Please connect with them to arrange delivery: www.dndpurchase.com - DND Purchase"
+   - MSG91 Env Variable: MSG91_TEMPLATE_OFFER_ACCEPTED_SELLER
+
+   Template 7: Offer Rejected (Seller Notice)
+   - Description: Sent to the seller if their offer was not chosen.
+   - Template Name: Offer_Rejected_Seller
+   - DLT Content:
+     "Your Offer ID {#var#} was not accepted this time. Check out other active inquiries on your dashboard: www.dndpurchase.com - DND Purchase"
+   - MSG91 Env Variable: MSG91_TEMPLATE_OFFER_REJECTED_SELLER
+
+   Template 8: Inquiry Closed / Cancelled
+   - Description: Sent to users when an inquiry is closed or deleted.
+   - Template Name: Inquiry_Closed
+   - DLT Content:
+     "Inquiry ID {#var#} has been closed or cancelled. Pending offers for this inquiry will no longer be active: www.dndpurchase.com - DND Purchase"
+   - MSG91 Env Variable: MSG91_TEMPLATE_INQUIRY_CLOSED
+
+---------------------------------------------------------
 TRAI COMPLIANCE TIPS:
 ---------------------------------------------------------
 * All commercial SMS must terminate with your brand identity or website reference.
 * Do not use special characters such as @, $, %, &, or # in the template unless strictly approved.
 * Always check the status of your Headers and Templates in the Airtel DLT portal regularly before attempting to send notifications using those configurations.
 =========================================================
+

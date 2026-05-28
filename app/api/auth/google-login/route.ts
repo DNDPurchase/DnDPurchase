@@ -17,7 +17,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "No connected account found for this email. Please login manually and connect Google in your settings first." }, { status: 401 })
         }
 
-        const { password: _, ...safeUser } = user
+        const safeUser = user.map(({ password: _, ...u }) => u)
 
         return NextResponse.json(safeUser)
     } catch (error: any) {

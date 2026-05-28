@@ -257,20 +257,36 @@ export default function MyProductsPage() {
     const saveProduct = async (catName: string) => {
         if (!user) return
 
-        // If there are unsaved inputs in the form, try to add them first
-        if (Object.keys(tempProductOptions).length > 0) {
-            const error = validateProduct(catName, tempProductOptions)
-            if (!error) {
-                setTempProductItems(prev => [...prev, { ...tempProductOptions }])
-                setTempProductOptions({})
-            }
-        }
+        const productObj = availableProducts.find(p => p.name === catName)
+        const hasSubProducts = !!(productObj?.sub_products && productObj.sub_products.length > 0)
+        const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
 
-        // Wait a tick for state to update if we just added an item, or proceed if items exist
-        // To avoid async state issues, we use the current tempProductItems directly, plus any valid unsaved input
-        let finalItems = [...tempProductItems]
-        if (Object.keys(tempProductOptions).length > 0 && !validateProduct(catName, tempProductOptions)) {
-             finalItems.push({ ...tempProductOptions })
+        let finalItems: any[] = []
+
+        if (isMultiConfig) {
+            // If there are unsaved inputs in the form, try to add them first
+            if (Object.keys(tempProductOptions).length > 0) {
+                const error = validateProduct(catName, tempProductOptions)
+                if (!error) {
+                    setTempProductItems(prev => [...prev, { ...tempProductOptions }])
+                    setTempProductOptions({})
+                }
+            }
+
+            // Wait a tick for state to update if we just added an item, or proceed if items exist
+            // To avoid async state issues, we use the current tempProductItems directly, plus any valid unsaved input
+            finalItems = [...tempProductItems]
+            if (Object.keys(tempProductOptions).length > 0 && !validateProduct(catName, tempProductOptions)) {
+                 finalItems.push({ ...tempProductOptions })
+            }
+        } else {
+            // For other products, validate the tempProductOptions directly
+            const error = validateProduct(catName, tempProductOptions)
+            if (error) {
+                toast.error(error)
+                return
+            }
+            finalItems = [tempProductOptions]
         }
 
         if (finalItems.length === 0) {
@@ -555,7 +571,11 @@ export default function MyProductsPage() {
                                                             <X />
                                                         </button>
                                                         {(() => {
-                                                            const isValid = tempProductItems.length > 0 || Object.keys(tempProductOptions).length > 0;
+                                                            const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
+                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                            const isValid = isMultiConfig
+                                                                ? (tempProductItems.length > 0 || Object.keys(tempProductOptions).length > 0)
+                                                                : Object.keys(tempProductOptions).length > 0;
                                                             return (
                                                                 <Button
                                                                     size="sm"
@@ -575,8 +595,15 @@ export default function MyProductsPage() {
                                                                 className="btn-action-icon"
                                                                 onClick={() => {
                                                                     setEditingProduct(catName)
-                                                                    setTempProductItems(getSafeItemsArray(formData.sellerProductOptions[catName]))
-                                                                    setTempProductOptions({})
+                                                                    const savedItems = getSafeItemsArray(formData.sellerProductOptions[catName])
+                                                                    setTempProductItems(savedItems)
+                                                                    const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
+                                                                    const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                                    if (isMultiConfig) {
+                                                                        setTempProductOptions({})
+                                                                    } else {
+                                                                        setTempProductOptions(savedItems[0] || {})
+                                                                    }
                                                                     setEditingItemIndex(null)
                                                                 }}
                                                                 disabled={loading}
@@ -616,26 +643,38 @@ export default function MyProductsPage() {
                                                         </div>
                                                     )}
                                                     {/* Preview of added items */}
-                                                    {renderItemsTable(
-                                                        tempProductItems, 
-                                                        (idx) => {
-                                                            setTempProductItems(prev => prev.filter((_, i) => i !== idx))
-                                                            if (editingItemIndex === idx) {
-                                                                setEditingItemIndex(null)
-                                                                setTempProductOptions({})
-                                                            } else if (editingItemIndex !== null && editingItemIndex > idx) {
-                                                                setEditingItemIndex(editingItemIndex - 1)
-                                                            }
-                                                        },
-                                                        (idx) => {
-                                                            setEditingItemIndex(idx)
-                                                            setTempProductOptions({ ...tempProductItems[idx] })
-                                                        },
-                                                        editingItemIndex
-                                                    )}
+                                                    {(() => {
+                                                        const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
+                                                        const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                        return isMultiConfig && renderItemsTable(
+                                                            tempProductItems, 
+                                                            (idx) => {
+                                                                setTempProductItems(prev => prev.filter((_, i) => i !== idx))
+                                                                if (editingItemIndex === idx) {
+                                                                    setEditingItemIndex(null)
+                                                                    setTempProductOptions({})
+                                                                } else if (editingItemIndex !== null && editingItemIndex > idx) {
+                                                                    setEditingItemIndex(editingItemIndex - 1)
+                                                                }
+                                                            },
+                                                            (idx) => {
+                                                                setEditingItemIndex(idx)
+                                                                setTempProductOptions({ ...tempProductItems[idx] })
+                                                            },
+                                                            editingItemIndex
+                                                        )
+                                                    })()}
 
                                                     <div className="space-y-5 rounded-lg border border-border bg-muted/10 p-5">
-                                                        <h4 className="text-sm font-semibold text-foreground">Add New Variant</h4>
+                                                        {(() => {
+                                                            const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
+                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                            return isMultiConfig ? (
+                                                                <h4 className="text-sm font-semibold text-foreground">Add New Variant</h4>
+                                                            ) : (
+                                                                <h4 className="text-sm font-semibold text-foreground">Configure Product</h4>
+                                                            )
+                                                        })()}
                                                         
                                                         {/* Sub-Products */}
                                                         {product.sub_products && product.sub_products.length > 0 && (
@@ -720,39 +759,46 @@ export default function MyProductsPage() {
                                                             })}
                                                         
                                                         {/* Add/Update Item Button */}
-                                                        <div className="pt-2 flex justify-end gap-2">
-                                                            {editingItemIndex !== null ? (
-                                                                <>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        onClick={() => {
-                                                                            setEditingItemIndex(null)
-                                                                            setTempProductOptions({})
-                                                                        }}
-                                                                        className="text-muted-foreground"
-                                                                    >
-                                                                        Cancel Edit
-                                                                    </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        onClick={() => handleUpdateItem(catName)}
-                                                                        className="gap-2"
-                                                                    >
-                                                                        <CheckCircle2 className="h-4 w-4" /> Update Configuration
-                                                                    </Button>
-                                                                </>
-                                                            ) : (
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    onClick={() => handleAddItem(catName)}
-                                                                    className="gap-2"
-                                                                >
-                                                                    <Plus className="h-4 w-4" /> Add Configuration
-                                                                </Button>
-                                                            )}
-                                                        </div>
+                                                        {(() => {
+                                                            const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
+                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                            return isMultiConfig && (
+                                                                <div className="pt-2 flex justify-end gap-2">
+                                                                    {editingItemIndex !== null ? (
+                                                                        <>
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                onClick={() => {
+                                                                                    setEditingItemIndex(null)
+                                                                                    setTempProductOptions({})
+                                                                                }}
+                                                                                className="text-muted-foreground"
+                                                                            >
+                                                                                Cancel Edit
+                                                                            </Button>
+                                                                            <Button
+                                                                                type="button"
+                                                                                onClick={() => handleUpdateItem(catName)}
+                                                                                className="gap-2"
+                                                                            >
+                                                                                <CheckCircle2 className="h-4 w-4" /> Update Configuration
+                                                                            </Button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="outline"
+                                                                            onClick={() => handleAddItem(catName)}
+                                                                            className="gap-2"
+                                                                            disabled={loading}
+                                                                        >
+                                                                            <Plus className="h-4 w-4" /> Add Configuration
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            )
+                                                        })()}
                                                     </div>
                                                 </div>
                                             ) : (

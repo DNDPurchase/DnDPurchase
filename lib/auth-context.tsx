@@ -30,6 +30,7 @@ interface AuthUser {
   secondaryEmails?: string[];
   notificationEmails?: string[];
   verifiedSecondaryEmails?: string[];
+  nonStandardColorCoilsLastUpdated?: string
 }
 
 interface AuthContextType {

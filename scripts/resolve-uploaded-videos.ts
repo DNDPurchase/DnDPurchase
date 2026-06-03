@@ -27,15 +27,15 @@ const storage = getStorage(app);
 
 const videos = [
   {
-    storagePath: "Landing Page.mp4",
+    storagePath: "tutorials/Landing Page.mp4",
     key: "landingPage",
   },
   {
-    storagePath: "Buyer.mp4",
+    storagePath: "tutorials/Buyer.mp4",
     key: "buyer",
   },
   {
-    storagePath: "Seller.mp4",
+    storagePath: "tutorials/Seller.mp4",
     key: "seller",
   },
 ];

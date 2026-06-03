@@ -1,1 +1,5 @@
-{}
+{
+  "landingPage": "https://firebasestorage.googleapis.com/v0/b/dnd-purchase-a23c6.firebasestorage.app/o/tutorials%2FLanding%20Page.mp4?alt=media&token=efb9a61e-8d1e-4d83-a3f7-71ec20b99c6a",
+  "buyer": "https://firebasestorage.googleapis.com/v0/b/dnd-purchase-a23c6.firebasestorage.app/o/tutorials%2FBuyer.mp4?alt=media&token=34b6327e-5ff7-4ab1-b102-74b49be05dbc",
+  "seller": "https://firebasestorage.googleapis.com/v0/b/dnd-purchase-a23c6.firebasestorage.app/o/tutorials%2FSeller.mp4?alt=media&token=b4f2c73a-6d23-4972-b674-64dcffba426b"
+}

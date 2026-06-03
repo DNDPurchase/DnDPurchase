@@ -95,6 +95,20 @@ export default function LandingPage() {
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all group-hover:w-full" style={{ backgroundColor: v('accent') }} />
               </motion.a>
             ))}
+            <motion.div
+              initial={{ y: -10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
+              <Link
+                href="/tutorials"
+                className="lp-nav-link text-base sm:text-lg font-medium transition-all relative group"
+                style={{ color: v('text') }}
+              >
+                Tutorials
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all group-hover:w-full" style={{ backgroundColor: v('accent') }} />
+              </Link>
+            </motion.div>
           </nav>
 
           {/* Desktop actions */}
@@ -148,6 +162,14 @@ export default function LandingPage() {
                     {item.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                   </a>
                 ))}
+                <Link
+                  href="/tutorials"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+                  style={{ color: v('text') }}
+                >
+                  Tutorials
+                </Link>
                 <div className="flex flex-col gap-2 pt-2" style={{ borderTop: `1px solid ${v('border')}` }}>
                   <Button asChild variant="outline" size="sm" className="w-full transition-all" style={{ backgroundColor: 'transparent', borderColor: v('outline-btn-border'), color: v('outline-btn-text') }}>
                     <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>

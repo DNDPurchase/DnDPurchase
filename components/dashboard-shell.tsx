@@ -21,6 +21,7 @@ import {
   X,
   BadgeCheck,
   Package,
+  PlayCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -70,6 +71,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     ...(isBuyer ? BUYER_NAV : []),
     ...(isSeller ? (isBuyer ? SELLER_NAV.filter((s) => !BUYER_NAV.some((b) => b.href === s.href)) : SELLER_NAV) : []),
     ...(!isBuyer && !isSeller ? [{ href: "/dashboard", label: "Overview", icon: LayoutDashboard }] : []),
+    { href: "/tutorials", label: "Tutorials", icon: PlayCircle },
   ]
 
   // Deduplicate by href

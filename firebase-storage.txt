@@ -45,6 +45,15 @@ service firebase.storage {
       allow delete: if isAuthenticated();
     }
 
+    // Tutorials Folder
+    // - Anyone can view tutorial videos
+    // - Only Admins can upload, modify, or delete
+    // - Note: For initial upload, temporarily set 'allow write: if true;' then restore.
+    match /tutorials/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Default fallback - deny all other access
     match /{allPaths=**} {
       allow read, write: if false;

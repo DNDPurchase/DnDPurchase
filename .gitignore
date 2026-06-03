@@ -17,3 +17,5 @@ data/
 *.db-wal
 .vercel
 admin/
+DND Video/
+public/videos/

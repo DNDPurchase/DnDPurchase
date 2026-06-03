@@ -504,7 +504,8 @@ export default function MyProductsPage() {
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">Products I Sell</h3>
-                            <p className="text-xs text-muted-foreground">Click a product to configure or add it to your catalog.</p>
+                            <p className="text-xs text-muted-foreground">Select the Product which you want to Sell.</p>
+                             <p className="text-xs text-muted-foreground">ONLY for the selected products the inquiry will be shown.</p>
                         </div>
                     </div>
 
@@ -829,7 +830,8 @@ export default function MyProductsPage() {
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">Delivery Locations</h3>
-                            <p className="text-xs text-muted-foreground">Select the states and districts you deliver to.</p>
+                            <p className="text-xs text-muted-foreground">Select the location where you are available to deliver the product.</p>
+                            <p className="text-xs text-muted-foreground">Only the selected locations will be shown for inquiry.</p>
                         </div>
                     </div>
 

@@ -162,63 +162,113 @@ export default function MyProductsPage() {
         ];
 
         return (
-            <div className="rounded-md border border-border overflow-hidden mb-5">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-semibold tracking-wider">
-                            <tr>
-                                <th className="px-4 py-2.5 w-10 text-center">#</th>
-                                {columns.map(col => (
-                                    <th key={col} className="px-4 py-2.5 whitespace-nowrap">{col}</th>
-                                ))}
-                                {(onRemove || onEdit) && <th className="px-4 py-2.5 text-right w-20">Action</th>}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/60">
-                            {safeItems.map((item, idx) => (
-                                <tr key={idx} className={`bg-card transition-colors ${editingIndex === idx ? 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary' : 'hover:bg-muted/20'}`}>
-                                    <td className="px-4 py-3 text-center text-muted-foreground font-medium">{idx + 1}</td>
-                                    {columns.map(col => {
-                                        const val = item[col];
-                                        const displayVal = Array.isArray(val) ? val.join(", ") : String(val || "-");
-                                        return (
-                                            <td key={col} className="px-4 py-3 whitespace-nowrap max-w-[200px] truncate" title={displayVal}>
-                                                {displayVal}
-                                            </td>
-                                        )
-                                    })}
-                                    {(onRemove || onEdit) && (
-                                        <td className="px-4 py-3 text-right">
-                                            <div className="flex gap-1 justify-end">
-                                                {onEdit && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className={`h-7 w-7 p-0 ${editingIndex === idx ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
-                                                        onClick={() => onEdit(idx)}
-                                                        title="Edit configuration"
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                                {onRemove && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                                        onClick={() => onRemove(idx)}
-                                                        title="Remove item"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    )}
+            <div className="mb-5">
+                {/* Desktop View Table */}
+                <div className="hidden md:block rounded-md border border-border overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-semibold tracking-wider">
+                                <tr>
+                                    <th className="px-4 py-2.5 w-10 text-center">#</th>
+                                    {columns.map(col => (
+                                        <th key={col} className="px-4 py-2.5 whitespace-nowrap">{col}</th>
+                                    ))}
+                                    {(onRemove || onEdit) && <th className="px-4 py-2.5 text-right w-20">Action</th>}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                                {safeItems.map((item, idx) => (
+                                    <tr key={idx} className={`bg-card transition-colors ${editingIndex === idx ? 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary' : 'hover:bg-muted/20'}`}>
+                                        <td className="px-4 py-3 text-center text-muted-foreground font-medium">{idx + 1}</td>
+                                        {columns.map(col => {
+                                            const val = item[col];
+                                            const displayVal = Array.isArray(val) ? val.join(", ") : String(val || "-");
+                                            return (
+                                                <td key={col} className="px-4 py-3 whitespace-nowrap max-w-[200px] truncate" title={displayVal}>
+                                                    {displayVal}
+                                                </td>
+                                            )
+                                        })}
+                                        {(onRemove || onEdit) && (
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex gap-1 justify-end">
+                                                    {onEdit && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className={`h-7 w-7 p-0 ${editingIndex === idx ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
+                                                            onClick={() => onEdit(idx)}
+                                                            title="Edit configuration"
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    {onRemove && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                            onClick={() => onRemove(idx)}
+                                                            title="Remove item"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Mobile View Card List */}
+                <div className="md:hidden space-y-3">
+                    {safeItems.map((item, idx) => (
+                        <div key={idx} className={`rounded-xl border p-4 bg-card shadow-sm space-y-3 ${editingIndex === idx ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-border/60'}`}>
+                            <div className="flex justify-between items-center border-b border-border/40 pb-2">
+                                <span className="text-xs font-semibold text-muted-foreground">Configuration #{idx + 1}</span>
+                                <div className="flex gap-1.5">
+                                    {onEdit && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className={`h-7 w-7 p-0 rounded-md ${editingIndex === idx ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
+                                            onClick={() => onEdit(idx)}
+                                            title="Edit configuration"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                    )}
+                                    {onRemove && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 w-7 p-0 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() => onRemove(idx)}
+                                            title="Remove item"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                {columns.map(col => {
+                                    const val = item[col];
+                                    const displayVal = Array.isArray(val) ? val.join(", ") : String(val || "-");
+                                    return (
+                                        <div key={col} className="flex flex-col gap-1 min-w-0">
+                                            <span className="font-bold text-[9px] uppercase tracking-wider text-muted-foreground/80">{col}</span>
+                                            <span className="text-foreground font-semibold break-words">{displayVal}</span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         );
@@ -431,7 +481,7 @@ export default function MyProductsPage() {
     const activeLocationCount = Object.keys(formData.availableLocations).length
 
     return (
-        <div className="mx-auto max-w-4xl pb-20 px-4 md:px-0">
+        <div className="mx-auto max-w-4xl pb-20 px-0">
             {/* Page Header */}
             <div className="mb-10">
                 <h2 className="font-serif text-3xl font-bold text-foreground tracking-tight">My Products & Locations</h2>

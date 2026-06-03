@@ -578,74 +578,136 @@ export default function NewInquiryPage() {
                           <p className="text-xs text-muted-foreground/60 mt-1">Sellers will provide tabular data when they submit quotations.</p>
                         </div>
                       ) : (
-                        <div className="rounded-lg border border-border overflow-hidden bg-card">
-                          <div className="overflow-x-scroll scrollbar-show-x">
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="bg-muted/30 border-b border-border">
-                                  <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground/80 w-8">#</th>
-                                  {(() => {
-                                    const FIELD_ORDER = ["Sub-Products", "Color", "Manufacturer", "Quantity(in tons)", "Location", "Comment"];
-                                    const allCols = Array.from(new Set(catalogData.flatMap(r => Object.keys(r.values))));
-                                    const sortedCols = [...FIELD_ORDER.filter(f => allCols.includes(f)), ...allCols.filter(f => !FIELD_ORDER.includes(f))];
-                                    return sortedCols.map((col, ci) => (
-                                      <th key={ci} className="px-3 py-2.5 text-left font-semibold text-foreground/80 whitespace-nowrap">
-                                        {col === "Sub-Products" && currentItem.product === "Stock of non-standard Color-coated coils/sheets" ? "Color Series" : col}
-                                      </th>
-                                    ));
-                                  })()}
-                                  <th className="px-3 py-2.5 text-center font-semibold text-foreground/80 w-36">Contact</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {catalogData.map((row, rowIdx) => (
-                                  <tr key={rowIdx} className="border-b border-border/50 hover:bg-muted/10 transition-colors">
-                                    <td className="px-3 py-2.5 text-muted-foreground font-medium">{rowIdx + 1}</td>
+                        <>
+                          {/* Desktop View Table */}
+                          <div className="hidden md:block rounded-lg border border-border overflow-hidden bg-card">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="bg-muted/30 border-b border-border">
+                                    <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground/80 w-8">#</th>
                                     {(() => {
                                       const FIELD_ORDER = ["Sub-Products", "Color", "Manufacturer", "Quantity(in tons)", "Location", "Comment"];
                                       const allCols = Array.from(new Set(catalogData.flatMap(r => Object.keys(r.values))));
                                       const sortedCols = [...FIELD_ORDER.filter(f => allCols.includes(f)), ...allCols.filter(f => !FIELD_ORDER.includes(f))];
                                       return sortedCols.map((col, ci) => (
-                                        <td key={ci} className="px-3 py-2.5 text-foreground font-medium whitespace-nowrap">
-                                          {row.values[col] || <span className="text-muted-foreground/50 italic">—</span>}
-                                        </td>
+                                        <th key={ci} className="px-3 py-2.5 text-left font-semibold text-foreground/80 whitespace-nowrap">
+                                          {col === "Sub-Products" && currentItem.product === "Stock of non-standard Color-coated coils/sheets" ? "Color Series" : col}
+                                        </th>
                                       ));
                                     })()}
-                                    <td className="px-3 py-2.5 text-center">
-                                      {revealedContacts.has(rowIdx) ? (
-                                        <div className="flex flex-col items-start gap-1 text-[10px] animate-in fade-in duration-300">
-                                          <span className="font-bold text-foreground">{row.sellerName}</span>
-                                          {row.contactEmail && (
-                                            <span className="flex items-center gap-1 text-muted-foreground break-all">
-                                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                                              {row.contactEmail}
-                                            </span>
-                                          )}
-                                          {row.contactPhone && (
-                                            <span className="flex items-center gap-1 text-muted-foreground">
-                                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                                              {row.contactPhone}
-                                            </span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-7 text-[10px] font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/5 rounded-lg px-2.5"
-                                          onClick={() => setRevealedContacts(prev => new Set(prev).add(rowIdx))}
-                                        >
-                                          <Lock className="h-3 w-3" />
-                                          Seller Contact
-                                        </Button>
-                                      )}
-                                    </td>
+                                    <th className="px-3 py-2.5 text-center font-semibold text-foreground/80 w-36">Contact</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                </thead>
+                                <tbody>
+                                  {catalogData.map((row, rowIdx) => (
+                                    <tr key={rowIdx} className="border-b border-border/50 hover:bg-muted/10 transition-colors">
+                                      <td className="px-3 py-2.5 text-muted-foreground font-medium">{rowIdx + 1}</td>
+                                      {(() => {
+                                        const FIELD_ORDER = ["Sub-Products", "Color", "Manufacturer", "Quantity(in tons)", "Location", "Comment"];
+                                        const allCols = Array.from(new Set(catalogData.flatMap(r => Object.keys(r.values))));
+                                        const sortedCols = [...FIELD_ORDER.filter(f => allCols.includes(f)), ...allCols.filter(f => !FIELD_ORDER.includes(f))];
+                                        return sortedCols.map((col, ci) => (
+                                          <td key={ci} className="px-3 py-2.5 text-foreground font-medium whitespace-nowrap">
+                                            {row.values[col] || <span className="text-muted-foreground/50 italic">—</span>}
+                                          </td>
+                                        ));
+                                      })()}
+                                      <td className="px-3 py-2.5 text-center">
+                                        {revealedContacts.has(rowIdx) ? (
+                                          <div className="flex flex-col items-start gap-1 text-[10px] animate-in fade-in duration-300">
+                                            <span className="font-bold text-foreground">{row.sellerName}</span>
+                                            {row.contactEmail && (
+                                              <span className="flex items-center gap-1 text-muted-foreground break-all">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                                {row.contactEmail}
+                                              </span>
+                                            )}
+                                            {row.contactPhone && (
+                                              <span className="flex items-center gap-1 text-muted-foreground">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                                {row.contactPhone}
+                                              </span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 text-[10px] font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/5 rounded-lg px-2.5"
+                                            onClick={() => setRevealedContacts(prev => new Set(prev).add(rowIdx))}
+                                          >
+                                            <Lock className="h-3 w-3" />
+                                            Seller Contact
+                                          </Button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
-                        </div>
+
+                          {/* Mobile View Card List */}
+                          <div className="md:hidden space-y-3">
+                            {catalogData.map((row, rowIdx) => (
+                              <div key={rowIdx} className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-3">
+                                <div className="flex justify-between items-center border-b border-border pb-2">
+                                  <span className="text-xs font-semibold text-muted-foreground">Seller #{rowIdx + 1}</span>
+                                  {revealedContacts.has(rowIdx) ? (
+                                    <span className="text-xs font-bold text-foreground">{row.sellerName}</span>
+                                  ) : null}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                                  {(() => {
+                                    const FIELD_ORDER = ["Sub-Products", "Color", "Manufacturer", "Quantity(in tons)", "Location", "Comment"];
+                                    const allCols = Array.from(new Set(catalogData.flatMap(r => Object.keys(r.values))));
+                                    const sortedCols = [...FIELD_ORDER.filter(f => allCols.includes(f)), ...allCols.filter(f => !FIELD_ORDER.includes(f))];
+                                    return sortedCols.map((col, ci) => (
+                                      <div key={ci} className="flex flex-col gap-0.5">
+                                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground/80 font-bold">
+                                          {col === "Sub-Products" && currentItem.product === "Stock of non-standard Color-coated coils/sheets" ? "Color Series" : col}
+                                        </span>
+                                        <span className="text-foreground font-medium truncate" title={row.values[col]}>
+                                          {row.values[col] || <span className="text-muted-foreground/50 italic">—</span>}
+                                        </span>
+                                      </div>
+                                    ));
+                                  })()}
+                                </div>
+                                <div className="pt-2 border-t border-border/50 flex justify-end">
+                                  {revealedContacts.has(rowIdx) ? (
+                                    <div className="flex flex-col items-end gap-1 text-[10px] w-full">
+                                      {row.contactEmail && (
+                                        <span className="flex items-center gap-1 text-muted-foreground break-all">
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                          {row.contactEmail}
+                                        </span>
+                                      )}
+                                      {row.contactPhone && (
+                                        <span className="flex items-center gap-1 text-muted-foreground">
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                          {row.contactPhone}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 text-[10px] font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/5 rounded-lg px-2.5"
+                                      onClick={() => setRevealedContacts(prev => new Set(prev).add(rowIdx))}
+                                    >
+                                      <Lock className="h-3 w-3" />
+                                      Seller Contact
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
                       )}
                     </div>
                   ) : (

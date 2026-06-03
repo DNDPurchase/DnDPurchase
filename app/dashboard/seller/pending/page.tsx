@@ -777,7 +777,7 @@ export default function SellerPendingPage() {
                               <Plus className="h-3 w-3" /> Add Row
                             </Button>
                           </div>
-                          <div className="overflow-x-auto">
+                          <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-xs">
                               <thead>
                                 <tr className="bg-muted/20 border-b border-border">
@@ -828,6 +828,48 @@ export default function SellerPendingPage() {
                                 )}
                               </tbody>
                             </table>
+                          </div>
+
+                          {/* Mobile View Card List */}
+                          <div className="md:hidden space-y-3 p-3">
+                            {currentRows.length === 0 ? (
+                              <div className="text-center text-muted-foreground italic py-6 text-xs">
+                                No rows added yet. Click &quot;Add Row&quot; to start.
+                              </div>
+                            ) : (
+                              currentRows.map((row: Record<string, string>, rowIdx: number) => (
+                                <div key={rowIdx} className="rounded-lg border border-border p-3 space-y-3 bg-card shadow-sm">
+                                  <div className="flex justify-between items-center border-b border-border/50 pb-2">
+                                    <span className="font-semibold text-xs text-muted-foreground">Row #{rowIdx + 1}</span>
+                                    {editingOffer?.status !== "accepted" && (
+                                      <button
+                                        type="button"
+                                        className="text-muted-foreground hover:text-destructive transition-colors"
+                                        onClick={() => removeRow(rowIdx)}
+                                        title="Remove row"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-2.5">
+                                    {tableColumns.map((col: string, ci: number) => (
+                                      <div key={ci} className="space-y-1">
+                                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground/80 font-bold">{col}</Label>
+                                        <Input
+                                          type="text"
+                                          placeholder={`Enter ${col.toLowerCase()}`}
+                                          value={row[col] || ''}
+                                          onChange={(e) => updateRow(rowIdx, col, e.target.value)}
+                                          className="h-9 text-xs border-border/50 bg-background"
+                                          disabled={editingOffer?.status === "accepted"}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))
+                            )}
                           </div>
                         </div>
                       );

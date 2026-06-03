@@ -248,7 +248,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 1.5, ease: "easeOut" }}
-              className="text-left lg:col-span-8 ml-4 lg:ml-8"
+              className="text-left lg:col-span-8 ml-0 sm:ml-4 lg:ml-8"
             >
               {/* H1 */}
               <h1 className="font-black leading-none tracking-tight text-5xl sm:text-6xl md:text-7xl xl:text-8xl" style={{ color: v('heading') }}>
@@ -267,14 +267,14 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.0, duration: 1.5, ease: "easeOut" }}
-                className="mt-8 flex flex-wrap items-center gap-4 ml-2 sm:ml-3"
+                className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 ml-0 sm:ml-3"
               >
-                <Button asChild size="lg" className="h-14 gap-2 px-10 text-lg sm:text-xl group relative overflow-hidden font-bold transition-all hover:scale-105 active:scale-95 rounded-xl shadow-2xl shadow-red-500/20" style={{ backgroundColor: v('accent'), color: '#FFFFFF' }}>
-                  <Link href="/auth/register" className="relative z-10 flex items-center gap-2">
+                <Button asChild size="lg" className="h-14 gap-2 px-10 text-lg sm:text-xl group relative overflow-hidden font-bold transition-all hover:scale-105 active:scale-95 rounded-xl shadow-2xl shadow-red-500/20 w-full sm:w-auto text-center justify-center" style={{ backgroundColor: v('accent'), color: '#FFFFFF' }}>
+                  <Link href="/auth/register" className="relative z-10 flex items-center justify-center gap-2">
                     Create new account <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" className="h-14 gap-2 px-10 text-lg sm:text-xl border border-white/10 bg-neutral-900/60 backdrop-blur-md transition-all hover:bg-neutral-800/80 hover:border-white/25 active:scale-95 font-bold rounded-xl shadow-xl" style={{ color: '#FFFFFF' }}>
+                <Button asChild size="lg" className="h-14 gap-2 px-10 text-lg sm:text-xl border border-white/10 bg-neutral-900/60 backdrop-blur-md transition-all hover:bg-neutral-800/80 hover:border-white/25 active:scale-95 font-bold rounded-xl shadow-xl w-full sm:w-auto text-center justify-center" style={{ color: '#FFFFFF' }}>
                   <Link href="/auth/login">Sign In</Link>
                 </Button>
               </motion.div>
@@ -288,10 +288,10 @@ export default function LandingPage() {
               className="flex flex-col gap-5 lg:col-span-4"
             >
               {/* No-hassle list card */}
-              <div className="flex flex-col gap-4 p-7 rounded-2xl card-glossy shadow-2xl">
+              <div className="flex flex-col gap-4 p-5 sm:p-7 rounded-2xl card-glossy shadow-2xl">
                 <p className="text-sm font-bold tracking-wider opacity-65 text-metallic" style={{ textAlign: 'center' }}>Why DND Purchase?</p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Left Column - Red Points */}
                   <div className="flex flex-col gap-4">
                     {[
@@ -330,7 +330,7 @@ export default function LandingPage() {
                   { label: 'Categories', value: '9' },
                   { label: 'Avg. Saving', value: '3%' },
                 ].map((stat) => (
-                  <div key={stat.label} className="flex flex-col items-center p-4 rounded-xl card-glossy text-center shadow-xl">
+                  <div key={stat.label} className="flex flex-col items-center p-2.5 sm:p-4 rounded-xl card-glossy text-center shadow-xl">
                     <span className="text-2xl font-black text-glow-red">{stat.value}</span>
                     <span className="text-xs font-semibold opacity-60 mt-1" style={{ color: v('text') }}>{stat.label}</span>
                   </div>

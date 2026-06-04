@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   ArrowLeft,
@@ -113,17 +113,31 @@ const TUTORIALS: Tutorial[] = [
       { time: "0:10", title: "Setting up your Seller profile" },
       { time: "1:05", title: "Setting up My Products" },
       { time: "2:08", title: "Dashboard Overview" },
-      { time: "2.22", title: "New Inquiry" },
+      { time: "2:22", title: "New Inquiry" },
       { time: "3:00", title: "My Offers" },
       { time: "3:30", title: "Thank You and Contact Information" },
     ],
   },
 ]
 
+function parseTimeToSeconds(timeStr: string): number {
+  const normalized = timeStr.replace(".", ":")
+  const parts = normalized.split(":").map(Number)
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1]
+  } else if (parts.length === 1) {
+    return parts[0]
+  }
+  return 0
+}
+
 export default function TutorialsPage() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<"all" | "everyone" | "buyers" | "sellers">("all")
   const [selectedTutorial, setSelectedTutorial] = useState<Tutorial | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   const v = (name: string) => `var(--lp-${name})`
 
@@ -322,6 +336,7 @@ export default function TutorialsPage() {
               {/* Left Column: Video Player */}
               <div className="relative md:col-span-8 bg-black flex items-center justify-center aspect-video md:aspect-auto md:h-full">
                 <video
+                  ref={videoRef}
                   src={selectedTutorial.videoUrl}
                   controls
                   autoPlay
@@ -363,7 +378,14 @@ export default function TutorialsPage() {
                     {selectedTutorial.chapters.map((chapter, i) => (
                       <div
                         key={i}
-                        className="flex items-center gap-3.5 p-2 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/5"
+                        onClick={() => {
+                          if (videoRef.current) {
+                            const seconds = parseTimeToSeconds(chapter.time)
+                            videoRef.current.currentTime = seconds
+                            videoRef.current.play().catch(() => {})
+                          }
+                        }}
+                        className="flex items-center gap-3.5 p-2 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/5 cursor-pointer"
                       >
                         <span className="text-xs font-black text-red-500 bg-red-500/10 px-2 py-1 rounded-md shrink-0">
                           {chapter.time}

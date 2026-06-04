@@ -85,10 +85,12 @@ const TUTORIALS: Tutorial[] = [
       "Submit and finalize winning offers",
     ],
     chapters: [
-      { time: "0:00", title: "Accessing the Buyer dashboard" },
-      { time: "0:50", title: "Creating a new Procurement Inquiry" },
-      { time: "2:50", title: "Initiating Bidding for the lowest price" },
-      { time: "4:00", title: "Closing the deal & next steps" },
+      { time: "0:00", title: "Welcome to DND Purchase" },
+      { time: "0:12", title: "Profile and Settings" },
+      { time: "0:48", title: "Dashboard Overview" },
+      { time: "1:18", title: "How to Create Inquiry" },
+      { time: "3:00", title: "My Offers" },
+      { time: "4:46", title: "Thank You and Contact Information" },
     ],
   },
   {

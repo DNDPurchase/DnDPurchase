@@ -49,7 +49,7 @@ interface Tutorial {
 const TUTORIALS: Tutorial[] = [
   {
     id: "overview",
-    title: "Platform Overview",
+    title: "Website Overview",
     subtitle: "Learn the core value proposition of DND Purchase",
     duration: "2:02",
     role: "Everyone",
@@ -71,7 +71,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     id: "buyer",
-    title: "Buyer Walkthrough",
+    title: "How to Buy?",
     subtitle: "Master the buying workflow from inquiry to bid win",
     duration: "4:36",
     role: "Buyers",
@@ -95,7 +95,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     id: "seller",
-    title: "Seller Walkthrough",
+    title: "How to Sell?",
     subtitle: "Learn how to find leads, submit quotes & win bids",
     duration: "3:38",
     role: "Sellers",
@@ -211,7 +211,7 @@ export default function TutorialsPage() {
         {/* Title Block */}
         <div className="text-center max-w-3xl mx-auto mb-12">
           <h1 className="text-4xl md:text-5xl font-black tracking-tight text-metallic">
-            Learn DND Purchase
+            How to use DND Purchase?
           </h1>
           <p className="mt-3 text-lg md:text-xl font-medium text-metallic-muted">
             Everything you need to know to buy and sell steel & cement in minutes, with zero spam calls.

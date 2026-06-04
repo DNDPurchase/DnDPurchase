@@ -174,7 +174,7 @@ export default function RegisterPage() {
       if (!productObj) continue
 
       const hasSubProducts = !!(productObj.sub_products && productObj.sub_products.length > 0)
-      const isMultiConfig = prodName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+      const isMultiConfig = prodName === "Stock of non-standard Color-coated coils/sheets"
 
       if (isMultiConfig) {
         const items = sellerProductOptions[prodName] || []
@@ -202,7 +202,7 @@ export default function RegisterPage() {
     if (!productObj) return
 
     const hasSubProducts = !!(productObj.sub_products && productObj.sub_products.length > 0)
-    const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+    const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets"
 
     const isExpanding = !expandedProducts.includes(catName)
     if (isExpanding) {
@@ -223,7 +223,7 @@ export default function RegisterPage() {
     if (!productObj) return
 
     const hasSubProducts = !!(productObj.sub_products && productObj.sub_products.length > 0)
-    const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+    const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets"
 
     if (isMultiConfig) {
       // If there are unsaved inputs in tempProductOptions, try to add them if they are valid
@@ -1127,7 +1127,7 @@ export default function RegisterPage() {
                           const isExpanded = expandedProducts.includes(catName)
                           const productOptions = allOptions[product.id] || []
                           const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
-                          const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                          const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets"
                           const currentOptions = sellerProductOptions[catName] || []
                           const optValues = tempProductOptions[catName] || {}
 
@@ -1244,30 +1244,63 @@ export default function RegisterPage() {
                                         : "Product Options"}
                                     </h5>
 
-                                    {/* Sub-Products dropdown */}
+                                    {/* Sub-Products dropdown / checkbox */}
                                     {hasSubProducts && product.sub_products && (
                                       <div className="space-y-1.5">
                                         <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                                           Sub-Products <span className="text-primary">*</span>
                                         </Label>
-                                        <Select
-                                          value={typeof optValues["Sub-Products"] === 'string' ? optValues["Sub-Products"] : ""}
-                                          onValueChange={(val) => {
-                                            setTempProductOptions(prev => ({
-                                              ...prev,
-                                              [catName]: { ...(prev[catName] || {}), "Sub-Products": val }
-                                            }))
-                                          }}
-                                        >
-                                          <SelectTrigger className="w-full h-8 text-xs rounded-md bg-muted/30 border-border font-medium text-foreground">
-                                            <SelectValue placeholder="Select sub-product..." />
-                                          </SelectTrigger>
-                                          <SelectContent className="z-[200]">
-                                            {product.sub_products.map(sub => (
-                                              <SelectItem key={sub} value={sub} className="text-xs font-medium">{sub}</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                        {isMultiConfig ? (
+                                          <Select
+                                            value={typeof optValues["Sub-Products"] === 'string' ? optValues["Sub-Products"] : ""}
+                                            onValueChange={(val) => {
+                                              setTempProductOptions(prev => ({
+                                                ...prev,
+                                                [catName]: { ...(prev[catName] || {}), "Sub-Products": val }
+                                              }))
+                                            }}
+                                          >
+                                            <SelectTrigger className="w-full h-8 text-xs rounded-md bg-muted/30 border-border font-medium text-foreground">
+                                              <SelectValue placeholder="Select sub-product..." />
+                                            </SelectTrigger>
+                                            <SelectContent className="z-[200]">
+                                              {product.sub_products.map(sub => (
+                                                <SelectItem key={sub} value={sub} className="text-xs font-medium">{sub}</SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        ) : (
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {product.sub_products.map((sub: string) => {
+                                              const currentVals = optValues["Sub-Products"] || []
+                                              const checked = Array.isArray(currentVals) && currentVals.includes(sub)
+                                              return (
+                                                <label
+                                                  key={sub}
+                                                  className={`inline-flex items-center gap-1.5 text-xs cursor-pointer transition-all duration-150 px-2 py-1 rounded-md border ${
+                                                    checked
+                                                      ? 'bg-primary border-primary text-primary-foreground font-medium shadow-sm'
+                                                      : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
+                                                  }`}
+                                                >
+                                                  <Checkbox
+                                                    checked={checked}
+                                                    className={checked ? "border-primary-foreground/50 bg-primary-foreground/20 data-[state=checked]:bg-primary-foreground/20 data-[state=checked]:text-primary-foreground h-3.5 w-3.5" : "h-3.5 w-3.5"}
+                                                    onCheckedChange={(c: boolean) => {
+                                                      const prevVals = Array.isArray(currentVals) ? currentVals : []
+                                                      const nextVals = c ? [...prevVals, sub] : prevVals.filter((v: string) => v !== sub)
+                                                      setTempProductOptions(prev => ({
+                                                        ...prev,
+                                                        [catName]: { ...(prev[catName] || {}), "Sub-Products": nextVals }
+                                                      }))
+                                                    }}
+                                                  />
+                                                  {sub}
+                                                </label>
+                                              )
+                                            })}
+                                          </div>
+                                        )}
                                       </div>
                                     )}
 

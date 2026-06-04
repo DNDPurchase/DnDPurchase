@@ -309,7 +309,7 @@ export default function MyProductsPage() {
 
         const productObj = availableProducts.find(p => p.name === catName)
         const hasSubProducts = !!(productObj?.sub_products && productObj.sub_products.length > 0)
-        const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+        const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets"
 
         let finalItems: any[] = []
 
@@ -624,8 +624,7 @@ export default function MyProductsPage() {
                                                             <X />
                                                         </button>
                                                         {(() => {
-                                                            const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
-                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets"
                                                             const isValid = isMultiConfig
                                                                 ? (tempProductItems.length > 0 || Object.keys(tempProductOptions).length > 0)
                                                                 : Object.keys(tempProductOptions).length > 0;
@@ -651,11 +650,37 @@ export default function MyProductsPage() {
                                                                     const savedItems = getSafeItemsArray(formData.sellerProductOptions[catName])
                                                                     setTempProductItems(savedItems)
                                                                     const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
-                                                                    const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                                    const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets"
                                                                     if (isMultiConfig) {
                                                                         setTempProductOptions({})
                                                                     } else {
-                                                                        setTempProductOptions(savedItems[0] || {})
+                                                                        if (hasSubProducts) {
+                                                                            const merged: Record<string, any> = {}
+                                                                            const allSubProducts: string[] = []
+                                                                            savedItems.forEach(item => {
+                                                                                if (item["Sub-Products"]) {
+                                                                                    if (Array.isArray(item["Sub-Products"])) {
+                                                                                        allSubProducts.push(...item["Sub-Products"])
+                                                                                    } else {
+                                                                                        allSubProducts.push(item["Sub-Products"])
+                                                                                    }
+                                                                                }
+                                                                                Object.entries(item).forEach(([key, val]) => {
+                                                                                    if (key === "Sub-Products") return
+                                                                                    if (Array.isArray(val)) {
+                                                                                        if (!merged[key]) merged[key] = []
+                                                                                        merged[key] = Array.from(new Set([...merged[key], ...val]))
+                                                                                    } else if (typeof val === 'string' && val.trim()) {
+                                                                                        if (!merged[key]) merged[key] = []
+                                                                                        if (!merged[key].includes(val)) merged[key].push(val)
+                                                                                    }
+                                                                                })
+                                                                            })
+                                                                            merged["Sub-Products"] = Array.from(new Set(allSubProducts))
+                                                                            setTempProductOptions(merged)
+                                                                        } else {
+                                                                            setTempProductOptions(savedItems[0] || {})
+                                                                        }
                                                                     }
                                                                     setEditingItemIndex(null)
                                                                 }}
@@ -697,8 +722,7 @@ export default function MyProductsPage() {
                                                     )}
                                                     {/* Preview of added items */}
                                                     {(() => {
-                                                        const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
-                                                        const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                        const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets";
                                                         return isMultiConfig && renderItemsTable(
                                                             tempProductItems, 
                                                             (idx) => {
@@ -720,8 +744,7 @@ export default function MyProductsPage() {
 
                                                     <div className="space-y-5 rounded-lg border border-border bg-muted/10 p-5">
                                                         {(() => {
-                                                            const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
-                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets";
                                                             return isMultiConfig ? (
                                                                 <h4 className="text-sm font-semibold text-foreground">Add New Variant</h4>
                                                             ) : (
@@ -735,19 +758,48 @@ export default function MyProductsPage() {
                                                                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                                                     Sub-Products <span className="text-primary">*</span>
                                                                 </Label>
-                                                                <Select
-                                                                    value={typeof tempProductOptions["Sub-Products"] === 'string' ? tempProductOptions["Sub-Products"] : ""}
-                                                                    onValueChange={(val) => setTempProductOptions({ ...tempProductOptions, "Sub-Products": val })}
-                                                                >
-                                                                    <SelectTrigger className="w-full h-10 rounded-lg bg-muted/30 border-border font-medium text-foreground">
-                                                                        <SelectValue placeholder="Select sub-product..." />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent className="z-[200]">
-                                                                        {product.sub_products.map(sub => (
-                                                                            <SelectItem key={sub} value={sub} className="font-medium">{sub}</SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
+                                                                {catName === "Stock of non-standard Color-coated coils/sheets" ? (
+                                                                    <Select
+                                                                        value={typeof tempProductOptions["Sub-Products"] === 'string' ? tempProductOptions["Sub-Products"] : ""}
+                                                                        onValueChange={(val) => setTempProductOptions({ ...tempProductOptions, "Sub-Products": val })}
+                                                                    >
+                                                                        <SelectTrigger className="w-full h-10 rounded-lg bg-muted/30 border-border font-medium text-foreground">
+                                                                            <SelectValue placeholder="Select sub-product..." />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent className="z-[200]">
+                                                                            {product.sub_products.map(sub => (
+                                                                                <SelectItem key={sub} value={sub} className="font-medium">{sub}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                ) : (
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {product.sub_products.map(sub => {
+                                                                            const currentVals = tempProductOptions["Sub-Products"] || [];
+                                                                            const checked = Array.isArray(currentVals) && currentVals.includes(sub);
+                                                                            return (
+                                                                                <label
+                                                                                    key={sub}
+                                                                                    className={`inline-flex items-center gap-2 text-sm cursor-pointer transition-all duration-150 px-3.5 py-2 rounded-lg border ${checked
+                                                                                        ? 'bg-primary border-primary text-primary-foreground font-medium shadow-sm'
+                                                                                        : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
+                                                                                        }`}
+                                                                                >
+                                                                                    <Checkbox
+                                                                                        checked={checked}
+                                                                                        className={checked ? "border-primary-foreground/50 bg-primary-foreground/20 data-[state=checked]:bg-primary-foreground/20 data-[state=checked]:text-primary-foreground" : ""}
+                                                                                        onCheckedChange={(c: boolean) => {
+                                                                                            const prev = Array.isArray(currentVals) ? currentVals : [];
+                                                                                            const next = c ? [...prev, sub] : prev.filter((v: string) => v !== sub);
+                                                                                            setTempProductOptions({ ...tempProductOptions, "Sub-Products": next });
+                                                                                        }}
+                                                                                    />
+                                                                                    {sub}
+                                                                                </label>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
 
@@ -813,8 +865,7 @@ export default function MyProductsPage() {
                                                         
                                                         {/* Add/Update Item Button */}
                                                         {(() => {
-                                                            const hasSubProducts = !!(product.sub_products && product.sub_products.length > 0)
-                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets" || hasSubProducts
+                                                            const isMultiConfig = catName === "Stock of non-standard Color-coated coils/sheets"
                                                             return isMultiConfig && (
                                                                 <div className="pt-2 flex justify-end gap-2">
                                                                     {editingItemIndex !== null ? (

@@ -331,10 +331,10 @@ export default function TutorialsPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", duration: 0.5 }}
-              className="relative w-full max-w-5xl rounded-3xl bg-neutral-950 border border-white/10 overflow-hidden shadow-2xl flex flex-col md:grid md:grid-cols-12 md:h-[650px]"
+              className="relative w-full max-w-5xl rounded-3xl bg-neutral-950 border border-white/10 overflow-hidden shadow-2xl flex flex-col h-[85vh] max-h-[750px] md:h-[650px] md:grid md:grid-cols-12"
             >
               {/* Left Column: Video Player */}
-              <div className="relative md:col-span-8 bg-black flex items-center justify-center aspect-video md:aspect-auto md:h-full">
+              <div className="relative md:col-span-8 bg-black flex items-center justify-center aspect-video md:aspect-auto md:h-full w-full shrink-0">
                 <video
                   ref={videoRef}
                   src={selectedTutorial.videoUrl}
@@ -346,7 +346,7 @@ export default function TutorialsPage() {
               </div>
 
               {/* Right Column: Chapters & Details */}
-              <div className="md:col-span-4 p-6 md:p-8 flex flex-col h-full border-t md:border-t-0 md:border-l border-white/10 bg-neutral-900/40 overflow-y-auto">
+              <div className="md:col-span-4 p-6 md:p-8 flex flex-col flex-1 min-h-0 md:h-full border-t md:border-t-0 md:border-l border-white/10 bg-neutral-900/40 overflow-y-auto">
                 <div className="flex justify-between items-start gap-4 mb-4">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-red-500">

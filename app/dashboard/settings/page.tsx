@@ -170,7 +170,9 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-4xl">
             <div className="mb-8 flex items-center justify-between">
                 <div>
-                    <h2 className="font-serif text-2xl font-bold text-foreground">Profile & Settings</h2>
+                    <h2 className="font-serif text-2xl font-bold text-foreground">
+                        {user?.role === 'buyer' ? 'Buyer Profile' : 'Seller Profile'}
+                    </h2>
                     <p className="mt-1 text-muted-foreground">
                         Manage your account details and preferences.
                     </p>

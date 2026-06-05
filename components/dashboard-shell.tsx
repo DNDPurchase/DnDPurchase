@@ -31,7 +31,7 @@ const BUYER_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/inquiry/new", label: "New Inquiry", icon: FileText },
   { href: "/dashboard/inquiries", label: "My Inquiries", icon: ShoppingCart },
-  { href: "/dashboard/settings", label: "Profile and Settings", icon: User },
+  { href: "/dashboard/settings", label: "Buyer Profile", icon: User },
 ]
 
 const SELLER_NAV = [
@@ -40,7 +40,7 @@ const SELLER_NAV = [
   { href: "/dashboard/seller/submitted-offers", label: "My Offers", icon: FileText },
   { href: "/dashboard/seller/my-offers", label: "My Bidding", icon: Tag },
   { href: "/dashboard/seller/my-products", label: "My Products", icon: Package },
-  { href: "/dashboard/settings", label: "Profile and Setting", icon: User },
+  { href: "/dashboard/settings", label: "Seller Profile", icon: User },
 ]
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -163,6 +163,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   {user?.company || user?.name || "Dashboard"}
                 </h1>
                 {user?.verified && <BadgeCheck className="h-5 w-5 text-blue-500" />}
+                {user?.role && (
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] font-sans uppercase tracking-wider font-semibold">
+                    {user.role === 'buyer' ? 'Buyer Profile' : 'Seller Profile'}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>

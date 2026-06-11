@@ -35,6 +35,9 @@ export default function DashboardOverview() {
   const isBuyer = user?.role === "buyer" || user?.role === "both"
   const isSeller = user?.role === "seller" || user?.role === "both"
 
+  const sellerHasNoProducts = !user?.categories || user.categories.length === 0
+  const sellerHasNoLocations = !user?.availableLocations || Object.keys(user.availableLocations).length === 0
+
   const { data: buyerInquiries } = useSWR(
     isBuyer && user ? `inquiries-${user.id}` : null,
     () => getInquiriesByBuyerId(user!.id),
@@ -187,6 +190,32 @@ export default function DashboardOverview() {
           </div>
         </div>
       </div>
+
+      {isSeller && (sellerHasNoProducts || sellerHasNoLocations) && (
+        <Card className="border-l-4 border-l-amber-500 bg-amber-500/5 dark:bg-amber-500/10">
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Action Required: Complete Setup</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {sellerHasNoProducts && sellerHasNoLocations
+                    ? "You have not selected any products or locations yet. Please select the products you sell and the locations you cover to start receiving inquiries."
+                    : sellerHasNoProducts
+                    ? "You have not selected any products yet. Please select the products you sell to start receiving inquiries."
+                    : "You have not selected any locations yet. Please select the locations you cover to start receiving inquiries."}
+                </p>
+              </div>
+            </div>
+            <Link href="/dashboard/seller/my-products" className="shrink-0">
+              <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white gap-1.5 font-medium shadow-sm transition-all duration-200 cursor-pointer">
+                Go to My Products
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ══════════════ BUYER DASHBOARD ══════════════ */}
       {isBuyer && buyerStats && (

@@ -524,7 +524,7 @@ export default function RegisterPage() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center  px-4 py-12"
+      className="flex min-h-screen min-h-dvh items-center justify-center  px-4 py-12"
       suppressHydrationWarning
     >
       <div className={`w-full transition-all duration-300 ${

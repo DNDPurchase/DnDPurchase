@@ -42,7 +42,7 @@ export default function LandingPage() {
   const v = (name: string) => `var(--lp-${name})`
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: v('bg'), color: v('text') }}>
+    <div className="min-h-screen min-h-dvh overflow-x-hidden" style={{ backgroundColor: v('bg'), color: v('text') }}>
       {/* Textured background — only visible in dark mode */}
       <div
         className="fixed inset-0 z-0 opacity-0 dark:opacity-100 transition-opacity duration-500"
@@ -190,7 +190,7 @@ export default function LandingPage() {
       </header>
 
       {/* ─── Hero ─── */}
-      <section ref={heroRef} className="relative min-h-[90vh] flex items-center overflow-hidden z-10">
+      <section ref={heroRef} className="relative min-h-[90vh] min-h-[90dvh] flex items-center overflow-hidden z-10">
         <div className="absolute inset-0" style={{
           backgroundImage: `linear-gradient(to right, ${v('grid-line')} 1px, transparent 1px), linear-gradient(to bottom, ${v('grid-line')} 1px, transparent 1px)`,
           backgroundSize: '6rem 6rem',

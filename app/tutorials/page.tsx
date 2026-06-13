@@ -160,7 +160,7 @@ export default function TutorialsPage() {
   }, [selectedTutorial])
 
   return (
-    <div className="min-h-screen pb-20 relative overflow-hidden" style={{ backgroundColor: v("bg"), color: v("text") }}>
+    <div className="min-h-screen min-h-dvh pb-20 relative overflow-hidden" style={{ backgroundColor: v("bg"), color: v("text") }}>
       {/* Textured background */}
       <div
         className="fixed inset-0 z-0 opacity-40 pointer-events-none"

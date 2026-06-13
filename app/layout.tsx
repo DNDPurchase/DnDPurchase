@@ -12,7 +12,6 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
 }
 
 export const metadata: Metadata = {
@@ -255,7 +254,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased min-h-screen bg-background`}
+        className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased min-h-screen min-h-dvh bg-background`}
       >
         <Providers>{children}</Providers>
         <Toaster position="top-right" richColors />

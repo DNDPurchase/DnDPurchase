@@ -78,7 +78,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const uniqueNav = navItems.filter((item, idx, arr) => arr.findIndex((i) => i.href === item.href) === idx)
 
   return (
-    <div className="flex min-h-screen ">
+    <div className="flex min-h-screen min-h-dvh">
       {/* Sidebar */}
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-card transition-transform lg:static lg:translate-x-0",

@@ -92,11 +92,11 @@ export async function sendWelcomeEmail(to: string, name: string) {
 }
 
 export async function notifySellerOfNewInquiryEmail(to: string, inquiryId: string, productName: string) {
-    const subject = `New Inquiry Alert: ${productName}`
+    const subject = `New Inquiry : ${productName}`
     const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
       <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
-        <h2 style="margin: 0; font-weight: normal;">New Inquiry Alert</h2>
+        <h2 style="margin: 0; font-weight: normal;">New Inquiry</h2>
       </div>
       <div style="padding: 24px;">
         <p>A new inquiry (#${inquiryId}) for <strong>${productName}</strong> has been posted that matches your categories.</p>
@@ -159,7 +159,7 @@ export async function notifyBuyerOfNewOfferEmail(to: string, inquiryId: string, 
     const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
       <div style="background-color: #1a1a1a; padding: 20px; text-align: center; color: #ffffff;">
-        <h2 style="margin: 0; font-weight: normal;">Offer Milestone Reached!</h2>
+        <h2 style="margin: 0; font-weight: normal;">Offer Received!</h2>
       </div>
       <div style="padding: 24px;">
         <p>Your Inquiry #${inquiryId} for <strong>${productName}</strong> has now received <strong>${offerCount} offers</strong>.</p>

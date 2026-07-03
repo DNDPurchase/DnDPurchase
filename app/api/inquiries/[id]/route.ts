@@ -32,7 +32,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         const inquiry = await getInquiryById(id)
         if (inquiry) {
           const categories = Array.from(new Set(inquiry.items.map((item: any) => item.product))) as string[]
-          const sellerContacts = await getSellersContactInfoByCategories(categories)
+          const sellerContacts = await getSellersContactInfoByCategories(categories, inquiry.items, {
+            state: inquiry.state,
+            district: inquiry.district
+          })
 
           logger.info("Bidding started, notifying matching sellers", { inquiryId: id, sellerCount: sellerContacts.length })
 

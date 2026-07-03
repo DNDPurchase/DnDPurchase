@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     // Send notifications to targeted sellers about new inquiry
     try {
       const categories = Array.from(new Set(items.map((item: any) => item.product))) as string[]
-      const sellerContacts = await getSellersContactInfoByCategories(categories)
+      const sellerContacts = await getSellersContactInfoByCategories(categories, items, deliveryDetails)
 
       logger.info("New inquiry created, sending targeted notifications", {
         inquiryId,

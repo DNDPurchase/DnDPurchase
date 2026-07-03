@@ -30,6 +30,7 @@ A Header (formerly Sender ID) is the unique 6-character alphanumeric code that a
    - TYPE OF COMMUNICATION: Choose "PROMOTIONAL" or "OTHER" (Transactional / Service Implicit / Service Explicit).
      * Promotional: Used for advertising or marketing offers. Usually numeric (e.g., "560601").
      * Service Implicit (Common for App): Transactional OTPs, alerts, order updates, bids, and invoices. Must be exactly 6 alphabetic characters (e.g., "DNDPUR").
+     * Service Explicit: Sent to customers after obtaining their explicit consent (e.g., alerts, product updates, brand communications).
      * Transactional: Reserved strictly for banking and financial OTPs.
    - PROMOTIONAL CATEGORY: Select your business domain/industry category (e.g., Real Estate, Food & Beverage, Consumer Goods).
    - HEADER: Enter your desired 6-character header value (e.g., "DNDPUR").
@@ -50,7 +51,11 @@ Every SMS layout (body text) sent by your system must be registered and approved
    - Click on "Add New Template".
 
 2. DEFINE TEMPLATE SETTINGS:
-   - TEMPLATE TYPE: Choose "Service Implicit" (for login OTPs, bidding notifications, alerts) or "Promotional" (for marketing campaigns).
+   - TEMPLATE TYPE / COMMUNICATION TYPE: Choose the appropriate category for the template:
+     * Transactional: Strictly for banking/financial transaction OTPs.
+     * Service Implicit: For OTPs, alerts, system-generated messages, or order updates triggered by user actions.
+     * Service Explicit: For service updates/offers sent to users who have given explicit consent to receive them.
+     * Promotional: For marketing and promotional offers.
    - CATEGORY: Select your business category (matches entity category).
    - SENDER ID / HEADER: Select your approved Header (e.g., "DNDPUR") from the dropdown list. This binds the template to that specific sender header.
 
@@ -60,9 +65,9 @@ Every SMS layout (body text) sent by your system must be registered and approved
    - FOR DYNAMIC VALUES (like IDs, Names, OTPs, Amounts):
      * Click the "Insert Variable" button to insert dynamic placeholders.
      * Placeholders look like: {#var#}
+     * The variable part can contain up to 40 characters (excluding exempted special characters).
      * Example Content:
-       "Hello {#var#}, a new bid has been started for Inquiry ID {#var#}. - DND Purchase"
-   - Keep variable lengths flexible (usually up to 30 characters each).
+       "hi {#var#}, your OTP is {#var#} . It is valid for 10 minutes"
 
 4. SUBMIT & VERIFY:
    - Review your text carefully (avoid typos and extra spaces).
@@ -93,11 +98,12 @@ Below are the approved Header names and exact SMS Content Templates that must be
 
 2. REQUIRED CONTENT TEMPLATES
    All templates below should be registered under the "Service Implicit" category using the approved Header "DNDPUR".
-   Note: All dynamic variables are represented by {#var#} for DLT registration.
+   Note: All dynamic variables are represented by {#var#} for DLT registration. Each variable part can contain up to 40 characters (excluding exempted special characters).
 
    Template 1: Welcome SMS
    - Description: Sent to welcome a new buyer or seller upon registration.
    - Template Name: Welcome_SMS
+   - Communication Type: Service Implicit
    - DLT Content:
      "Hello {#var#}, welcome to DND Purchase! You can now buy and sell Steel & Cement in just 2 steps. Log in at www.dndpurchase.com - DND Purchase"
    - MSG91 Env Variable: MSG91_TEMPLATE_WELCOME
@@ -105,6 +111,7 @@ Below are the approved Header names and exact SMS Content Templates that must be
    Template 2: New Inquiry Alert
    - Description: Sent to sellers when a new inquiry matching their category is posted.
    - Template Name: New_Inquiry_Alert
+   - Communication Type: Service Implicit
    - DLT Content:
      "A new inquiry matching your product categories has been posted. Log in to your dashboard to submit an offer: www.dndpurchase.com - DND Purchase"
    - MSG91 Env Variable: MSG91_TEMPLATE_NEW_INQUIRY
@@ -112,6 +119,7 @@ Below are the approved Header names and exact SMS Content Templates that must be
    Template 3: Bidding Started
    - Description: Sent to sellers when bidding starts on an inquiry.
    - Template Name: Bidding_Started
+   - Communication Type: Service Implicit
    - DLT Content:
      "Bidding has started for Inquiry ID {#var#}. Log in to submit or update your offer before the timer ends: www.dndpurchase.com - DND Purchase"
    - MSG91 Env Variable: MSG91_TEMPLATE_BIDDING_STARTED
@@ -119,13 +127,15 @@ Below are the approved Header names and exact SMS Content Templates that must be
    Template 4: New Offer Milestone
    - Description: Sent to buyers when their inquiry receives new offers.
    - Template Name: New_Offer_Milestone
+   - Communication Type: Service Implicit
    - DLT Content:
-     "New offers have been received on your Inquiry ID {#var#}. Log in to your dashboard to review them: www.dndpurchase.com - DND Purchase"
+    "New offers have been received on your Inquiry ID {#var#}. Log in to your dashboard to review them: www.dndpurchase.com - DND Purchase"
    - MSG91 Env Variable: MSG91_TEMPLATE_NEW_OFFER
 
    Template 5: Offer Accepted (Buyer Notice)
    - Description: Sent to the buyer containing delivery next steps.
    - Template Name: Offer_Accepted_Buyer
+   - Communication Type: Service Implicit
    - DLT Content:
      "You have accepted Offer ID {#var#}. Connect directly with the seller to finalize shipment & billing details: www.dndpurchase.com - DND Purchase"
    - MSG91 Env Variable: MSG91_TEMPLATE_OFFER_ACCEPTED_BUYER
@@ -133,6 +143,7 @@ Below are the approved Header names and exact SMS Content Templates that must be
    Template 6: Offer Accepted (Seller Notice)
    - Description: Sent to the seller when their offer is accepted.
    - Template Name: Offer_Accepted_Seller
+   - Communication Type: Service Implicit
    - DLT Content:
      "Congratulations! Your Offer ID {#var#} has been accepted by the buyer. Please connect with them to arrange delivery: www.dndpurchase.com - DND Purchase"
    - MSG91 Env Variable: MSG91_TEMPLATE_OFFER_ACCEPTED_SELLER
@@ -140,6 +151,7 @@ Below are the approved Header names and exact SMS Content Templates that must be
    Template 7: Offer Rejected (Seller Notice)
    - Description: Sent to the seller if their offer was not chosen.
    - Template Name: Offer_Rejected_Seller
+   - Communication Type: Service Implicit
    - DLT Content:
      "Your Offer ID {#var#} was not accepted this time. Check out other active inquiries on your dashboard: www.dndpurchase.com - DND Purchase"
    - MSG91 Env Variable: MSG91_TEMPLATE_OFFER_REJECTED_SELLER
@@ -147,6 +159,7 @@ Below are the approved Header names and exact SMS Content Templates that must be
    Template 8: Inquiry Closed / Cancelled
    - Description: Sent to users when an inquiry is closed or deleted.
    - Template Name: Inquiry_Closed
+   - Communication Type: Service Implicit
    - DLT Content:
      "Inquiry ID {#var#} has been closed or cancelled. Pending offers for this inquiry will no longer be active: www.dndpurchase.com - DND Purchase"
    - MSG91 Env Variable: MSG91_TEMPLATE_INQUIRY_CLOSED

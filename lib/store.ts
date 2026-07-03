@@ -809,7 +809,11 @@ export async function getAllSellerPhones(): Promise<string[]> {
   return snap.docs.map(d => d.data().phone).filter(p => !!p)
 }
 
-export async function getSellersContactInfoByCategories(categories: string[]): Promise<{phone: string, email: string, emails?: string[]}[]> {
+export async function getSellersContactInfoByCategories(
+  categories: string[],
+  items?: any[],
+  deliveryDetails?: { state?: string; district?: string }
+): Promise<{phone: string, email: string, emails?: string[]}[]> {
   if (!categories || categories.length === 0) return []
 
   // We fetch all verified sellers and filter in memory since firestore array-contains-any 
@@ -823,7 +827,85 @@ export async function getSellersContactInfoByCategories(categories: string[]): P
     .filter(seller => {
       const sellerCategories: string[] = seller.categories || []
       // Check if there is any intersection between seller categories and required categories
-      return sellerCategories.some(c => categories.includes(c))
+      const hasCategoryMatch = sellerCategories.some(c => categories.includes(c))
+      if (!hasCategoryMatch) return false
+
+      // If items are provided, perform detailed matching of product options (sub-products, manufacturers)
+      if (items && items.length > 0) {
+        const sellerOptionsData = seller.sellerProductOptions || {}
+
+        const hasValidOptionMatch = items.some(item => {
+          // If the seller doesn't even have this product category, it doesn't match this item
+          if (!sellerCategories.includes(item.product)) return false
+
+          let sellerVariants = sellerOptionsData[item.product] || []
+
+          if (!Array.isArray(sellerVariants)) {
+            if (typeof sellerVariants === 'object' && Object.keys(sellerVariants).length > 0) {
+              sellerVariants = [sellerVariants]
+            } else {
+              sellerVariants = []
+            }
+          }
+
+          // If the seller has selected the product category, but not configured any option details,
+          // they should NOT match (as requested: "selected the product but not selected the sub-product or make or etc")
+          if (sellerVariants.length === 0) return false
+
+          // Match variants
+          return sellerVariants.some((variant: any) => {
+            // Ensure the variant is not empty (has at least one option with configured values)
+            const hasConfiguredOptions = Object.values(variant).some(sellerVal => {
+              const sellerValsArr = Array.isArray(sellerVal) ? sellerVal : [sellerVal].filter(Boolean)
+              return sellerValsArr.length > 0
+            })
+            if (!hasConfiguredOptions) return false
+
+            // Check if this variant matches all options of the inquiry item
+            for (const [optName, sellerVal] of Object.entries(variant)) {
+              const sellerValsArr = Array.isArray(sellerVal) ? sellerVal : [sellerVal].filter(Boolean)
+
+              // If the seller has selected values for this option, the buyer's requested option must match one of them
+              if (sellerValsArr.length > 0) {
+                let buyerVal: string | string[] | undefined = (item.options || {})[optName]
+                if ((optName === "Sub-Products" || optName === "Sub-Product") && !buyerVal) {
+                  buyerVal = item.sub_product
+                }
+
+                if (buyerVal !== undefined && buyerVal !== null && String(buyerVal).trim() !== "") {
+                  const buyerValsArr = Array.isArray(buyerVal) ? buyerVal : [buyerVal].filter(Boolean)
+                  const intersects = buyerValsArr.some(bv => sellerValsArr.includes(bv))
+
+                  if (!intersects) return false // This variant does not match
+                }
+              }
+            }
+            return true // This variant matches
+          })
+        })
+
+        if (!hasValidOptionMatch) return false
+      }
+
+      // If deliveryDetails is provided, perform location matching
+      if (deliveryDetails && (deliveryDetails.state || deliveryDetails.district)) {
+        const sellerLocs = seller.availableLocations || {}
+        const inqState = deliveryDetails.state
+        const inqDistrict = deliveryDetails.district
+
+        if (inqState) {
+          if (!sellerLocs[inqState]) return false
+
+          if (inqDistrict) {
+            const sellerDistrictsForState = sellerLocs[inqState]
+            if (Array.isArray(sellerDistrictsForState) && sellerDistrictsForState.length > 0 && !sellerDistrictsForState.includes(inqDistrict)) {
+              return false
+            }
+          }
+        }
+      }
+
+      return true
     })
     .map(seller => {
       const emails = getVerifiedNotificationEmails(seller)

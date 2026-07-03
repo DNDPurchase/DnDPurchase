@@ -809,6 +809,29 @@ export async function getAllSellerPhones(): Promise<string[]> {
   return snap.docs.map(d => d.data().phone).filter(p => !!p)
 }
 
+function cleanString(str: any): string {
+  return String(str || "").toLowerCase().trim();
+}
+
+function cleanKey(key: string): string {
+  if (!key) return "";
+  return cleanString(key).split('(')[0].trim();
+}
+
+const EXCLUDED_OPTION_KEYS = new Set([
+  "quantity",
+  "quantity measurement",
+  "quantity_measurement",
+  "qty",
+  "remarks",
+  "payment terms",
+  "payment_terms",
+  "price",
+  "comments",
+  "pdfurl",
+  "attachments"
+]);
+
 export async function getSellersContactInfoByCategories(
   categories: string[],
   items?: any[],
@@ -861,25 +884,78 @@ export async function getSellersContactInfoByCategories(
             })
             if (!hasConfiguredOptions) return false
 
-            // Check if this variant matches all options of the inquiry item
-            for (const [optName, sellerVal] of Object.entries(variant)) {
-              const sellerValsArr = Array.isArray(sellerVal) ? sellerVal : [sellerVal].filter(Boolean)
+            // Build a normalized map of the seller's variant options
+            const sellerOptionMap = new Map<string, Set<string>>();
+            for (const [k, val] of Object.entries(variant)) {
+              const cleanK = cleanKey(k);
+              const valArr = Array.isArray(val) ? val : [val].filter(Boolean);
+              const cleanVals = new Set(valArr.map(v => cleanString(v)).filter(Boolean));
+              if (cleanVals.size > 0) {
+                sellerOptionMap.set(cleanK, cleanVals);
+              }
+            }
 
-              // If the seller has selected values for this option, the buyer's requested option must match one of them
-              if (sellerValsArr.length > 0) {
-                let buyerVal: string | string[] | undefined = (item.options || {})[optName]
-                if ((optName === "Sub-Products" || optName === "Sub-Product") && !buyerVal) {
-                  buyerVal = item.sub_product
+            // 1. Check sub-product requirement
+            const requestedSubProduct = cleanString(item.sub_product);
+            if (requestedSubProduct) {
+              let sellerSubProductVals: Set<string> | undefined;
+              for (const k of ["sub-product", "sub-products", "sub_product"]) {
+                if (sellerOptionMap.has(k)) {
+                  sellerSubProductVals = sellerOptionMap.get(k);
+                  break;
+                }
+              }
+
+              if (!sellerSubProductVals || !sellerSubProductVals.has(requestedSubProduct)) {
+                return false; // Sub-product does not match
+              }
+            }
+
+            // 2. Check other options
+            const buyerOptions = item.options || {};
+            for (const [buyerKey, buyerVal] of Object.entries(buyerOptions)) {
+              const cleanBuyerK = cleanKey(buyerKey);
+              if (EXCLUDED_OPTION_KEYS.has(cleanBuyerK)) {
+                continue;
+              }
+
+              const buyerValsArr = (Array.isArray(buyerVal) ? buyerVal : [buyerVal])
+                .map(v => cleanString(v))
+                .filter(Boolean);
+
+              if (buyerValsArr.length > 0) {
+                // Find matching option in seller variant
+                let sellerVals = sellerOptionMap.get(cleanBuyerK);
+
+                // Handle sub-product key aliases under options
+                if (!sellerVals && (cleanBuyerK === "sub-product" || cleanBuyerK === "sub-products" || cleanBuyerK === "sub_product")) {
+                  for (const k of ["sub-product", "sub-products", "sub_product"]) {
+                    if (sellerOptionMap.has(k)) {
+                      sellerVals = sellerOptionMap.get(k);
+                      break;
+                    }
+                  }
                 }
 
-                if (buyerVal !== undefined && buyerVal !== null && String(buyerVal).trim() !== "") {
-                  const buyerValsArr = Array.isArray(buyerVal) ? buyerVal : [buyerVal].filter(Boolean)
-                  const intersects = buyerValsArr.some(bv => sellerValsArr.includes(bv))
+                if (!sellerVals) {
+                  return false; // Option required by buyer but not configured by seller
+                }
 
-                  if (!intersects) return false // This variant does not match
+                // Check intersection
+                let hasIntersection = false;
+                for (const bv of buyerValsArr) {
+                  if (sellerVals.has(bv)) {
+                    hasIntersection = true;
+                    break;
+                  }
+                }
+
+                if (!hasIntersection) {
+                  return false; // Option values do not match
                 }
               }
             }
+
             return true // This variant matches
           })
         })

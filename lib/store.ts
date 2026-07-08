@@ -875,7 +875,7 @@ export async function getSellersContactInfoByCategories(
           // they should NOT match (as requested: "selected the product but not selected the sub-product or make or etc")
           if (sellerVariants.length === 0) return false
 
-          // Match variants
+          // Match variants — mirrors the seller UI filtering logic in pending/page.tsx
           return sellerVariants.some((variant: any) => {
             // Ensure the variant is not empty (has at least one option with configured values)
             const hasConfiguredOptions = Object.values(variant).some(sellerVal => {
@@ -884,76 +884,46 @@ export async function getSellersContactInfoByCategories(
             })
             if (!hasConfiguredOptions) return false
 
-            // Build a normalized map of the seller's variant options
-            const sellerOptionMap = new Map<string, Set<string>>();
-            for (const [k, val] of Object.entries(variant)) {
-              const cleanK = cleanKey(k);
-              const valArr = Array.isArray(val) ? val : [val].filter(Boolean);
-              const cleanVals = new Set(valArr.map(v => cleanString(v)).filter(Boolean));
-              if (cleanVals.size > 0) {
-                sellerOptionMap.set(cleanK, cleanVals);
-              }
-            }
-
-            // 1. Check sub-product requirement
+            // 1. Check sub-product requirement (buyer specified sub_product → seller must support it)
             const requestedSubProduct = cleanString(item.sub_product);
             if (requestedSubProduct) {
-              let sellerSubProductVals: Set<string> | undefined;
-              for (const k of ["sub-product", "sub-products", "sub_product"]) {
-                if (sellerOptionMap.has(k)) {
-                  sellerSubProductVals = sellerOptionMap.get(k);
+              let sellerSubProductVals: string[] | undefined;
+              for (const [k, v] of Object.entries(variant)) {
+                if (k === "Sub-Products" || k === "Sub-Product" || k === "sub_product" || k === "sub-product") {
+                  sellerSubProductVals = Array.isArray(v) ? v : [v].filter(Boolean) as string[];
                   break;
                 }
               }
-
-              if (!sellerSubProductVals || !sellerSubProductVals.has(requestedSubProduct)) {
+              if (!sellerSubProductVals || !sellerSubProductVals.some(v => cleanString(v) === requestedSubProduct)) {
                 return false; // Sub-product does not match
               }
             }
 
-            // 2. Check other options
+            // 2. Iterate over the SELLER's configured variant options.
+            // For each seller option that has values, check if the buyer also specified that option.
+            // If the buyer specified it with a non-empty value → values must intersect.
+            // If the buyer didn't specify it → no constraint from buyer side, pass.
+            // (This mirrors the seller UI logic in pending/page.tsx)
             const buyerOptions = item.options || {};
-            for (const [buyerKey, buyerVal] of Object.entries(buyerOptions)) {
-              const cleanBuyerK = cleanKey(buyerKey);
-              if (EXCLUDED_OPTION_KEYS.has(cleanBuyerK)) {
-                continue;
+
+            for (const [sellerOptKey, sellerVal] of Object.entries(variant)) {
+              const sellerValsArr = (Array.isArray(sellerVal) ? sellerVal : [sellerVal]).filter(Boolean) as string[];
+              if (sellerValsArr.length === 0) continue; // seller hasn't configured this option — skip
+
+              let buyerVal: string | string[] | undefined = (buyerOptions as Record<string, any>)[sellerOptKey];
+
+              // Handle sub-product aliases that may appear under options
+              if (!buyerVal && (sellerOptKey === "Sub-Products" || sellerOptKey === "Sub-Product" || sellerOptKey === "sub_product")) {
+                buyerVal = item.sub_product;
               }
 
-              const buyerValsArr = (Array.isArray(buyerVal) ? buyerVal : [buyerVal])
-                .map(v => cleanString(v))
-                .filter(Boolean);
-
-              if (buyerValsArr.length > 0) {
-                // Find matching option in seller variant
-                let sellerVals = sellerOptionMap.get(cleanBuyerK);
-
-                // Handle sub-product key aliases under options
-                if (!sellerVals && (cleanBuyerK === "sub-product" || cleanBuyerK === "sub-products" || cleanBuyerK === "sub_product")) {
-                  for (const k of ["sub-product", "sub-products", "sub_product"]) {
-                    if (sellerOptionMap.has(k)) {
-                      sellerVals = sellerOptionMap.get(k);
-                      break;
-                    }
-                  }
-                }
-
-                if (!sellerVals) {
-                  return false; // Option required by buyer but not configured by seller
-                }
-
-                // Check intersection
-                let hasIntersection = false;
-                for (const bv of buyerValsArr) {
-                  if (sellerVals.has(bv)) {
-                    hasIntersection = true;
-                    break;
-                  }
-                }
-
-                if (!hasIntersection) {
-                  return false; // Option values do not match
-                }
+              // Only enforce a match if buyer has specified this option with a non-empty value
+              if (buyerVal !== undefined && buyerVal !== null && String(buyerVal).trim() !== "") {
+                const buyerValsArr = Array.isArray(buyerVal) ? buyerVal : [buyerVal];
+                const intersects = buyerValsArr.some((bv: string) => sellerValsArr.includes(bv));
+                if (!intersects) return false; // Values specified by buyer don't match seller's options
               }
+              // Buyer didn't specify this option → no conflict, keep checking
             }
 
             return true // This variant matches

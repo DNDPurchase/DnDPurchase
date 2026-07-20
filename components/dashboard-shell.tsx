@@ -134,7 +134,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           {otherUser && (
-            <Button variant="outline" size="sm" className="mb-2 w-full gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary" onClick={handleSwitchRole}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mb-2 w-full gap-2 border-red-600 bg-red-600 text-white hover:bg-red-700 hover:border-red-700 hover:text-white"
+              onClick={handleSwitchRole}
+            >
               <ArrowLeftRight className="h-4 w-4" />
               Switch to {otherUser.role.charAt(0).toUpperCase() + otherUser.role.slice(1)}
             </Button>

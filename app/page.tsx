@@ -76,7 +76,7 @@ export default function LandingPage() {
             whileHover={{ scale: 1.05 }}
           >
             <Link href="/" className="flex items-center gap-2 md:gap-3">
-              <img src="/logo-asset-4.png" alt="DND Purchase" className="h-14 md:h-16 w-auto object-contain" />
+              <img src="/logo-asset-4.png" alt="DND Purchase" className="h-9 md:h-11 w-auto object-contain" />
             </Link>
           </motion.div>
 
@@ -190,31 +190,30 @@ export default function LandingPage() {
       </header>
 
       {/* ─── Hero ─── */}
-      <section ref={heroRef} className="relative min-h-[90vh] min-h-[90dvh] flex items-center overflow-hidden z-10">
+      <section ref={heroRef} className="relative min-h-screen min-h-dvh flex items-center overflow-hidden z-10">
         <div className="absolute inset-0" style={{
           backgroundImage: `linear-gradient(to right, ${v('grid-line')} 1px, transparent 1px), linear-gradient(to bottom, ${v('grid-line')} 1px, transparent 1px)`,
           backgroundSize: '6rem 6rem',
         }} />
 
-
-        <motion.div className="relative w-full px-4 md:px-8 py-6 md:py-10">
+        <motion.div className="relative w-full px-4 md:px-8 py-4 md:py-6">
           {/* Centered Logo Design Image & Trust Badge */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, ease: "easeOut" }}
-            className="mb-12 flex flex-col items-center w-full select-none text-center relative"
+            className="mb-4 flex flex-col items-center w-full select-none text-center relative"
           >
             {/* Ambient Background Glow matching the red in the logo */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[200px] sm:w-[500px] sm:h-[300px] md:w-[600px] md:h-[350px] bg-red-600/10 rounded-full blur-[80px] pointer-events-none -z-10 animate-pulse duration-[6000ms]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[140px] sm:w-[350px] sm:h-[200px] md:w-[450px] md:h-[250px] bg-red-600/10 rounded-full blur-[80px] pointer-events-none -z-10 animate-pulse" />
 
-            <div className="relative mb-4 transition-transform duration-500 hover:scale-[1.02]">
+            <div className="relative mb-2 transition-transform duration-500 hover:scale-[1.02]">
               <Image
                 src="/logo-asset-4.png"
                 alt="DND Purchase - Best Price, No Calls"
                 width={700}
                 height={376}
-                className="w-full max-w-[320px] sm:max-w-[420px] md:max-w-[560px] lg:max-w-[650px] h-auto object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
+                className="w-full max-w-[200px] sm:max-w-[260px] md:max-w-[340px] lg:max-w-[420px] h-auto object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
                 priority
               />
             </div>
@@ -223,7 +222,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 1.0 }}
-              className="text-lg sm:text-xl font-bold mb-6 text-glow-red tracking-wider uppercase opacity-90 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
+              className="text-sm sm:text-base font-bold mb-3 text-glow-red tracking-wider uppercase opacity-90 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
             >
               Best Pricing. Zero Calls.
             </motion.p>
@@ -232,16 +231,16 @@ export default function LandingPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.4, duration: 1.0 }}
-              className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm sm:text-base font-semibold shadow-2xl border backdrop-blur-md shadow-red-500/5 transition-all hover:border-red-500/30"
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold shadow-2xl border backdrop-blur-md shadow-red-500/5 transition-all hover:border-red-500/30"
               style={{ border: `1px solid ${v('badge-border')}`, backgroundColor: v('badge-bg'), color: v('accent') }}
             >
-              <CheckCircle className="h-5 w-5 animate-pulse text-red-500" />
+              <CheckCircle className="h-4 w-4 animate-pulse text-red-500" />
               Trusted by 500+ verified businesses
             </motion.div>
           </motion.div>
 
           {/* 2-column grid: left = headline/CTA, right = feature cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
 
             {/* ── LEFT COLUMN: Headline + CTA ── */}
             <motion.div
@@ -251,14 +250,14 @@ export default function LandingPage() {
               className="text-left lg:col-span-8 ml-0 sm:ml-4 lg:ml-8"
             >
               {/* H1 */}
-              <h1 className="font-black leading-none tracking-tight text-5xl sm:text-6xl md:text-7xl xl:text-8xl" style={{ color: v('heading') }}>
-                <span className="opacity-75 text-2xl sm:text-3xl md:text-4xl lg:text-5xl block font-bold tracking-wide uppercase mb-3 text-metallic-muted">Buy & Sell</span>
+              <h1 className="font-black leading-none tracking-tight text-4xl sm:text-5xl md:text-6xl xl:text-7xl" style={{ color: v('heading') }}>
+                <span className="opacity-75 text-xl sm:text-2xl md:text-3xl lg:text-4xl block font-bold tracking-wide uppercase mb-2 text-metallic-muted">Buy \ Sell</span>
                 <span className="text-metallic">Steel & Cement</span><br />
-                <span className="text-xl sm:text-2xl md:text-3xl font-medium opacity-65 block mt-4 tracking-normal">in just 2-step process</span>
+                <span className="text-base sm:text-lg md:text-xl font-medium opacity-65 block mt-2 tracking-normal">in just 2-step process</span>
               </h1>
 
               {/* Simple · Efficient · Transparent */}
-              <p className="mt-6 text-base sm:text-lg md:text-xl font-bold tracking-[0.3em] uppercase opacity-55 text-metallic-muted">
+              <p className="mt-4 text-sm sm:text-base font-bold tracking-[0.3em] uppercase opacity-55 text-metallic-muted">
                 Simple <span className="mx-2 text-red-500">•</span> Efficient <span className="mx-2 text-red-500">•</span> Transparent
               </p>
 
@@ -267,14 +266,14 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.0, duration: 1.5, ease: "easeOut" }}
-                className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 ml-0 sm:ml-3"
+                className="mt-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ml-0 sm:ml-3"
               >
-                <Button asChild size="lg" className="h-14 gap-2 px-10 text-lg sm:text-xl group relative overflow-hidden font-bold transition-all hover:scale-105 active:scale-95 rounded-xl shadow-2xl shadow-red-500/20 w-full sm:w-auto text-center justify-center" style={{ backgroundColor: v('accent'), color: '#FFFFFF' }}>
+                <Button asChild size="lg" className="h-12 gap-2 px-8 text-base sm:text-lg group relative overflow-hidden font-bold transition-all hover:scale-105 active:scale-95 rounded-xl shadow-2xl shadow-red-500/20 w-full sm:w-auto text-center justify-center" style={{ backgroundColor: v('accent'), color: '#FFFFFF' }}>
                   <Link href="/auth/register" className="relative z-10 flex items-center justify-center gap-2">
-                    Create new account <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    Create new account <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" className="h-14 gap-2 px-10 text-lg sm:text-xl border border-white/10 bg-neutral-900/60 backdrop-blur-md transition-all hover:bg-neutral-800/80 hover:border-white/25 active:scale-95 font-bold rounded-xl shadow-xl w-full sm:w-auto text-center justify-center" style={{ color: '#FFFFFF' }}>
+                <Button asChild size="lg" className="h-12 gap-2 px-8 text-base sm:text-lg border border-white/10 bg-neutral-900/60 backdrop-blur-md transition-all hover:bg-neutral-800/80 hover:border-white/25 active:scale-95 font-bold rounded-xl shadow-xl w-full sm:w-auto text-center justify-center" style={{ color: '#FFFFFF' }}>
                   <Link href="/auth/login">Sign In</Link>
                 </Button>
               </motion.div>
@@ -285,38 +284,38 @@ export default function LandingPage() {
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4, duration: 1.5, ease: "easeOut" }}
-              className="flex flex-col gap-5 lg:col-span-4"
+              className="flex flex-col gap-4 lg:col-span-4"
             >
               {/* No-hassle list card */}
-              <div className="flex flex-col gap-4 p-5 sm:p-7 rounded-2xl card-glossy shadow-2xl">
-                <p className="text-sm font-bold tracking-wider opacity-65 text-metallic" style={{ textAlign: 'center' }}>Why DND Purchase?</p>
+              <div className="flex flex-col gap-3 p-4 sm:p-5 rounded-2xl card-glossy shadow-2xl">
+                <p className="text-xs font-bold tracking-wider opacity-65 text-metallic" style={{ textAlign: 'center' }}>Why DND Purchase?</p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Left Column - Red Points */}
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3">
                     {[
                       'No Phone Calls',
                       'No Follow-ups',
                       'No Disturbance',
                       'No Waste of Time',
                     ].map((item) => (
-                      <div key={item} className="flex items-center gap-2.5 text-red-500">
-                        <X className="h-4 w-4 shrink-0 stroke-[3]" />
-                        <span className="text-base sm:text-lg font-semibold" style={{ color: v('text') }}>{item}</span>
+                      <div key={item} className="flex items-center gap-2 text-red-500">
+                        <X className="h-3.5 w-3.5 shrink-0 stroke-[3]" />
+                        <span className="text-sm font-semibold" style={{ color: v('text') }}>{item}</span>
                       </div>
                     ))}
                   </div>
 
                   {/* Right Column - Green Points */}
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3">
                     {[
                       'Best Pricing',
                       'Save Time',
                       'Peace of Mind',
                     ].map((item) => (
-                      <div key={item} className="flex items-center gap-2.5 text-green-500">
-                        <CheckCircle className="h-4 w-4 shrink-0 stroke-[3]" />
-                        <span className="text-base sm:text-lg font-semibold" style={{ color: v('text') }}>{item}</span>
+                      <div key={item} className="flex items-center gap-2 text-green-500">
+                        <CheckCircle className="h-3.5 w-3.5 shrink-0 stroke-[3]" />
+                        <span className="text-sm font-semibold" style={{ color: v('text') }}>{item}</span>
                       </div>
                     ))}
                   </div>
@@ -324,15 +323,15 @@ export default function LandingPage() {
               </div>
 
               {/* Stats row */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: 'Verified Sellers', value: '100+' },
                   { label: 'Categories', value: '9' },
                   { label: 'Avg. Saving', value: '3%' },
                 ].map((stat) => (
-                  <div key={stat.label} className="flex flex-col items-center p-2.5 sm:p-4 rounded-xl card-glossy text-center shadow-xl">
-                    <span className="text-2xl font-black text-glow-red">{stat.value}</span>
-                    <span className="text-xs font-semibold opacity-60 mt-1" style={{ color: v('text') }}>{stat.label}</span>
+                  <div key={stat.label} className="flex flex-col items-center p-2.5 rounded-xl card-glossy text-center shadow-xl">
+                    <span className="text-xl font-black text-glow-red">{stat.value}</span>
+                    <span className="text-xs font-semibold opacity-60 mt-0.5" style={{ color: v('text') }}>{stat.label}</span>
                   </div>
                 ))}
               </div>

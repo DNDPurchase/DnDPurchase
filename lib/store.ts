@@ -1473,8 +1473,8 @@ export async function getAllSellerProductOptions(): Promise<Record<string, Produ
         result[pId].push({ ...data })
       }
     }
-  })
-
+  }) 
+ 
   return result
 }
 

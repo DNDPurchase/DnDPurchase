@@ -372,8 +372,9 @@ export default function RegisterPage() {
   }
 
   const handleSubmit = async () => {
+    // GST certificate is always required
     if (!uploadedFilePath) {
-      toast.error("Please upload the required document")
+      toast.error("Please upload your GSTIN certificate")
       return
     }
 
@@ -528,8 +529,7 @@ export default function RegisterPage() {
       suppressHydrationWarning
     >
       <div className={`w-full transition-all duration-300 ${
-        ((step === 5 && form.role !== "buyer" && form.entityType !== "both") ||
-         (step === 6 && form.role === "both" && form.entityType === "both"))
+        (step === 6 && (form.role === "seller" || form.role === "both"))
           ? "max-w-3xl" : "max-w-lg"
       }`}>
         <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -549,16 +549,14 @@ export default function RegisterPage() {
                   : step === 3
                     ? "Enter your personal details"
                     : step === 4
-                      ? (form.entityType === "company" ? "Enter GSTIN & Upload Certificate" : "Enter Aadhaar & Upload Document")
-                      : (step === 5 && form.entityType === "both")
-                        ? "Enter GSTIN & Upload Certificate"
-                        : ((step === 5 && form.role !== "buyer") || (step === 6 && form.role !== "buyer"))
-                          ? "Select your products and delivery locations"
-                          : "Enter GSTIN & Upload Certificate"}
+                      ? "Enter GSTIN & Upload Certificate"
+                      : step === 5
+                        ? "Enter Aadhaar Details (Optional)"
+                        : "Select your products and delivery locations"}
             </CardDescription>
             <div className="mt-4 flex items-center justify-center gap-2">
               {Array.from({ length: (() => {
-                const base = form.entityType === "both" ? 5 : 4
+                const base = 5
                 return (form.role === "seller" || form.role === "both") ? base + 1 : base
               })() }, (_, i) => i + 1).map((s) => (
                 <div key={s} className={`h-2 w-8 rounded-full ${s <= step ? "bg-primary" : "bg-muted"}`} />
@@ -763,228 +761,8 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* Step 4: Verification & Document Upload (Aadhaar for Individual/Both, GST for Company) */}
+            {/* Step 4: GST Details (Compulsory) */}
             {step === 4 && (
-              <div className="flex flex-col gap-5">
-                {/* Company Only: GSTIN (because both moves to step 5) */}
-                {form.entityType === "company" && (
-                  <>
-                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <Building2 className="h-4 w-4 text-primary" />
-                        GSTIN Details
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Provide your 15-character GSTIN
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="gstin" className="text-foreground">GSTIN Number</Label>
-                      <div className="mt-1.5 flex gap-2">
-                        <Input
-                          id="gstin"
-                          placeholder="27AAPFU0939F1ZV"
-                          maxLength={15}
-                          value={form.gstin}
-                          onChange={(e) => updateForm("gstin", e.target.value.toUpperCase())}
-                          className="flex-1 font-mono uppercase tracking-wider"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Individual & Both: Aadhaar Details */}
-                {(form.entityType === "individual" || form.entityType === "both") && (
-                  <>
-                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <ShieldCheck className="h-4 w-4 text-primary" />
-                        Aadhaar Details
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Provide your 12-digit Aadhaar number
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="aadhaar" className="text-foreground">Aadhaar Number</Label>
-                      <div className="mt-1.5 flex gap-2">
-                        <Input
-                          id="aadhaar"
-                          placeholder="XXXX XXXX XXXX"
-                          maxLength={14}
-                          value={form.aadhaarNumber}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/\D/g, "").slice(0, 12)
-                            const formatted = raw.replace(/(\d{4})(?=\d)/g, "$1 ")
-                            updateForm("aadhaarNumber", raw)
-                            e.target.value = formatted
-                          }}
-                          className="flex-1 font-mono tracking-wider"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Document Upload for Step 4 */}
-                {(form.entityType === "company" || form.entityType === "individual") && (
-                  <div>
-                    <Label htmlFor="document" className="text-foreground">
-                      {form.entityType === "company" ? "GSTIN Certificate" : "Aadhaar Card"} (Image or PDF)
-                    </Label>
-                    <div className="mt-1.5">
-                      <div className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all ${uploadedFile ? "border-green-500 bg-green-500/10" : "border-border hover:border-primary/50"}`}>
-                        <input
-                          ref={fileInputRef}
-                          id="document"
-                          type="file"
-                          accept="image/*,application/pdf"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload(e, "document")}
-                          disabled={uploadingFile}
-                        />
-                        {uploadingFile ? (
-                          <>
-                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                            <p className="mt-2 text-sm text-muted-foreground">Uploading...</p>
-                          </>
-                        ) : uploadedFile ? (
-                          <>
-                            <CheckCircle2 className="h-10 w-10 text-green-600" />
-                            <p className="mt-2 text-sm font-medium text-foreground">{uploadedFile.name}</p>
-                            <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-3"
-                              onClick={(e) => handleChangeFile(e, "document")}
-                              type="button"
-                            >
-                              Change File
-                            </Button>
-                          </>
-                        ) : (
-                          <label
-                            htmlFor="document"
-                            className="flex cursor-pointer flex-col items-center"
-                          >
-                            <Upload className="h-10 w-10 text-muted-foreground" />
-                            <p className="mt-2 text-sm font-medium text-foreground">Click to upload</p>
-                            <p className="text-xs text-muted-foreground">Image or PDF only, max 10MB</p>
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Upload Area 2: Aadhaar (For "both", kept on Step 4) */}
-                {form.entityType === "both" && (
-                  <div>
-                    <Label htmlFor="aadhaarDocument" className="text-foreground">
-                      Aadhaar Card (Image or PDF)
-                    </Label>
-                    <div className="mt-1.5">
-                      <div className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all ${aadhaarFile ? "border-green-500 bg-green-500/10" : "border-border hover:border-primary/50"}`}>
-                        <input
-                          ref={aadhaarInputRef}
-                          id="aadhaarDocument"
-                          type="file"
-                          accept="image/*,application/pdf"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload(e, "aadhaar")}
-                          disabled={uploadingAadhaar}
-                        />
-                        {uploadingAadhaar ? (
-                          <>
-                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                            <p className="mt-2 text-sm text-muted-foreground">Uploading...</p>
-                          </>
-                        ) : aadhaarFile ? (
-                          <>
-                            <CheckCircle2 className="h-10 w-10 text-green-600" />
-                            <p className="mt-2 text-sm font-medium text-foreground">{aadhaarFile.name}</p>
-                            <p className="text-xs text-muted-foreground">{(aadhaarFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-3"
-                              onClick={(e) => handleChangeFile(e, "aadhaar")}
-                              type="button"
-                            >
-                              Change File
-                            </Button>
-                          </>
-                        ) : (
-                          <label
-                            htmlFor="aadhaarDocument"
-                            className="flex cursor-pointer flex-col items-center"
-                          >
-                            <Upload className="h-10 w-10 text-muted-foreground" />
-                            <p className="mt-2 text-sm font-medium text-foreground">Click to upload</p>
-                            <p className="text-xs text-muted-foreground">Image or PDF only, max 10MB</p>
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-3 mt-2">
-                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setStep(3)}>Back</Button>
-                  <Button
-                    className="flex-1"
-                    onClick={async () => {
-                      if ((form.entityType === "individual" || form.entityType === "both") && form.aadhaarNumber.length !== 12) {
-                        toast.error("Please enter a valid 12-digit Aadhaar number")
-                        return
-                      }
-
-                      if (form.entityType === "both") {
-                        if (!aadhaarFile || !aadhaarFilePath) {
-                          toast.error("Please upload your Aadhaar document")
-                          return
-                        }
-                        // Move to Step 5
-                        setStep(5)
-                      } else {
-                        if (form.entityType === "company" && form.gstin.length !== 15) {
-                          toast.error("Please enter a valid 15-character GSTIN")
-                          return
-                        }
-                        if (!uploadedFile || !uploadedFilePath) {
-                          toast.error("Please upload the required primary document")
-                          return
-                        }
-                        if (form.role === "seller" || form.role === "both") {
-                          fetchProductsAndLocations()
-                          setStep(5)
-                        } else {
-                          await handleSubmit()
-                        }
-                      }
-                    }}
-                    disabled={
-                      (form.entityType === "both" && (!aadhaarFile || uploadingAadhaar || form.aadhaarNumber.length !== 12)) ||
-                      (form.entityType === "company" && (!uploadedFile || uploadingFile || form.gstin.length !== 15 || loading)) ||
-                      (form.entityType === "individual" && (!uploadedFile || uploadingFile || form.aadhaarNumber.length !== 12 || loading))
-                    }
-                  >
-                    {form.entityType === "both"
-                      ? "Continue To GST"
-                      : (form.role === "seller" || form.role === "both")
-                        ? "Continue"
-                        : (loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Finalizing...</> : "Complete Registration")}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: GST Upload (Only for "Both") */}
-            {step === 5 && form.entityType === "both" && (
               <div className="flex flex-col gap-5">
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -992,15 +770,15 @@ export default function RegisterPage() {
                     GSTIN Details
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Provide your 15-character GSTIN
+                    Provide your 15-character GSTIN number
                   </p>
                 </div>
 
                 <div>
-                  <Label htmlFor="gstin_both" className="text-foreground">GSTIN Number</Label>
+                  <Label htmlFor="gstin" className="text-foreground">GSTIN Number</Label>
                   <div className="mt-1.5 flex gap-2">
                     <Input
-                      id="gstin_both"
+                      id="gstin"
                       placeholder="27AAPFU0939F1ZV"
                       maxLength={15}
                       value={form.gstin}
@@ -1011,14 +789,14 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="document_both" className="text-foreground">
+                  <Label htmlFor="document" className="text-foreground">
                     GSTIN Certificate (Image or PDF)
                   </Label>
                   <div className="mt-1.5">
                     <div className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all ${uploadedFile ? "border-green-500 bg-green-500/10" : "border-border hover:border-primary/50"}`}>
                       <input
                         ref={fileInputRef}
-                        id="document_both"
+                        id="document"
                         type="file"
                         accept="image/*,application/pdf"
                         className="hidden"
@@ -1047,7 +825,114 @@ export default function RegisterPage() {
                         </>
                       ) : (
                         <label
-                          htmlFor="document_both"
+                          htmlFor="document"
+                          className="flex cursor-pointer flex-col items-center"
+                        >
+                          <Upload className="h-10 w-10 text-muted-foreground" />
+                          <p className="mt-2 text-sm font-medium text-foreground">Click to upload</p>
+                          <p className="text-xs text-muted-foreground">Image or PDF only, max 10MB</p>
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-2">
+                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setStep(3)}>Back</Button>
+                  <Button
+                    className="flex-1"
+                    onClick={async () => {
+                      if (form.gstin.length !== 15) {
+                        toast.error("Please enter a valid 15-character GSTIN")
+                        return
+                      }
+                      if (!uploadedFile || !uploadedFilePath) {
+                        toast.error("Please upload your GSTIN certificate")
+                        return
+                      }
+                      setStep(5)
+                    }}
+                    disabled={uploadingFile || loading || form.gstin.length !== 15 || !uploadedFile}
+                  >
+                    Continue
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Aadhaar Details (Optional) */}
+            {step === 5 && (
+              <div className="flex flex-col gap-5">
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                    Aadhaar Details
+                    <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">Optional</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    You may provide your Aadhaar details for additional verification. You can skip this step.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="aadhaar" className="text-foreground">
+                    Aadhaar Number <span className="text-xs text-muted-foreground">(Optional)</span>
+                  </Label>
+                  <div className="mt-1.5 flex gap-2">
+                    <Input
+                      id="aadhaar"
+                      placeholder="XXXX XXXX XXXX"
+                      maxLength={14}
+                      value={form.aadhaarNumber}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "").slice(0, 12)
+                        const formatted = raw.replace(/(\d{4})(?=\d)/g, "$1 ")
+                        updateForm("aadhaarNumber", raw)
+                        e.target.value = formatted
+                      }}
+                      className="flex-1 font-mono tracking-wider"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="aadhaarDocument" className="text-foreground">
+                    Aadhaar Card Photo (Image or PDF) <span className="text-xs text-muted-foreground">(Optional)</span>
+                  </Label>
+                  <div className="mt-1.5">
+                    <div className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all ${aadhaarFile ? "border-green-500 bg-green-500/10" : "border-border hover:border-primary/50"}`}>
+                      <input
+                        ref={aadhaarInputRef}
+                        id="aadhaarDocument"
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={(e) => handleFileUpload(e, "aadhaar")}
+                        disabled={uploadingAadhaar}
+                      />
+                      {uploadingAadhaar ? (
+                        <>
+                          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                          <p className="mt-2 text-sm text-muted-foreground">Uploading...</p>
+                        </>
+                      ) : aadhaarFile ? (
+                        <>
+                          <CheckCircle2 className="h-10 w-10 text-green-600" />
+                          <p className="mt-2 text-sm font-medium text-foreground">{aadhaarFile.name}</p>
+                          <p className="text-xs text-muted-foreground">{(aadhaarFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-3"
+                            onClick={(e) => handleChangeFile(e, "aadhaar")}
+                            type="button"
+                          >
+                            Change File
+                          </Button>
+                        </>
+                      ) : (
+                        <label
+                          htmlFor="aadhaarDocument"
                           className="flex cursor-pointer flex-col items-center"
                         >
                           <Upload className="h-10 w-10 text-muted-foreground" />
@@ -1064,38 +949,30 @@ export default function RegisterPage() {
                   <Button
                     className="flex-1"
                     onClick={async () => {
-                      if (form.gstin.length !== 15) {
-                        toast.error("Please enter a valid 15-character GSTIN")
+                      // Validate only if user partially entered Aadhaar
+                      if (form.aadhaarNumber.length > 0 && form.aadhaarNumber.length !== 12) {
+                        toast.error("Please enter a valid 12-digit Aadhaar number or clear the field")
                         return
                       }
-                      if (!uploadedFile || !uploadedFilePath) {
-                        toast.error("Please upload the required GSTIN document")
-                        return
+                      if (form.role === "seller" || form.role === "both") {
+                        fetchProductsAndLocations()
+                        setStep(6)
+                      } else {
+                        await handleSubmit()
                       }
-                      fetchProductsAndLocations()
-                      setStep(6)
                     }}
-                    disabled={
-                      !uploadedFile ||
-                      uploadingFile ||
-                      loading ||
-                      form.gstin.length !== 15
-                    }
+                    disabled={uploadingAadhaar || loading}
                   >
-                    {loading ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Finalizing...</>
-                    ) : (
-                      "Continue"
-                    )}
+                    {(form.role === "seller" || form.role === "both")
+                      ? "Continue"
+                      : (loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Finalizing...</> : "Complete Registration")}
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Product & Location Selection Step (Seller/Both only) */}
-            {((step === 5 && form.role === "seller" && form.entityType !== "both") ||
-              (step === 5 && form.role === "both" && form.entityType !== "both") ||
-              (step === 6 && form.role === "both" && form.entityType === "both")) && (
+            {/* Step 6: Product & Location Selection Step (Seller/Both only) */}
+            {(step === 6 && (form.role === "seller" || form.role === "both")) && (
               <div className="flex flex-col gap-5">
                 {loadingProductsLocations ? (
                   <div className="flex flex-col items-center justify-center py-12">
@@ -1598,10 +1475,7 @@ export default function RegisterPage() {
                 )}
 
                 <div className="flex gap-3 mt-2">
-                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => {
-                    if (form.entityType === "both") setStep(5)
-                    else setStep(4)
-                  }}>Back</Button>
+                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setStep(5)}>Back</Button>
                   <Button
                     className="flex-1"
                     onClick={handleSubmit}

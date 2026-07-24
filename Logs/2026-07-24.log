@@ -8,3 +8,27 @@
 [2026-07-24T08:57:54.181Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****3051","type":"success"}}
 [2026-07-24T09:02:15.937Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
 [2026-07-24T09:02:16.897Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****6696f39666c","type":"success"}}
+[2026-07-24T09:14:13.520Z] INFO Server signed in successfully as buyer {"email":"[redacted-email]"}
+[2026-07-24T09:14:14.176Z] INFO Sending inquiry receipt emails to buyer {"buyerId":"BUY-0001","inquiryId":"INQ-0032","targetEmails":["[redacted-email]"]}
+[2026-07-24T09:14:17.570Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:17.969Z] INFO New inquiry created, sending targeted notifications {"inquiryId":"INQ-0032","categories":["Cement"],"targetedSellerCount":6}
+[2026-07-24T09:14:18.348Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****3931","type":"success"}}
+[2026-07-24T09:14:18.348Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e5272464d4a327054","type":"success"}}
+[2026-07-24T09:14:18.348Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****5784a","type":"success"}}
+[2026-07-24T09:14:18.400Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e52724c614e637972","type":"success"}}
+[2026-07-24T09:14:18.401Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e52724b5349344f71","type":"success"}}
+[2026-07-24T09:14:18.588Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****3416f736f45","type":"success"}}
+[2026-07-24T09:14:20.996Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:21.317Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:21.784Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:22.341Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:22.398Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:23.231Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:23.719Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:23.828Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:14:24.216Z] INFO New inquiry notifications complete
+[2026-07-24T09:14:24.213Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:15:42.022Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:15:42.879Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****1504c374d","type":"success"}}
+[2026-07-24T09:15:46.583Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:15:46.752Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****2634b","type":"success"}}

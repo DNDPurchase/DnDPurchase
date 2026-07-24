@@ -3,7 +3,7 @@ import { db } from "@/lib/firebase"
 import { collection, getDocs } from "firebase/firestore"
 import { logger } from "@/lib/logger"
 
-export const revalidate = 3600; // Cache for 1 hour
+export const revalidate = 0; // Always fetch fresh — admin changes reflect immediately
 
 export async function GET() {
     try {

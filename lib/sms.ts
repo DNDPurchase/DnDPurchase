@@ -10,12 +10,26 @@ interface MSG91Payload {
     template_id: string;
     recipients: Array<{
         mobiles: string;
-        [key: string]: string; // dynamic variables matching MSG91 template placeholders
+        [key: string]: string; // dynamic variables matching MSG91 Flow Builder placeholders
     }>;
 }
 
 /**
  * MSG91 SMS sender using Flow Builder API
+ *
+ * Variable key naming rules (IMPORTANT):
+ *   DLT placeholder  →  MSG91 Flow Builder  →  API key to send
+ *   {#var#}          →  ##var##             →  "var"
+ *   {#alp#}          →  ##alp##             →  "alp"
+ *
+ * Templates using {#var#}  (numeric / offer/inquiry IDs):
+ *   Offer_Rejected_Seller, Offer_Accepted_Seller, Inquiry_closed, Bidding_Started
+ *
+ * Templates using {#alp#}  (alphanumeric IDs):
+ *   New_Offer, Offer_Accepted_Buyer
+ *
+ * Templates with no variables:
+ *   Welcome_SMS, New_inquiry_alert
  */
 export async function sendSMS(payload: MSG91Payload) {
     if (TEST_MODE) {
@@ -72,6 +86,8 @@ export async function sendSMS(payload: MSG91Payload) {
 // ----------------------------------------------------------------------------
 // Specific Application SMS Messages
 // Variable keys MUST match the placeholder names in MSG91 Flow Builder templates
+// DLT {#var#}  → Flow Builder ##var##  → API key: "var"
+// DLT {#alp#}  → Flow Builder ##alp##  → API key: "alp"
 // ----------------------------------------------------------------------------
 
 /**
@@ -99,98 +115,91 @@ export async function notifySellerOfNewInquirySMS(to: string) {
 }
 
 /**
- * Bidding_Started template — variable: ##number## → inquiryId
- * "Bidding has started for Inquiry ID ##number##. Log in to submit or update your offer
- *  before the timer ends: www.dndpurchase.com - DND Purchase"
+ * Bidding_Started template — DLT: {#alp#} → Flow Builder: ##alp## → key: "alp"
+ * "Bidding is now live for Inquiry ID {#alp#}. Visit https://dndpurchase.com ..."
  */
 export async function notifySellersOfBiddingSMS(to: string, inquiryId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_BIDDING_STARTED || "SIMULATED",
-        recipients: [{ mobiles: to, number: inquiryId }]
+        recipients: [{ mobiles: to, alp: inquiryId }]
     })
 }
 
 /**
- * New_Offer_Milestone template — variable: ##number## → inquiryId
- * "New offers have been received on your Inquiry ID ##number##. Log in to your dashboard
- *  to review them: www.dndpurchase.com - DND Purchase"
+ * New_Offer template — DLT: {#alp#} → Flow Builder: ##alp## → key: "alp"
+ * "New offers received for your Inquiry ID {#alp#}. Log in to ..."
  */
 export async function notifyBuyerOfNewOfferSMS(to: string, inquiryId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_NEW_OFFER || "SIMULATED",
-        recipients: [{ mobiles: to, number: inquiryId }]
+        recipients: [{ mobiles: to, alp: inquiryId }]
     })
 }
 
 /**
- * Offer_Accepted_Buyer template — variable: ##number## → offerId
- * "You have accepted Offer ID ##number##. Connect directly with the seller to
- *  finalize shipment & billing details: www.dndpurchase.com - DND Purchase"
+ * Offer_Accepted_Buyer template — DLT: {#alp#} → Flow Builder: ##alp## → key: "alp"
+ * "You have accepted Offer ID {#alp#}. Connect directly with the seller ..."
  */
 export async function notifyBuyerOfAcceptanceSMS(to: string, offerId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_OFFER_ACCEPTED_BUYER || "SIMULATED",
-        recipients: [{ mobiles: to, number: offerId }]
+        recipients: [{ mobiles: to, alp: offerId }]
     })
 }
 
 /**
- * Offer_Accepted_Seller template — variable: ##number## → offerId
- * "Congratulations! Your Offer ID ##number## has been accepted by the buyer.
- *  Please connect with them to arrange delivery: www.dndpurchase.com - DND Purchase"
+ * Offer_Accepted_Seller template — DLT: {#var#} → Flow Builder: ##var## → key: "var"
+ * "Congratulations! Your Offer ID {#var#} has been accepted by the buyer ..."
  */
 export async function notifySellerOfAcceptanceSMS(to: string, offerId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_OFFER_ACCEPTED_SELLER || "SIMULATED",
-        recipients: [{ mobiles: to, number: offerId }]
+        recipients: [{ mobiles: to, var: offerId }]
     })
 }
 
 /**
- * Offer_Rejected_Seller template — variable: ##number## → offerId
- * "Your Offer ID ##number## was not accepted this time. Check out other active
- *  inquiries on your dashboard: www.dndpurchase.com - DND Purchase"
+ * Offer_Rejected_Seller template — DLT: {#var#} → Flow Builder: ##var## → key: "var"
+ * "Your Offer ID {#var#} was not accepted this time. Check out other active ..."
  */
 export async function notifySellerOfRejectionSMS(to: string, offerId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_OFFER_REJECTED_SELLER || "SIMULATED",
-        recipients: [{ mobiles: to, number: offerId }]
+        recipients: [{ mobiles: to, var: offerId }]
     })
 }
 
 /**
- * Inquiry_Closed template — variable: ##number## → inquiryId
- * "Inquiry ID ##number## has been closed or cancelled. Pending offers for this
- *  inquiry will no longer be active: www.dndpurchase.com - DND Purchase"
+ * Inquiry_closed template — DLT: {#var#} → Flow Builder: ##var## → key: "var"
+ * "Inquiry ID {#var#} has been closed or cancelled. Pending offers ..."
  */
 export async function notifyBuyerOfInquiryClosedSMS(to: string, inquiryId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_INQUIRY_CLOSED || "SIMULATED",
-        recipients: [{ mobiles: to, number: inquiryId }]
+        recipients: [{ mobiles: to, var: inquiryId }]
     })
 }
 
 export async function notifySellerOfInquiryClosedSMS(to: string, inquiryId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_INQUIRY_CLOSED || "SIMULATED",
-        recipients: [{ mobiles: to, number: inquiryId }]
+        recipients: [{ mobiles: to, var: inquiryId }]
     })
 }
 
 /**
- * Reuses Inquiry_Closed template for deleted inquiries — variable: ##number## → inquiryId
- * Falls back to INQUIRY_CLOSED if no separate deleted template is configured.
+ * Reuses Inquiry_closed template for deleted inquiries — key: "var"
  */
 export async function notifyBuyerOfInquiryDeletedSMS(to: string, inquiryId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_INQUIRY_DELETED || process.env.MSG91_TEMPLATE_INQUIRY_CLOSED || "SIMULATED",
-        recipients: [{ mobiles: to, number: inquiryId }]
+        recipients: [{ mobiles: to, var: inquiryId }]
     })
 }
 
 export async function notifySellerOfInquiryDeletedSMS(to: string, inquiryId: string) {
     return sendSMS({
         template_id: process.env.MSG91_TEMPLATE_INQUIRY_DELETED || process.env.MSG91_TEMPLATE_INQUIRY_CLOSED || "SIMULATED",
-        recipients: [{ mobiles: to, number: inquiryId }]
+        recipients: [{ mobiles: to, var: inquiryId }]
     })
 }

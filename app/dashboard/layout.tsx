@@ -8,19 +8,28 @@ import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
 function DashboardGuard({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
+  const { user, isInitialized } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!user) {
+    if (isInitialized && !user) {
       router.push("/auth/login")
     }
-  }, [user, router])
+  }, [user, isInitialized, router])
+
+  // Still reading localStorage — render nothing visible (no flicker)
+  if (!isInitialized) {
+    return (
+      <div className="flex min-h-screen min-h-dvh items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
 
   if (!user) {
     return (
-      <div className="flex min-h-screen min-h-dvh items-center justify-center ">
-        <p className="text-muted-foreground">Redirecting to login...</p>
+      <div className="flex min-h-screen min-h-dvh items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     )
   }

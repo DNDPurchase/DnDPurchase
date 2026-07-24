@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { auth, storage } from "@/lib/firebase"
-import { createUserWithEmailAndPassword } from "firebase/auth"
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { logger } from "@/lib/logger"
 import { useAuth } from "@/lib/auth-context"
@@ -372,11 +372,18 @@ export default function RegisterPage() {
   }
 
   const handleSubmit = async () => {
-    // GST certificate is always required
-    if (!uploadedFilePath) {
-      toast.error("Please upload your GSTIN certificate")
-      return
+    // Document requirement validation by entityType for Seller & Both
+    if (form.role === "seller" || form.role === "both") {
+      if (form.entityType === "company" && !uploadedFilePath) {
+        toast.error("Please upload your GSTIN certificate")
+        return
+      }
+      if (form.entityType === "individual" && !aadhaarFilePath) {
+        toast.error("Please upload your Aadhaar card photo")
+        return
+      }
     }
+    // Buyer has no compulsory document requirements
 
     if (form.role === "seller" || form.role === "both") {
       if (selectedProducts.length === 0) {
@@ -399,9 +406,11 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       const { selectedCategories, ...payload } = form
-      let verificationType = form.entityType === "company" ? "gst" : form.entityType === "individual" ? "aadhar" : "both"
-      
-      // Calculate productManufacturers from sellerProductOptions
+      let verificationType = "gst"
+      if (uploadedFilePath && aadhaarFilePath) verificationType = "both"
+      else if (aadhaarFilePath) verificationType = "aadhar"
+      else if (uploadedFilePath) verificationType = "gst"
+
       const computedProductManufacturers: Record<string, string[]> = {}
       Object.entries(sellerProductOptions).forEach(([prodName, items]) => {
         const mfgs = new Set<string>()
@@ -423,19 +432,23 @@ export default function RegisterPage() {
       const success = await register({
         ...payload,
         verificationType,
+        documentPath: uploadedFilePath,
+        aadhaarDocumentPath: aadhaarFilePath,
         categories: (form.role === "seller" || form.role === "both") ? selectedProducts : [],
         productManufacturers: (form.role === "seller" || form.role === "both") ? computedProductManufacturers : {},
         sellerProductOptions: (form.role === "seller" || form.role === "both") ? sellerProductOptions : {},
         availableLocations: (form.role === "seller" || form.role === "both") ? selectedLocations : {},
       } as any)
       if (!success) {
-        toast.error("Registration failed")
+        toast.error("Registration failed. Please try again.")
         return
       }
-      toast.success("Account created successfully!")
-      router.push("/dashboard")
-    } catch {
-      toast.error("Something went wrong")
+      toast.success("Account created successfully! Redirecting to dashboard...")
+      setTimeout(() => {
+        window.location.href = "/dashboard"
+      }, 500)
+    } catch (err: any) {
+      toast.error("Something went wrong: " + (err?.message || ""))
     } finally {
       setLoading(false)
     }
@@ -547,20 +560,32 @@ export default function RegisterPage() {
                 : step === 2
                   ? "Register as a company or individual"
                   : step === 3
-                    ? "Enter your personal details"
+                    ? "Enter your details"
                     : step === 4
                       ? "Enter GSTIN & Upload Certificate"
                       : step === 5
-                        ? "Enter Aadhaar Details (Optional)"
+                        ? "Enter Aadhaar Details"
                         : "Select your products and delivery locations"}
             </CardDescription>
             <div className="mt-4 flex items-center justify-center gap-2">
-              {Array.from({ length: (() => {
-                const base = 5
-                return (form.role === "seller" || form.role === "both") ? base + 1 : base
-              })() }, (_, i) => i + 1).map((s) => (
-                <div key={s} className={`h-2 w-8 rounded-full ${s <= step ? "bg-primary" : "bg-muted"}`} />
-              ))}
+              {Array.from({ length: form.role === "buyer" ? 2 : 5 }, (_, i) => i + 1).map((s) => {
+                const isActive = (() => {
+                  if (form.role === "buyer") {
+                    return (s === 1 && step === 1) || (s === 2 && step === 3)
+                  } else {
+                    return (
+                      (s === 1 && step === 1) ||
+                      (s === 2 && step === 2) ||
+                      (s === 3 && step === 3) ||
+                      (s === 4 && (step === 4 || step === 5)) ||
+                      (s === 5 && step === 6)
+                    )
+                  }
+                })()
+                return (
+                  <div key={s} className={`h-2 w-8 rounded-full ${isActive ? "bg-primary" : "bg-muted"}`} />
+                )
+              })}
             </div>
           </CardHeader>
           <CardContent>
@@ -589,26 +614,26 @@ export default function RegisterPage() {
                   </RadioGroup>
                 </div>
                 <Button className="w-full" onClick={() => {
-                  if (form.role === "both") {
-                    setForm(prev => ({ ...prev, entityType: "both" }))
+                  if (form.role === "buyer") {
+                    setForm(prev => ({ ...prev, entityType: "company" }))
                     setStep(3)
                   } else {
-                    if (form.entityType === "both") setForm(prev => ({ ...prev, entityType: "company" }))
+                    setForm(prev => ({ ...prev, entityType: "company" }))
                     setStep(2)
                   }
                 }}>Continue</Button>
               </div>
             )}
 
-            {/* Step 2: Entity Type Selection */}
+            {/* Step 2: Entity Type Selection (Seller & Both only) */}
             {step === 2 && (
               <div className="flex flex-col gap-6">
                 <div>
                   <Label className="mb-3 block text-foreground">Register as</Label>
                   <RadioGroup value={form.entityType} onValueChange={handleEntityTypeChange} className="flex flex-col gap-3">
                     {[
-                      { value: "company", label: "Company", desc: "Business entity with GSTIN registration", icon: Building2 },
-                      { value: "individual", label: "Individual", desc: "Personal account with Aadhaar verification", icon: User },
+                      { value: "company", label: "Company", desc: "Business entity — GSTIN registration required", icon: Building2 },
+                      { value: "individual", label: "Individual", desc: "Personal account — Aadhaar verification required", icon: User },
                     ].map((opt) => (
                       <label key={opt.value} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-all ${form.entityType === opt.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}>
                         <RadioGroupItem value={opt.value} className="mt-0.5" />
@@ -651,7 +676,7 @@ export default function RegisterPage() {
                     className="mt-1.5"
                   />
                 </div>
-                {(form.entityType === "company" || form.entityType === "both") && (
+                {(form.role !== "buyer" && form.entityType === "company") && (
                   <div>
                     <Label htmlFor="company" className="text-foreground">Company Name</Label>
                     <Input
@@ -686,11 +711,6 @@ export default function RegisterPage() {
                     onChange={(e) => updateForm("phone", e.target.value)}
                     className="mt-1.5"
                   />
-                  {/* 
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    This number will be used for SMS and Email communication
-                  </p>
-                  */}
                 </div>
                 <div>
                   <Label htmlFor="password" className="text-foreground">Password</Label>
@@ -715,11 +735,10 @@ export default function RegisterPage() {
                       )}
                     </button>
                   </div>
-
                 </div>
                 <div className="flex gap-3 mt-2">
                   <Button variant="outline" className="flex-1 bg-transparent" onClick={() => {
-                    if (form.role === "both") setStep(1)
+                    if (form.role === "buyer") setStep(1)
                     else setStep(2)
                   }}>Back</Button>
                   <Button
@@ -729,19 +748,44 @@ export default function RegisterPage() {
                         toast.error("Please enter your name")
                         return
                       }
-                      if ((form.entityType === "company" || form.entityType === "both") && !form.company.trim()) {
+                      if (!form.email.trim()) {
+                        toast.error("Please enter your email")
+                        return
+                      }
+                      if (form.password.length < 6) {
+                        toast.error("Password must be at least 6 characters")
+                        return
+                      }
+                      if (form.role !== "buyer" && form.entityType === "company" && !form.company.trim()) {
                         toast.error("Please enter your company name")
                         return
                       }
                       setLoading(true)
                       try {
-                        await createUserWithEmailAndPassword(auth, form.email, form.password)
-                        setStep(4)
+                        if (!auth.currentUser || auth.currentUser.email?.toLowerCase() !== form.email.toLowerCase()) {
+                          await createUserWithEmailAndPassword(auth, form.email, form.password)
+                        }
+                        if (form.role === "buyer") {
+                          await handleSubmit()
+                        } else if (form.entityType === "company") {
+                          setStep(4)
+                        } else {
+                          setStep(5)
+                        }
                       } catch (e: any) {
                         if (e.code === 'auth/email-already-in-use') {
-                          // Email already exists! Proceed forward to the upload assuming they own it (or it will block them later).
-                          // For security, if it's already in use, we shouldn't let them upload docs unless they log in. Let's show an error.
-                          toast.error("This email is already registered. Please log in.")
+                          try {
+                            await signInWithEmailAndPassword(auth, form.email, form.password)
+                            if (form.role === "buyer") {
+                              await handleSubmit()
+                            } else if (form.entityType === "company") {
+                              setStep(4)
+                            } else {
+                              setStep(5)
+                            }
+                          } catch {
+                            toast.error("This email is already registered. Please log in.")
+                          }
                         } else {
                           toast.error(e.message || "Failed to create account")
                         }
@@ -752,30 +796,35 @@ export default function RegisterPage() {
                     disabled={loading}
                   >
                     {loading ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Authenticating...</>
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {form.role === "buyer" ? "Finalizing..." : "Authenticating..."}</>
                     ) : (
-                      "Continue"
+                      form.role === "buyer" ? "Complete Registration" : "Continue"
                     )}
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Step 4: GST Details (Compulsory) */}
+            {/* Step 4: GST Details (Only for Company) */}
             {step === 4 && (
               <div className="flex flex-col gap-5">
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <Building2 className="h-4 w-4 text-primary" />
                     GSTIN Details
+                    <span className="ml-1 rounded-full bg-primary/20 text-primary px-2 py-0.5 text-xs font-medium">
+                      Compulsory
+                    </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Provide your 15-character GSTIN number
+                    Provide your 15-character GSTIN number and upload GST certificate
                   </p>
                 </div>
 
                 <div>
-                  <Label htmlFor="gstin" className="text-foreground">GSTIN Number</Label>
+                  <Label htmlFor="gstin" className="text-foreground">
+                    GSTIN Number
+                  </Label>
                   <div className="mt-1.5 flex gap-2">
                     <Input
                       id="gstin"
@@ -846,13 +895,14 @@ export default function RegisterPage() {
                         toast.error("Please enter a valid 15-character GSTIN")
                         return
                       }
-                      if (!uploadedFile || !uploadedFilePath) {
+                      if (!uploadedFile && !uploadedFilePath) {
                         toast.error("Please upload your GSTIN certificate")
                         return
                       }
-                      setStep(5)
+                      fetchProductsAndLocations()
+                      setStep(6)
                     }}
-                    disabled={uploadingFile || loading || form.gstin.length !== 15 || !uploadedFile}
+                    disabled={uploadingFile || loading || form.gstin.length !== 15 || (!uploadedFile && !uploadedFilePath)}
                   >
                     Continue
                   </Button>
@@ -860,23 +910,25 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* Step 5: Aadhaar Details (Optional) */}
+            {/* Step 5: Aadhaar Details (Only for Individual) */}
             {step === 5 && (
               <div className="flex flex-col gap-5">
                 <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <ShieldCheck className="h-4 w-4 text-muted-foreground" />
                     Aadhaar Details
-                    <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">Optional</span>
+                    <span className="ml-1 rounded-full bg-primary/20 text-primary px-2 py-0.5 text-xs font-medium">
+                      Compulsory
+                    </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    You may provide your Aadhaar details for additional verification. You can skip this step.
+                    Provide your 12-digit Aadhaar number and upload Aadhaar card photo
                   </p>
                 </div>
 
                 <div>
                   <Label htmlFor="aadhaar" className="text-foreground">
-                    Aadhaar Number <span className="text-xs text-muted-foreground">(Optional)</span>
+                    Aadhaar Number
                   </Label>
                   <div className="mt-1.5 flex gap-2">
                     <Input
@@ -897,7 +949,7 @@ export default function RegisterPage() {
 
                 <div>
                   <Label htmlFor="aadhaarDocument" className="text-foreground">
-                    Aadhaar Card Photo (Image or PDF) <span className="text-xs text-muted-foreground">(Optional)</span>
+                    Aadhaar Card Photo (Image or PDF)
                   </Label>
                   <div className="mt-1.5">
                     <div className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all ${aadhaarFile ? "border-green-500 bg-green-500/10" : "border-border hover:border-primary/50"}`}>
@@ -945,27 +997,24 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="flex gap-3 mt-2">
-                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setStep(4)}>Back</Button>
+                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setStep(3)}>Back</Button>
                   <Button
                     className="flex-1"
                     onClick={async () => {
-                      // Validate only if user partially entered Aadhaar
-                      if (form.aadhaarNumber.length > 0 && form.aadhaarNumber.length !== 12) {
-                        toast.error("Please enter a valid 12-digit Aadhaar number or clear the field")
+                      if (form.aadhaarNumber.length !== 12) {
+                        toast.error("Please enter a valid 12-digit Aadhaar number")
                         return
                       }
-                      if (form.role === "seller" || form.role === "both") {
-                        fetchProductsAndLocations()
-                        setStep(6)
-                      } else {
-                        await handleSubmit()
+                      if (!aadhaarFile && !aadhaarFilePath) {
+                        toast.error("Please upload your Aadhaar card photo")
+                        return
                       }
+                      fetchProductsAndLocations()
+                      setStep(6)
                     }}
-                    disabled={uploadingAadhaar || loading}
+                    disabled={uploadingAadhaar || loading || form.aadhaarNumber.length !== 12 || (!aadhaarFile && !aadhaarFilePath)}
                   >
-                    {(form.role === "seller" || form.role === "both")
-                      ? "Continue"
-                      : (loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Finalizing...</> : "Complete Registration")}
+                    Continue
                   </Button>
                 </div>
               </div>
@@ -1475,7 +1524,13 @@ export default function RegisterPage() {
                 )}
 
                 <div className="flex gap-3 mt-2">
-                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setStep(5)}>Back</Button>
+                  <Button variant="outline" className="flex-1 bg-transparent" onClick={() => {
+                    if (form.entityType === "company") {
+                      setStep(4)
+                    } else {
+                      setStep(5)
+                    }
+                  }}>Back</Button>
                   <Button
                     className="flex-1"
                     onClick={handleSubmit}

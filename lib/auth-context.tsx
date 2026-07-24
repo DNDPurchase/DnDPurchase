@@ -36,6 +36,7 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null
   allUsers: AuthUser[]
+  isInitialized: boolean
   login: (email: string, password: string, role?: "buyer" | "seller") => Promise<boolean>
   loginWithGoogle: (email: string) => Promise<boolean>
   connectGoogle: (email: string) => Promise<boolean>
@@ -173,13 +174,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (e: any) {
       logger.error("Client Firebase auth registration failed", { error: e.message })
-      // If it's email-already-in-use, it might already exist in standard backend DB or Firebase.
-      // We will let the frontend UI handle this gracefully by returning false.
+      // If it's email-already-in-use, try signing in (e.g. account created in step 3)
       if (e.code === 'auth/email-already-in-use') {
-        // Do not block if we merely want to merge, but typically email-in-use is a hard stop
+        try {
+          await signInWithEmailAndPassword(auth, email, password)
+        } catch (signInError: any) {
+          logger.error("Failed to sign in existing account during registration", { error: signInError?.message })
+          return false
+        }
+      } else {
         return false
       }
-      return false
     }
 
     let userDatas: AuthUser[];
@@ -194,12 +199,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: payload.role as "buyer" | "seller" | "both",
         entityType: payload.entityType as "company" | "individual" | "both",
         verificationType: payload.verificationType as "gst" | "aadhar" | "both",
-        gstin: (payload.entityType === "company" || payload.entityType === "both") ? payload.gstin : undefined,
-        gstCertificatePath: (payload.entityType === "company" || payload.entityType === "both") ? payload.documentPath : undefined,
-        aadhaarNumber: (payload.entityType === "individual" || payload.entityType === "both") ? payload.aadhaarNumber : undefined,
-        aadhaarDocumentPath: (payload.entityType === "individual" || payload.entityType === "both")
-          ? (payload.aadhaarDocumentPath || payload.documentPath)
-          : undefined,
+        gstin: payload.gstin || undefined,
+        gstCertificatePath: payload.documentPath || payload.gstCertificatePath || undefined,
+        aadhaarNumber: payload.aadhaarNumber || undefined,
+        aadhaarDocumentPath: payload.aadhaarDocumentPath || undefined,
         googleConnected: false,
         categories: payload.categories
           ? (typeof payload.categories === 'string' ? JSON.parse(payload.categories) : payload.categories)
@@ -226,9 +229,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Add new user to allUsers and set as active
+    const buyerUser = userDatas.find(u => u.role === "buyer" || u.role === "both") || userDatas[0]
+
     setAllUsers(prev => {
       const updated = [...prev, ...userDatas]
-      const buyerUser = userDatas.find(u => u.role === "buyer" || u.role === "both") || userDatas[0]
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated))
+        localStorage.setItem(ACTIVE_USER_KEY, buyerUser.id)
+      } catch (e) {
+        logger.error("Failed to save registered user to storage", { error: (e as Error)?.message })
+      }
       setUser(buyerUser)
       return updated
     })
@@ -341,16 +351,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Show loading state while initializing
-  if (!isInitialized) {
-    return null
-  }
-
   return (
     <AuthContext
       value={{
         user,
         allUsers,
+        isInitialized,
         login,
         loginWithGoogle,
         connectGoogle,

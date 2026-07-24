@@ -1,0 +1,10 @@
+[2026-07-24T07:31:45.397Z] INFO Test mode enabled; skipping actual SMS send {"payload":{"template_id":"6a5e59662a0700075b0528b4","recipients":[{"mobiles":"****8391"}]}}
+[2026-07-24T07:31:45.393Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T08:44:45.132Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T08:44:45.644Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e6e****7626f35","type":"success"}}
+[2026-07-24T08:53:19.814Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T08:53:20.150Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****1314b694e","type":"success"}}
+[2026-07-24T08:57:53.777Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T08:57:54.181Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****3051","type":"success"}}
+[2026-07-24T09:02:15.937Z] INFO Email sent successfully via Google Workspace {"to":"[redacted-email]","messageId":"<[redacted-email]>"}
+[2026-07-24T09:02:16.897Z] INFO SMS sent successfully via MSG91 {"data":{"message":"3667786e****6696f39666c","type":"success"}}

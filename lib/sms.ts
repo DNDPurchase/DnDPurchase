@@ -47,7 +47,8 @@ export async function sendSMS(payload: MSG91Payload) {
         const sanitizedPayload = {
             ...payload,
             recipients: payload.recipients.map(recipient => {
-                let cleanMobile = recipient.mobiles.replace(/\D/g, "");
+                const rawMobile = recipient.mobiles || "";
+                let cleanMobile = String(rawMobile).replace(/\D/g, "");
                 if (cleanMobile.length === 10) {
                     cleanMobile = "91" + cleanMobile;
                 } else if (cleanMobile.length === 11 && cleanMobile.startsWith("0")) {
@@ -75,6 +76,12 @@ export async function sendSMS(payload: MSG91Payload) {
         }
 
         const data = await response.json()
+
+        if (data && (data.type === "error" || data.hasError || data.status === "error")) {
+            logger.error("Failed to send SMS via MSG91 (API response error)", { data, payload: sanitizedPayload })
+            throw new Error(`MSG91 API Error: ${data.message || JSON.stringify(data)}`)
+        }
+
         logger.info("SMS sent successfully via MSG91", { data })
         return { success: true, data }
     } catch (error) {

@@ -16,10 +16,12 @@ export function formatOptionType(type: string): string {
 
 export function formatOptionLabel(label: string): string {
   if (!label) return label
-  return label
-    .replace(/\(number\)/gi, '(No.)')
-    .replace(/\(dropdown\)/gi, '(Type)')
-    .replace(/\(radio\)/gi, '(Option)')
+  let cleaned = label
+  // Remove all parenthesized, bracketed, or braced substrings (e.g., "(Example: 40×20)", "(No.)", "[...]", "{...}")
+  while (/\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/.test(cleaned)) {
+    cleaned = cleaned.replace(/\s*\([^)]*\)|\s*\[[^\]]*\]|\s*\{[^}]*\}/g, '')
+  }
+  return cleaned.trim() || label.trim()
 }
 
 export function validatePassword(password: string) {

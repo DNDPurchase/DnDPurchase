@@ -1455,6 +1455,22 @@ export async function getAllProductOptions(): Promise<ProductOption[]> {
   }))
 }
 
+function dedupeStringArray(arr: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const item of arr) {
+    if (typeof item !== "string") continue
+    const trimmed = item.trim()
+    if (!trimmed) continue
+    const key = trimmed.toLowerCase()
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push(trimmed)
+    }
+  }
+  return result
+}
+
 export async function getAllSellerProductOptions(): Promise<Record<string, ProductOption[]>> {
   const options = await getAllProductOptions()
   const result: Record<string, ProductOption[]> = {}
@@ -1467,10 +1483,13 @@ export async function getAllSellerProductOptions(): Promise<Record<string, Produ
       const existingOpt = result[pId].find(o => o.option_name === data.option_name)
       if (existingOpt) {
         if (data.dropdown_values && Array.isArray(data.dropdown_values)) {
-          existingOpt.dropdown_values = Array.from(new Set([...(existingOpt.dropdown_values || []), ...data.dropdown_values]))
+          existingOpt.dropdown_values = dedupeStringArray([...(existingOpt.dropdown_values || []), ...data.dropdown_values])
         }
       } else {
-        result[pId].push({ ...data })
+        result[pId].push({
+          ...data,
+          dropdown_values: data.dropdown_values && Array.isArray(data.dropdown_values) ? dedupeStringArray(data.dropdown_values) : data.dropdown_values
+        })
       }
     }
   }) 
@@ -1485,7 +1504,9 @@ export async function getAllProductManufacturers(): Promise<Record<string, strin
   snap.docs.forEach((docSnap) => {
     const data = docSnap.data();
     if (data.product_id && data.dropdown_values) {
-      result[data.product_id.toString()] = data.dropdown_values;
+      const pId = data.product_id.toString();
+      const existing = result[pId] || [];
+      result[pId] = dedupeStringArray([...existing, ...data.dropdown_values]);
     }
   });
   return result;

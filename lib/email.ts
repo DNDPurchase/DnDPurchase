@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer"
 import { logger } from "./logger"
+import { formatOptionLabel } from "./utils"
 
 // Configuration
 const SMTP_USER = process.env.SMTP_USER || "contact@dndpurchase.com"
@@ -280,7 +281,7 @@ export async function sendInquirySubmissionReceiptEmail(to: string, inquiry: any
     const itemsHtml = inquiry.items.map((item: any, idx: number) => {
         const optionsHtml = item.options ? Object.entries(item.options).map(([k, v]) => {
             const valStr = Array.isArray(v) ? v.join(", ") : String(v);
-            return `<li><strong>${k}:</strong> ${valStr}</li>`;
+            return `<li><strong>${formatOptionLabel(k)}:</strong> ${valStr}</li>`;
         }).join("") : "";
 
         return `

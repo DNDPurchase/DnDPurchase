@@ -54,6 +54,10 @@ export async function sendSMS(payload: MSG91Payload) {
                 } else if (cleanMobile.length === 11 && cleanMobile.startsWith("0")) {
                     cleanMobile = "91" + cleanMobile.slice(1);
                 }
+                if (!/^91\d{10}$/.test(cleanMobile)) {
+                    logger.error("Refusing to send SMS to malformed mobile number", { rawMobile })
+                    throw new Error(`Invalid mobile number format: "${rawMobile}"`)
+                }
                 return {
                     ...recipient,
                     mobiles: cleanMobile

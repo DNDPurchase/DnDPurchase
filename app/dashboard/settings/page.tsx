@@ -103,18 +103,25 @@ export default function SettingsPage() {
     const handleSave = async () => {
         if (!user) return
 
+        const digitsOnlyPhone = formData.phone.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "")
+        if (digitsOnlyPhone.length !== 10) {
+            toast.error("Please enter a valid 10-digit phone number")
+            return
+        }
+
         setLoading(true)
         try {
             // Sanitize notification emails before saving:
             // Only keep emails that are actually present (primary or secondary)
-            const sanitizedNotificationEmails = (formData.notificationEmails || []).filter(email => 
+            const sanitizedNotificationEmails = (formData.notificationEmails || []).filter(email =>
                 email === formData.email || formData.secondaryEmails.includes(email)
             )
-            const sanitizedVerifiedSecondaryEmails = (user.verifiedSecondaryEmails || []).filter(email => 
+            const sanitizedVerifiedSecondaryEmails = (user.verifiedSecondaryEmails || []).filter(email =>
                 formData.secondaryEmails.includes(email)
             )
             const payload = {
                 ...formData,
+                phone: `+91${digitsOnlyPhone}`,
                 notificationEmails: sanitizedNotificationEmails,
                 verifiedSecondaryEmails: sanitizedVerifiedSecondaryEmails
             }
@@ -215,12 +222,16 @@ export default function SettingsPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="phone">Phone *</Label>
-                                    <Input
-                                        id="phone"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        placeholder="Enter your phone"
-                                    />
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground shrink-0">+91</span>
+                                        <Input
+                                            id="phone"
+                                            maxLength={10}
+                                            value={formData.phone.replace(/^\+?91/, "")}
+                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "").slice(0, 10) })}
+                                            placeholder="98765 43210"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="company">Company</Label>

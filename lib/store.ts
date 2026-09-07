@@ -777,6 +777,50 @@ export async function reopenInquiry(inquiryId: string): Promise<void> {
   }
 }
 
+/**
+ * Normalizes a phone number to the same "91XXXXXXXXXX" shape used when
+ * actually dispatching SMS/WhatsApp (see lib/sms.ts / lib/whatsapp.ts),
+ * so dedup keys match what will actually be sent to.
+ */
+function normalizePhoneForDedupe(raw: string): string {
+  let clean = String(raw || "").replace(/\D/g, "")
+  if (clean.length === 10) clean = "91" + clean
+  else if (clean.length === 11 && clean.startsWith("0")) clean = "91" + clean.slice(1)
+  return clean
+}
+
+/**
+ * Collapses multiple contact entries that share the same phone number into
+ * one (merging their emails), keeping only the first contact per phone.
+ *
+ * Without this, two different seller accounts registered with the same
+ * phone number both appear in a notification broadcast list, and the exact
+ * same SMS/WhatsApp content gets fired to that number twice in the same
+ * request — which MSG91 rejects as a duplicate (error 311) on the second
+ * send. Email notifications are preserved for every account since emails
+ * are merged rather than dropped; only the redundant phone-based send is
+ * collapsed.
+ */
+function dedupeContactsByPhone<T extends { phone: string; email: string; emails?: string[] }>(contacts: T[]): T[] {
+  const seenByPhone = new Map<string, T>()
+  const result: T[] = []
+  for (const contact of contacts) {
+    const key = contact.phone ? normalizePhoneForDedupe(contact.phone) : ""
+    if (!key) {
+      result.push(contact)
+      continue
+    }
+    const existing = seenByPhone.get(key)
+    if (existing) {
+      existing.emails = Array.from(new Set([...(existing.emails || []), ...(contact.emails || [])]))
+      continue
+    }
+    seenByPhone.set(key, contact)
+    result.push(contact)
+  }
+  return result
+}
+
 export async function getSellerContactInfoFromOffers(inquiryId: string): Promise<{phone: string, email: string, emails?: string[]}[]> {
   const q = query(collection(db, "offers"), where("inquiry_id", "==", inquiryId))
   const snap = await getDocs(q)
@@ -793,14 +837,14 @@ export async function getSellerContactInfoFromOffers(inquiryId: string): Promise
     contacts.push(...sSnap.docs.map(d => {
       const seller = mapSellerFromDb(d.data(), d.id)
       const emails = getVerifiedNotificationEmails(seller)
-      return { 
-        phone: seller.phone, 
+      return {
+        phone: seller.phone,
         email: seller.email,
         emails: emails.length > 0 ? emails : [seller.email]
       }
     }))
   }
-  return contacts;
+  return dedupeContactsByPhone(contacts);
 }
 
 export async function getAllSellerPhones(): Promise<string[]> {
@@ -845,7 +889,7 @@ export async function getSellersContactInfoByCategories(
   const q = query(collection(db, "sellers"), where("verified", "==", true))
   const snap = await getDocs(q)
 
-  return snap.docs
+  const matchedContacts = snap.docs
     .map(d => mapSellerFromDb(d.data(), d.id))
     .filter(seller => {
       const sellerCategories: string[] = seller.categories || []
@@ -955,13 +999,15 @@ export async function getSellersContactInfoByCategories(
     })
     .map(seller => {
       const emails = getVerifiedNotificationEmails(seller)
-      return { 
-        phone: seller.phone, 
+      return {
+        phone: seller.phone,
         email: seller.email,
         emails: emails.length > 0 ? emails : [seller.email]
       }
     })
     .filter(contact => !!contact.phone || !!contact.email)
+
+  return dedupeContactsByPhone(matchedContacts)
 }
 
 export async function activateBidding(inquiryId: string, durationInDays: number): Promise<void> {

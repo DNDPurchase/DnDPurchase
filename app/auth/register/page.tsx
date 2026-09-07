@@ -406,6 +406,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       const { selectedCategories, ...payload } = form
+      payload.phone = `+91${form.phone}`
       let verificationType = "gst"
       if (uploadedFilePath && aadhaarFilePath) verificationType = "both"
       else if (aadhaarFilePath) verificationType = "aadhar"
@@ -703,14 +704,17 @@ export default function RegisterPage() {
                   <Label htmlFor="phone" className="text-foreground">
                     Contact Number
                   </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+91 98765 43210"
-                    value={form.phone}
-                    onChange={(e) => updateForm("phone", e.target.value)}
-                    className="mt-1.5"
-                  />
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground shrink-0">+91</span>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="98765 43210"
+                      maxLength={10}
+                      value={form.phone}
+                      onChange={(e) => updateForm("phone", e.target.value.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "").slice(0, 10))}
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="password" className="text-foreground">Password</Label>
@@ -750,6 +754,10 @@ export default function RegisterPage() {
                       }
                       if (!form.email.trim()) {
                         toast.error("Please enter your email")
+                        return
+                      }
+                      if (form.phone.length !== 10) {
+                        toast.error("Please enter a valid 10-digit contact number")
                         return
                       }
                       if (form.password.length < 6) {

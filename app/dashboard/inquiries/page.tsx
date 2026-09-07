@@ -53,6 +53,7 @@ function InquiriesContent() {
     days: "3"
   })
   const [allProductOptions, setAllProductOptions] = useState<Record<string, any[]>>({})
+  const [isConfirmingRebid, setIsConfirmingRebid] = useState(false)
 
   // Fetch all product options for unique (product, subProduct) pairs in inquiries to determine sort order
   const productSubProductPairs = Array.from(new Set(inquiries?.flatMap((inq: any) => inq.items.map((item: any) => `${item.product}|${item.sub_product || ""}`)) || [])) as string[]
@@ -89,6 +90,9 @@ function InquiriesContent() {
   }
 
   const handleConfirmRebid = async () => {
+    // Ignore a second click while this rebid is already in flight
+    // (prevents duplicate SMS/WhatsApp sends — MSG91 error 311)
+    if (isConfirmingRebid) return
     if (!rebidDialogState.inquiryId) return
     const days = parseInt(rebidDialogState.days)
     if (isNaN(days) || days <= 0) {
@@ -96,6 +100,7 @@ function InquiriesContent() {
       return
     }
 
+    setIsConfirmingRebid(true)
     try {
       const offers = await getOffersByInquiryId(rebidDialogState.inquiryId)
       const acceptedOffer = offers.find((o: any) => o.status === "accepted")
@@ -114,6 +119,8 @@ function InquiriesContent() {
       setRebidDialogState({ isOpen: false, inquiryId: null, days: "3" })
     } catch (error) {
       toast.error("Failed to resume bidding")
+    } finally {
+      setIsConfirmingRebid(false)
     }
   }
 
@@ -327,7 +334,7 @@ function InquiriesContent() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRebidDialogState(prev => ({ ...prev, isOpen: false }))}>Cancel</Button>
-            <Button onClick={handleConfirmRebid}>Confirm Re-bid</Button>
+            <Button onClick={handleConfirmRebid} disabled={isConfirmingRebid}>Confirm Re-bid</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

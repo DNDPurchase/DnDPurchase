@@ -46,6 +46,8 @@ function OffersContent() {
   const [isStartBiddingDialogOpen, setIsStartBiddingDialogOpen] = useState(false)
   const [biddingDuration, setBiddingDuration] = useState("3")
   const [isSubmittingBidding, setIsSubmittingBidding] = useState(false)
+  const [isRebidding, setIsRebidding] = useState(false)
+  const [processingOfferIds, setProcessingOfferIds] = useState<Set<string>>(new Set())
   const [allProductOptions, setAllProductOptions] = useState<Record<string, any[]>>({})
 
   // Fetch all product options for unique (product, subProduct) pairs in inquiry to determine sort order
@@ -87,6 +89,11 @@ function OffersContent() {
 
 
   const handleDisqualifyOffer = async (offerId: string) => {
+    // Ignore a second click while this offer's action is already in flight
+    // (prevents duplicate SMS/WhatsApp sends — MSG91 error 311)
+    if (processingOfferIds.has(offerId)) return
+    setProcessingOfferIds(prev => new Set(prev).add(offerId))
+
     // 1. Optimistic Update of Offers SWR cache
     if (offers) {
       const updatedOffers = offers.map((o: any) =>
@@ -115,10 +122,20 @@ function OffersContent() {
       mutate()
       if (user) globalMutate(`buyer-inquiries-${user.id}`)
       globalMutate("open-inquiries")
+      setProcessingOfferIds(prev => {
+        const next = new Set(prev)
+        next.delete(offerId)
+        return next
+      })
     }
   }
 
   const handleAcceptOffer = async (offerId: string) => {
+    // Ignore a second click while this offer's action is already in flight
+    // (prevents duplicate SMS/WhatsApp sends — MSG91 error 311)
+    if (processingOfferIds.has(offerId)) return
+    setProcessingOfferIds(prev => new Set(prev).add(offerId))
+
     // 1. Optimistic Update of SWR cache
     if (offers) {
       const updatedOffers = offers.map((o: any) =>
@@ -153,10 +170,20 @@ function OffersContent() {
       if (mutateInquiry) mutateInquiry()
       if (user) globalMutate(`buyer-inquiries-${user.id}`)
       globalMutate("open-inquiries")
+      setProcessingOfferIds(prev => {
+        const next = new Set(prev)
+        next.delete(offerId)
+        return next
+      })
     }
   }
 
   const handleRebid = async (offerId?: string) => {
+    // Ignore a second click while a rebid is already in flight
+    // (prevents duplicate SMS/WhatsApp sends — MSG91 error 311)
+    if (isRebidding) return
+    setIsRebidding(true)
+
     // 1. Optimistic Update of SWR cache
     if (offerId && offers) {
       const updatedOffers = offers.map((o: any) =>
@@ -192,6 +219,7 @@ function OffersContent() {
       if (mutateInquiry) mutateInquiry()
       if (user) globalMutate(`buyer-inquiries-${user.id}`)
       globalMutate("open-inquiries")
+      setIsRebidding(false)
     }
   }
 
@@ -342,7 +370,7 @@ function OffersContent() {
                       <p className="text-muted-foreground">No offers received yet for this item.</p>
                       {displayStatus === "closed" && (inquiry.rebidCount || 0) < 1 && (
                         <div className="mt-4">
-                          <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm text-primary hover:text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => handleRebid()}>
+                          <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm text-primary hover:text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => handleRebid()} disabled={isRebidding}>
                             <RotateCcw className="h-4 w-4" /> Re-bid & Resume Bidding
                           </Button>
                         </div>
@@ -496,10 +524,10 @@ function OffersContent() {
                                 <TableCell className="text-right px-2 py-4">
                                   {offer.status === "pending" && displayStatus === "bidding" && (
                                     <div className="flex justify-end gap-1">
-                                      <Button size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs bg-transparent" onClick={() => handleAcceptOffer(offer.id)}>
+                                      <Button size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs bg-transparent" onClick={() => handleAcceptOffer(offer.id)} disabled={processingOfferIds.has(offer.id)}>
                                         <CheckCircle className="h-3.5 w-3.5" /> Accept
                                       </Button>
-                                      <button className="btn-action-icon" onClick={() => handleDisqualifyOffer(offer.id)} title="Disqualify Offer">
+                                      <button className="btn-action-icon" onClick={() => handleDisqualifyOffer(offer.id)} disabled={processingOfferIds.has(offer.id)} title="Disqualify Offer">
                                         <Trash2 />
                                       </button>
                                     </div>
@@ -659,10 +687,10 @@ function OffersContent() {
                               <div className="flex items-center gap-2 pt-3 border-t border-border/60 mt-2">
                                 {displayStatus === "bidding" ? (
                                   <>
-                                    <button className="btn-action-icon" onClick={() => handleDisqualifyOffer(offer.id)} title="Disqualify Offer">
+                                    <button className="btn-action-icon" onClick={() => handleDisqualifyOffer(offer.id)} disabled={processingOfferIds.has(offer.id)} title="Disqualify Offer">
                                       <Trash2 />
                                     </button>
-                                    <Button size="sm" className="h-9 flex-1 gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm" onClick={() => handleAcceptOffer(offer.id)}>
+                                    <Button size="sm" className="h-9 flex-1 gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm" onClick={() => handleAcceptOffer(offer.id)} disabled={processingOfferIds.has(offer.id)}>
                                       <CheckCircle className="h-4 w-4" /> Accept Offer
                                     </Button>
                                   </>
@@ -682,7 +710,7 @@ function OffersContent() {
                         if (displayStatus === "closed" && (inquiry.rebidCount || 0) < 1) {
                           return (
                             <div className="p-4 border-t border-border flex justify-end bg-muted/20">
-                              <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm text-primary hover:text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => handleRebid(acceptedOffer?.id)}>
+                              <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm text-primary hover:text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => handleRebid(acceptedOffer?.id)} disabled={isRebidding}>
                                 <RotateCcw className="h-4 w-4" /> Re-bid & Resume Bidding
                               </Button>
                             </div>

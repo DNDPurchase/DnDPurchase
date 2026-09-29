@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger"
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { auth } from "./firebase"
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth"
-import { registerUser, loginUser as storeLoginUser, loginUserWithGoogle as storeLoginUserWithGoogle, connectUserWithGoogle as storeConnectUserWithGoogle } from "./store"
+import { registerUser, loginUser as storeLoginUser, loginUserWithGoogle as storeLoginUserWithGoogle, connectUserWithGoogle as storeConnectUserWithGoogle, getUserById } from "./store"
 
 interface AuthUser {
   id: string
@@ -83,6 +83,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsInitialized(true)
     }
   }, [])
+
+  // Re-sync the active user's profile from Firestore once per session.
+  // The cached copy in localStorage can go stale (e.g. product categories
+  // or delivery locations edited in a different session/device), which
+  // silently breaks anything that depends on this data, like seller
+  // inquiry-matching. Refresh it in the background after initial load.
+  useEffect(() => {
+    if (!isInitialized || !user?.id) return
+
+    let cancelled = false
+    getUserById(user.id)
+      .then((fresh) => {
+        if (cancelled || !fresh) return
+        setUser((prevUser) => {
+          if (!prevUser || prevUser.id !== user.id) return prevUser
+          const updated = { ...prevUser, ...fresh } as AuthUser
+          setAllUsers((prevAll) => prevAll.map((u) => (u.id === updated.id ? updated : u)))
+          return updated
+        })
+      })
+      .catch((error) => {
+        logger.error("Failed to re-sync user profile from Firestore", { error: (error as Error)?.message })
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialized, user?.id])
 
   // Save users to localStorage whenever they change
   useEffect(() => {

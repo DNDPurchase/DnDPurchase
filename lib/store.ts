@@ -281,15 +281,18 @@ async function getNextSellerId(): Promise<string> {
   return `SEL-${String(lastNum + 1).padStart(4, "0")}`
 }
 
-async function generateUserCode(role: "buyer" | "seller"): Promise<string> {
-  const collectionName = role === "buyer" ? "buyers" : "sellers"
-  const prefix = role === "buyer" ? "B" : "S"
-  const snapshot = await getCountFromServer(collection(db, collectionName))
-  const count = snapshot.data().count + 1
-
-  // Logic: 001 - 999 (3 digits), 0001+ (4+ digits)
-  const paddingLength = count <= 999 ? 3 : String(count).length + 1
-  return `${prefix}${String(count).padStart(paddingLength, "0")}`
+/**
+ * Derives a display code (e.g. "S031") from a user's real id (e.g. "SEL-0031"),
+ * instead of a separate live document-count query. The count-based approach
+ * collided across different accounts whenever any seller/buyer document was
+ * ever deleted (the count drops, but ids never do, since ids are derived
+ * from the highest existing id, not a count).
+ */
+function userCodeFromId(id: string, prefix: string): string {
+  const num = parseInt(id.split("-")[1], 10)
+  if (isNaN(num)) return `${prefix}${id}`
+  const paddingLength = num <= 999 ? 3 : String(num).length
+  return `${prefix}${String(num).padStart(paddingLength, "0")}`
 }
 
 async function generatePublicAlias(role: "buyer" | "seller"): Promise<string> {
@@ -364,7 +367,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
 
   if (data.role === "buyer" || data.role === "both") {
     const id = await getNextBuyerId()
-    const userCode = await generateUserCode("buyer")
+    const userCode = userCodeFromId(id, "B")
     const displayName = userCode
 
     await setDoc(doc(db, "buyers", id), {
@@ -415,7 +418,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
 
   if (data.role === "seller" || data.role === "both") {
     const id = await getNextSellerId()
-    const userCode = await generateUserCode("seller")
+    const userCode = userCodeFromId(id, "S")
     const displayName = userCode
 
     await setDoc(doc(db, "sellers", id), {

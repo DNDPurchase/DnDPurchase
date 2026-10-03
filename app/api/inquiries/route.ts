@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger"
 import { createInquiry, getAllSellerPhones, getInquiriesByBuyerId, getOpenInquiries, getSellersContactInfoByCategories, getInquiryById } from "@/lib/store"
 import { notifySellerOfNewInquiryEmail, notifySellersOfBiddingEmail, sendInquirySubmissionReceiptEmail } from "@/lib/email"
-import { notifySellerOfNewInquirySMS, notifySellersOfBiddingSMS } from "@/lib/sms"
+import { notifySellerOfNewInquirySMS, notifySellersOfBiddingSMS } from "@/lib/whatsapp"
 import { getUserById, getVerifiedNotificationEmails } from "@/lib/store"
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/firebase"

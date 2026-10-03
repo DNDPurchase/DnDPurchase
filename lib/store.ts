@@ -32,6 +32,7 @@ export interface User {
   sellerProductOptions?: Record<string, any[]>
   availableLocations?: Record<string, string[]>
   smsNotificationsEnabled: boolean
+  whatsappEnabled: boolean
   secondaryEmails?: string[]
   notificationEmails?: string[]
   verifiedSecondaryEmails?: string[]
@@ -113,7 +114,8 @@ function mapBuyerFromDb(row: any, id: string): User {
     primaryEmailVerified: row.primary_email_verified !== false,
     googleConnected: Boolean(row.google_connected),
     createdAt: row.created_at,
-    smsNotificationsEnabled: row.sms_notifications_enabled !== false, // default to true
+    smsNotificationsEnabled: row.sms_notifications_enabled !== false,
+    whatsappEnabled: row.whatsapp_enabled !== false, // default to true
     secondaryEmails: row.secondary_emails || [],
     notificationEmails: (row.notification_emails && row.notification_emails.length > 0) ? row.notification_emails : [row.email],
     verifiedSecondaryEmails: row.verified_secondary_emails || [],
@@ -152,7 +154,8 @@ function mapSellerFromDb(row: any, id: string): User {
     productManufacturers: row.product_manufacturers || {},
     sellerProductOptions: row.seller_product_options || fallbackOptions,
     availableLocations: row.available_locations || {},
-    smsNotificationsEnabled: row.sms_notifications_enabled !== false, // default to true
+    smsNotificationsEnabled: row.sms_notifications_enabled !== false,
+    whatsappEnabled: row.whatsapp_enabled !== false, // default to true
     secondaryEmails: row.secondary_emails || [],
     notificationEmails: (row.notification_emails && row.notification_emails.length > 0) ? row.notification_emails : [row.email],
     verifiedSecondaryEmails: row.verified_secondary_emails || [],
@@ -390,6 +393,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       created_at: createdAt,
       auth_uid: auth.currentUser?.uid || null,
       sms_notifications_enabled: true,
+      whatsapp_enabled: true,
     })
 
     users.push({
@@ -413,6 +417,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       googleConnected: false,
       createdAt,
       smsNotificationsEnabled: true,
+      whatsappEnabled: true,
     })
   }
 
@@ -446,6 +451,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       seller_product_options: data.sellerProductOptions || {},
       available_locations: data.availableLocations || {},
       sms_notifications_enabled: true,
+      whatsapp_enabled: true,
     })
 
     users.push({
@@ -473,6 +479,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       sellerProductOptions: data.sellerProductOptions || {},
       availableLocations: data.availableLocations || {},
       smsNotificationsEnabled: true,
+      whatsappEnabled: true,
     })
   }
 
@@ -1589,6 +1596,7 @@ export interface UpdateUserData {
   sellerProductOptions?: Record<string, any[]>
   availableLocations?: Record<string, string[]>
   smsNotificationsEnabled?: boolean
+  whatsappEnabled?: boolean
   secondaryEmails?: string[]
   notificationEmails?: string[]
   verifiedSecondaryEmails?: string[]
@@ -1608,6 +1616,7 @@ export async function updateUser(userId: string, updates: UpdateUserData): Promi
   if (updates.sellerProductOptions !== undefined) updateData.seller_product_options = updates.sellerProductOptions
   if (updates.availableLocations !== undefined) updateData.available_locations = updates.availableLocations
   if (updates.smsNotificationsEnabled !== undefined) updateData.sms_notifications_enabled = updates.smsNotificationsEnabled
+  if (updates.whatsappEnabled !== undefined) updateData.whatsapp_enabled = updates.whatsappEnabled
   if (updates.secondaryEmails !== undefined) updateData.secondary_emails = updates.secondaryEmails
   if (updates.notificationEmails !== undefined) updateData.notification_emails = updates.notificationEmails
   if (updates.verifiedSecondaryEmails !== undefined) updateData.verified_secondary_emails = updates.verifiedSecondaryEmails

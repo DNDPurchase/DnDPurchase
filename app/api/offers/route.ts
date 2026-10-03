@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger"
 import { acceptOffer, closeInquiry, createOffer, disqualifyOffer, getInquiryById, getOfferById, getOffersByInquiryId, getOffersBySellerId, getUserById, getVerifiedNotificationEmails } from "@/lib/store"
 import { notifyBuyerOfAcceptanceEmail, notifyBuyerOfNewOfferEmail, notifySellerOfAcceptanceEmail, notifySellerOfRejectionEmail } from "@/lib/email"
-import { notifyBuyerOfAcceptanceSMS, notifyBuyerOfNewOfferSMS, notifySellerOfAcceptanceSMS, notifySellerOfRejectionSMS } from "@/lib/sms"
+import { notifyBuyerOfAcceptanceSMS, notifyBuyerOfNewOfferSMS, notifySellerOfAcceptanceSMS, notifySellerOfRejectionSMS } from "@/lib/whatsapp"
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/firebase"
 import { signInWithEmailAndPassword } from "firebase/auth"
@@ -234,10 +234,10 @@ export async function PATCH(req: Request) {
           )
           
           if (seller.phone && seller.phone.trim() !== "") {
-            if (seller.smsNotificationsEnabled) {
-              await notifySellerOfAcceptanceSMS(seller.phone, offer.id).catch(e => logger.error("SMS seller acceptance failed", { error: (e as Error).message }))
+            if (seller.whatsappEnabled !== false) {
+              await notifySellerOfAcceptanceSMS(seller.phone, offer.id).catch(e => logger.error("WhatsApp seller acceptance failed", { error: (e as Error).message }))
             } else {
-              logger.info("Skipping SMS notification for seller as it is disabled in profile", { sellerId: seller.id })
+              logger.info("Skipping WhatsApp notification for seller as it is disabled in profile", { sellerId: seller.id })
             }
           }
           await Promise.allSettled(sellerEmailPromises)

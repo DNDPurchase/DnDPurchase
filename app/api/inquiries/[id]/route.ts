@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger"
 import { activateBidding, closeInquiry, deleteInquiryItem, getInquiryById, getSellerContactInfoFromOffers, updateInquiryItem, getUserById, startBidding, getSellersContactInfoByCategories, softDeleteInquiry, getVerifiedNotificationEmails } from "@/lib/store"
 import { notifySellersOfBiddingEmail, notifyBuyerOfInquiryClosedEmail, notifySellerOfInquiryClosedEmail, notifyBuyerOfInquiryDeletedEmail, notifySellerOfInquiryDeletedEmail } from "@/lib/email"
-import { notifySellersOfBiddingSMS, notifyBuyerOfInquiryClosedSMS, notifySellerOfInquiryClosedSMS, notifyBuyerOfInquiryDeletedSMS, notifySellerOfInquiryDeletedSMS } from "@/lib/sms"
+import { notifySellersOfBiddingSMS, notifyBuyerOfInquiryClosedSMS, notifySellerOfInquiryClosedSMS, notifyBuyerOfInquiryDeletedSMS, notifySellerOfInquiryDeletedSMS } from "@/lib/whatsapp"
 import { NextResponse } from "next/server"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger"
 import { registerUser } from "@/lib/store"
 import { sendWelcomeEmail } from "@/lib/email"
-import { sendWelcomeSMS } from "@/lib/sms"
+import { sendWelcomeSMS } from "@/lib/whatsapp"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {

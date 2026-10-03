@@ -28,7 +28,7 @@ export default function SettingsPage() {
         productManufacturers: user?.productManufacturers || {} as Record<string, string[]>,
         secondaryEmails: user?.secondaryEmails || [] as string[],
         notificationEmails: user?.notificationEmails || [user?.email || ""],
-        // smsNotificationsEnabled: user?.smsNotificationsEnabled ?? true,
+        whatsappEnabled: user?.whatsappEnabled ?? true,
     })
     const [availableProducts, setAvailableProducts] = useState<{ id: string, name: string }[]>([])
     const [allManufacturers, setAllManufacturers] = useState<Record<string, string[]>>({})
@@ -58,7 +58,7 @@ export default function SettingsPage() {
             productManufacturers: user?.productManufacturers || {},
             secondaryEmails: user?.secondaryEmails || [],
             notificationEmails: user?.notificationEmails || [user?.email || ""],
-            //smsNotificationsEnabled: user?.smsNotificationsEnabled ?? true,
+            whatsappEnabled: user?.whatsappEnabled ?? true,
         })
         setIsEditing(!isEditing)
     }
@@ -74,6 +74,7 @@ export default function SettingsPage() {
             productManufacturers: user?.productManufacturers || {},
             secondaryEmails: user?.secondaryEmails || [],
             notificationEmails: user?.notificationEmails || [user?.email || ""],
+            whatsappEnabled: user?.whatsappEnabled ?? true,
         })
         setIsEditing(false)
     }
@@ -123,7 +124,8 @@ export default function SettingsPage() {
                 ...formData,
                 phone: `+91${digitsOnlyPhone}`,
                 notificationEmails: sanitizedNotificationEmails,
-                verifiedSecondaryEmails: sanitizedVerifiedSecondaryEmails
+                verifiedSecondaryEmails: sanitizedVerifiedSecondaryEmails,
+                whatsappEnabled: formData.whatsappEnabled,
             }
             const data = await updateUser(user.id, payload)
 
@@ -370,33 +372,29 @@ export default function SettingsPage() {
 
                             </div>
 
-                            {/* 
                             <div className="space-y-4 border-t pt-4">
                                 <Label className="text-base font-semibold">Notification Preferences</Label>
                                 <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
                                     <div className="space-y-0.5">
-                                        <Label className="text-sm font-medium">SMS Notifications</Label>
+                                        <Label className="text-sm font-medium">WhatsApp Notifications</Label>
                                         <p className="text-xs text-muted-foreground">
-                                            Receive SMS alerts for important activity (e.g., when your offer is accepted).
+                                            Receive WhatsApp alerts for new inquiries, offers, and status updates.
                                         </p>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <button
-                                            type="button"
-                                            role="switch"
-                                            aria-checked={formData.smsNotificationsEnabled}
-                                            onClick={() => setFormData({ ...formData, smsNotificationsEnabled: !formData.smsNotificationsEnabled })}
-                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${formData.smsNotificationsEnabled ? 'bg-primary' : 'bg-input'}`}
-                                        >
-                                            <span
-                                                aria-hidden="true"
-                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${formData.smsNotificationsEnabled ? 'translate-x-5' : 'translate-x-0'}`}
-                                            />
-                                        </button>
-                                    </div>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={formData.whatsappEnabled}
+                                        onClick={() => setFormData({ ...formData, whatsappEnabled: !formData.whatsappEnabled })}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${formData.whatsappEnabled ? 'bg-primary' : 'bg-input'}`}
+                                    >
+                                        <span
+                                            aria-hidden="true"
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${formData.whatsappEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                        />
+                                    </button>
                                 </div>
                             </div>
-                            */}
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
                                 <div className="space-y-2">
@@ -520,20 +518,18 @@ export default function SettingsPage() {
                             )}
 
 
-                            {/* 
                             <div className="col-span-2 border-t pt-4">
                                 <label className="text-sm font-medium text-muted-foreground">Notification Preferences</label>
                                 <div className="mt-2 flex items-center justify-between p-3 border rounded-lg bg-muted/30">
                                     <div className="space-y-0.5">
-                                        <p className="text-sm font-medium">SMS Notifications</p>
+                                        <p className="text-sm font-medium">WhatsApp Notifications</p>
                                         <p className="text-xs text-muted-foreground">
-                                            {user?.smsNotificationsEnabled ? "Enabled" : "Disabled"}
+                                            {user?.whatsappEnabled !== false ? "Enabled" : "Disabled"}
                                         </p>
                                     </div>
-                                    <div className={`h-2.5 w-2.5 rounded-full ${user?.smsNotificationsEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                    <div className={`h-2.5 w-2.5 rounded-full ${user?.whatsappEnabled !== false ? 'bg-green-500' : 'bg-gray-300'}`} />
                                 </div>
                             </div>
-                            */}
                         </div>
                     )}
                 </CardContent>

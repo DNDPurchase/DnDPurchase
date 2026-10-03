@@ -27,6 +27,7 @@ interface AuthUser {
   sellerProductOptions?: Record<string, Record<string, any>>
   availableLocations?: Record<string, string[]>
   smsNotificationsEnabled: boolean;
+  whatsappEnabled?: boolean;
   secondaryEmails?: string[];
   notificationEmails?: string[];
   verifiedSecondaryEmails?: string[];

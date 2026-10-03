@@ -68,6 +68,7 @@ export default function RegisterPage() {
     selectedCategories: [] as string[],
     productManufacturers: {} as Record<string, string[]>,
     availableLocations: {} as Record<string, string[]>,
+    whatsappConsent: true,
   })
 
   const updateForm = (field: string, value: string) => {
@@ -439,6 +440,7 @@ export default function RegisterPage() {
         productManufacturers: (form.role === "seller" || form.role === "both") ? computedProductManufacturers : {},
         sellerProductOptions: (form.role === "seller" || form.role === "both") ? sellerProductOptions : {},
         availableLocations: (form.role === "seller" || form.role === "both") ? selectedLocations : {},
+        whatsappEnabled: form.whatsappConsent,
       } as any)
       if (!success) {
         toast.error("Registration failed. Please try again.")
@@ -739,6 +741,18 @@ export default function RegisterPage() {
                       )}
                     </button>
                   </div>
+                </div>
+                <div className="flex items-start gap-2 mt-4">
+                  <input
+                    type="checkbox"
+                    id="whatsappConsent"
+                    checked={form.whatsappConsent}
+                    onChange={(e) => setForm((prev) => ({ ...prev, whatsappConsent: e.target.checked }))}
+                    className="mt-0.5 h-4 w-4 cursor-pointer accent-primary"
+                  />
+                  <label htmlFor="whatsappConsent" className="text-sm text-muted-foreground cursor-pointer">
+                    I agree to receive order updates and notifications from DND Purchase via WhatsApp.
+                  </label>
                 </div>
                 <div className="flex gap-3 mt-2">
                   <Button variant="outline" className="flex-1 bg-transparent" onClick={() => {

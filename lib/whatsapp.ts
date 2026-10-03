@@ -7,14 +7,17 @@ const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || ""
 const WHATSAPP_API_URL = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`
 
 interface TemplateComponent {
-    type: "body"
+    type: "body" | "button"
     parameters: Array<{ type: "text"; text: string }>
+    sub_type?: "url"
+    index?: string
 }
 
 interface WhatsAppPayload {
     to: string
     templateName: string
-    variables?: string[] // ordered list of {{1}}, {{2}}, ... values
+    variables?: string[]       // ordered body {{1}}, {{2}}, ... values
+    urlButtonParams?: string[] // ordered URL button {{1}}, ... values (button index 0)
 }
 
 function normalizePhone(raw: string): string {
@@ -41,12 +44,23 @@ async function sendWhatsAppTemplate(payload: WhatsAppPayload): Promise<{ success
         throw new Error(`Invalid phone number format: "${payload.to}"`)
     }
 
-    const components: TemplateComponent[] = payload.variables && payload.variables.length > 0
-        ? [{
+    const components: TemplateComponent[] = []
+
+    if (payload.variables && payload.variables.length > 0) {
+        components.push({
             type: "body",
-            parameters: payload.variables.map(v => ({ type: "text" as const, text: String(v) }))
-        }]
-        : []
+            parameters: payload.variables.map(v => ({ type: "text" as const, text: String(v) })),
+        })
+    }
+
+    if (payload.urlButtonParams && payload.urlButtonParams.length > 0) {
+        components.push({
+            type: "button",
+            sub_type: "url",
+            index: "0",
+            parameters: payload.urlButtonParams.map(v => ({ type: "text" as const, text: String(v) })),
+        })
+    }
 
     const body: any = {
         messaging_product: "whatsapp",
@@ -122,6 +136,7 @@ export async function notifyBuyerOfNewOfferSMS(to: string, inquiryId: string) {
         to,
         templateName: process.env.WHATSAPP_TEMPLATE_NEW_OFFER || "dnd_new_offer",
         variables: [inquiryId],
+        urlButtonParams: [inquiryId],
     })
 }
 

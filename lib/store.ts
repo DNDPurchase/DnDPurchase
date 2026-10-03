@@ -393,7 +393,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       created_at: createdAt,
       auth_uid: auth.currentUser?.uid || null,
       sms_notifications_enabled: true,
-      whatsapp_enabled: true,
+      whatsapp_enabled: data.whatsappEnabled !== false,
     })
 
     users.push({
@@ -417,7 +417,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       googleConnected: false,
       createdAt,
       smsNotificationsEnabled: true,
-      whatsappEnabled: true,
+      whatsappEnabled: data.whatsappEnabled !== false,
     })
   }
 
@@ -451,7 +451,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       seller_product_options: data.sellerProductOptions || {},
       available_locations: data.availableLocations || {},
       sms_notifications_enabled: true,
-      whatsapp_enabled: true,
+      whatsapp_enabled: data.whatsappEnabled !== false,
     })
 
     users.push({
@@ -479,7 +479,7 @@ export async function registerUser(data: Omit<User, "id" | "verified" | "created
       sellerProductOptions: data.sellerProductOptions || {},
       availableLocations: data.availableLocations || {},
       smsNotificationsEnabled: true,
-      whatsappEnabled: true,
+      whatsappEnabled: data.whatsappEnabled !== false,
     })
   }
 

@@ -120,21 +120,21 @@ async function sendWhatsAppTemplate(payload: WhatsAppPayload): Promise<{ success
 export async function sendWelcomeSMS(to: string, _name: string) {
     return sendWhatsAppTemplate({
         to,
-        templateName: process.env.WHATSAPP_TEMPLATE_WELCOME || "dnd_welcome",
+        templateName: process.env.WHATSAPP_TEMPLATE_WELCOME || "dnd_welcome_v2",
     })
 }
 
 export async function notifySellerOfNewInquirySMS(to: string) {
     return sendWhatsAppTemplate({
         to,
-        templateName: process.env.WHATSAPP_TEMPLATE_NEW_INQUIRY || "dnd_new_inquiry",
+        templateName: process.env.WHATSAPP_TEMPLATE_NEW_INQUIRY || "dnd_new_inquiry_v3",
     })
 }
 
 export async function notifySellersOfBiddingSMS(to: string, inquiryId: string) {
     return sendWhatsAppTemplate({
         to,
-        templateName: process.env.WHATSAPP_TEMPLATE_BIDDING_STARTED || "dnd_bidding_started",
+        templateName: process.env.WHATSAPP_TEMPLATE_BIDDING_STARTED || "dnd_bidding_started_v2",
         variables: [inquiryId],
     })
 }
@@ -142,7 +142,7 @@ export async function notifySellersOfBiddingSMS(to: string, inquiryId: string) {
 export async function notifyBuyerOfNewOfferSMS(to: string, inquiryId: string) {
     return sendWhatsAppTemplate({
         to,
-        templateName: process.env.WHATSAPP_TEMPLATE_NEW_OFFER || "dnd_new_offer",
+        templateName: process.env.WHATSAPP_TEMPLATE_NEW_OFFER || "dnd_new_offer_v3",
         variables: [inquiryId],
         urlButtonParams: [inquiryId],
     })
@@ -167,7 +167,7 @@ export async function notifySellerOfAcceptanceSMS(to: string, offerId: string) {
 export async function notifySellerOfRejectionSMS(to: string, offerId: string) {
     return sendWhatsAppTemplate({
         to,
-        templateName: process.env.WHATSAPP_TEMPLATE_OFFER_REJECTED_SELLER || "dnd_offer_rejected_seller",
+        templateName: process.env.WHATSAPP_TEMPLATE_OFFER_REJECTED_SELLER || "dnd_offer_rejected_seller_v2",
         variables: [offerId],
     })
 }

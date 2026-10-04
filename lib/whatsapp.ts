@@ -1,10 +1,16 @@
 import { logger } from "./logger"
 
-const TEST_MODE = process.env.WHATSAPP_TEST_MODE === "true"
-
-const WHATSAPP_API_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || ""
-const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || ""
-const WHATSAPP_API_URL = `https://graph.facebook.com/v20.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`
+// Read lazily so scripts that load dotenv before importing this module work correctly
+function getConfig() {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN || ""
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || ""
+    return {
+        testMode: process.env.WHATSAPP_TEST_MODE === "true",
+        token,
+        phoneId,
+        apiUrl: `https://graph.facebook.com/v20.0/${phoneId}/messages`,
+    }
+}
 
 interface TemplateComponent {
     type: "body" | "button"
@@ -28,12 +34,14 @@ function normalizePhone(raw: string): string {
 }
 
 async function sendWhatsAppTemplate(payload: WhatsAppPayload): Promise<{ success: boolean; messageId?: string }> {
-    if (TEST_MODE) {
+    const { testMode, token, phoneId, apiUrl } = getConfig()
+
+    if (testMode) {
         logger.info("WhatsApp test mode enabled; skipping actual send", { payload })
         return { success: true, messageId: "test-mode-wa-" + Date.now() }
     }
 
-    if (!WHATSAPP_API_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+    if (!token || !phoneId) {
         logger.warn("WhatsApp credentials not configured. Simulating send.", { payload })
         return { success: true, messageId: "simulated-wa-" + Date.now() }
     }
@@ -77,11 +85,11 @@ async function sendWhatsAppTemplate(payload: WhatsAppPayload): Promise<{ success
     }
 
     try {
-        const response = await fetch(WHATSAPP_API_URL, {
+        const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${WHATSAPP_API_TOKEN}`,
+                "Authorization": `Bearer ${token}`,
             },
             body: JSON.stringify(body),
         })

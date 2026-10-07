@@ -127,7 +127,16 @@ export async function sendWelcomeSMS(to: string, _name: string) {
 export async function notifySellerOfNewInquirySMS(to: string) {
     return sendWhatsAppTemplate({
         to,
-        templateName: process.env.WHATSAPP_TEMPLATE_NEW_INQUIRY || "dnd_new_inquiry_v3",
+        templateName: process.env.WHATSAPP_TEMPLATE_NEW_INQUIRY || "dnd_new_inquiry_v4",
+    })
+}
+
+export async function notifyBuyerToStartBiddingSMS(to: string, inquiryId: string) {
+    return sendWhatsAppTemplate({
+        to,
+        templateName: process.env.WHATSAPP_TEMPLATE_START_BIDDING || "dnd_start_bidding",
+        variables: [inquiryId],
+        urlButtonParams: [inquiryId],
     })
 }
 

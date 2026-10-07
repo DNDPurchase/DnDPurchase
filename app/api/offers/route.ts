@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger"
 import { acceptOffer, closeInquiry, createOffer, disqualifyOffer, getInquiryById, getOfferById, getOffersByInquiryId, getOffersBySellerId, getUserById, getVerifiedNotificationEmails } from "@/lib/store"
 import { notifyBuyerOfAcceptanceEmail, notifyBuyerOfNewOfferEmail, notifySellerOfAcceptanceEmail, notifySellerOfRejectionEmail } from "@/lib/email"
-import { notifyBuyerOfAcceptanceSMS, notifyBuyerOfNewOfferSMS, notifySellerOfAcceptanceSMS, notifySellerOfRejectionSMS } from "@/lib/whatsapp"
+import { notifyBuyerOfAcceptanceSMS, notifyBuyerOfNewOfferSMS, notifyBuyerToStartBiddingSMS, notifySellerOfAcceptanceSMS, notifySellerOfRejectionSMS } from "@/lib/whatsapp"
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/firebase"
 import { signInWithEmailAndPassword } from "firebase/auth"
@@ -100,6 +100,14 @@ export async function POST(req: Request) {
         await notifyBuyerOfNewOfferSMS(buyer.phone, inquiryId).catch(e =>
           logger.error("Failed to send SMS notification for new offer", { error: e.message })
         )
+      }
+
+      // When exactly 3 offers received, prompt buyer to start bidding
+      if (offerCount === 3 && buyer.phone && buyer.phone.trim() !== "") {
+        await notifyBuyerToStartBiddingSMS(buyer.phone, inquiryId).catch(e =>
+          logger.error("Failed to send start-bidding notification to buyer", { error: e.message })
+        )
+        logger.info("Start-bidding notification sent to buyer", { inquiryId, buyerId: buyer.id })
       }
 
       logger.info("New offer notifications sent to buyer")

@@ -19,7 +19,8 @@ import {
 import Link from "next/link"
 import Image from "next/image"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
-import { getProducts } from "@/lib/store"
+// CEMENT-HIDDEN: import { getProducts } from "@/lib/store"
+import { getBuyerProducts } from "@/lib/store"
 import { useEffect, useState, useRef } from "react"
 
 
@@ -35,7 +36,8 @@ export default function LandingPage() {
   })
 
   useEffect(() => {
-    getProducts().then(setProducts)
+    // CEMENT-HIDDEN: getProducts().then(setProducts)
+    getBuyerProducts().then(setProducts)
   }, [])
 
   // CSS variable helpers — keeps JSX clean
@@ -252,7 +254,8 @@ export default function LandingPage() {
               {/* H1 */}
               <h1 className="font-black leading-none tracking-tight text-4xl sm:text-5xl md:text-6xl xl:text-7xl" style={{ color: v('heading') }}>
                 <span className="opacity-75 text-xl sm:text-2xl md:text-3xl lg:text-4xl block font-bold tracking-wide uppercase mb-2 text-metallic-muted">Buy \ Sell</span>
-                <span className="text-metallic">Steel & Cement</span><br />
+                {/* CEMENT-HIDDEN: <span className="text-metallic">Steel & Cement</span><br /> */}
+                <span className="text-metallic">Steel</span><br />
                 <span className="text-base sm:text-lg md:text-xl font-medium opacity-65 block mt-2 tracking-normal">in just 2-step process</span>
               </h1>
 
@@ -326,7 +329,8 @@ export default function LandingPage() {
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: 'Verified Sellers', value: '100+' },
-                  { label: 'Categories', value: '9' },
+                  // CEMENT-HIDDEN: { label: 'Categories', value: '9' },
+                  { label: 'Categories', value: '8' },
                   { label: 'Avg. Saving', value: '3%' },
                 ].map((stat) => (
                   <div key={stat.label} className="flex flex-col items-center p-2.5 rounded-xl card-glossy text-center shadow-xl">
@@ -436,7 +440,8 @@ export default function LandingPage() {
             Product Categories
           </h2>
           <p className="mt-4 text-pretty text-lg leading-relaxed font-medium" style={{ color: v('text-muted') }}>
-            Source prime-quality Steel and Cement from verified Sellers
+            {/* CEMENT-HIDDEN: Source prime-quality Steel and Cement from verified Sellers */}
+            Source prime-quality Steel from verified Sellers
           </p>
         </motion.div>
 
@@ -532,7 +537,8 @@ export default function LandingPage() {
                 </Link>
               </motion.div>
               <p className="text-sm font-medium leading-relaxed max-w-sm" style={{ color: v('text-muted') }}>
-                Buy and sell steel & cement in just a simple 2-step process. <br/>No follow-ups, no calls, just best pricing and peace of mind.
+                {/* CEMENT-HIDDEN: Buy and sell steel & cement in just a simple 2-step process. */}
+                Buy and sell steel in just a simple 2-step process. <br/>No follow-ups, no calls, just best pricing and peace of mind.
               </p>
             </div>
 

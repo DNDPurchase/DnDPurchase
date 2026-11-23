@@ -55,7 +55,8 @@ const TUTORIALS: Tutorial[] = [
     role: "Everyone",
     videoUrl: firebaseVideoUrls.landingPage,
     thumbnailGradient: "from-rose-500/20 via-red-600/10 to-transparent",
-    description: "A complete tour of the DND Purchase marketplace. Discover how we eliminate telemarketing spam and secure the best prices for steel and cement in just 2 simple steps.",
+    // CEMENT-HIDDEN: description: "A complete tour of the DND Purchase marketplace. Discover how we eliminate telemarketing spam and secure the best prices for steel and cement in just 2 simple steps.",
+    description: "A complete tour of the DND Purchase marketplace. Discover how we eliminate telemarketing spam and secure the best prices for steel in just 2 simple steps.",
     learnPoints: [
       "Understand the 'No Call' negotiation philosophy",
       "Navigate product categories",
@@ -214,7 +215,8 @@ export default function TutorialsPage() {
             How to use DND Purchase?
           </h1>
           <p className="mt-3 text-lg md:text-xl font-medium text-metallic-muted">
-            Everything you need to know to buy and sell steel & cement in minutes, with zero spam calls.
+            {/* CEMENT-HIDDEN: Everything you need to know to buy and sell steel & cement in minutes, with zero spam calls. */}
+            Everything you need to know to buy and sell steel in minutes, with zero spam calls.
           </p>
         </div>
 

@@ -614,6 +614,10 @@ export async function createInquiry(
   },
   biddingDuration?: number
 ): Promise<Inquiry> {
+  // Buyer-side restriction (see BUYER_RESTRICTED_PRODUCTS)
+  if (items.some(i => isBuyerRestrictedProduct(i.product))) {
+    throw new Error("This product is currently not available for buyers.")
+  }
   const inquiryId = await getNextInquiryId()
   const buyerAlias = await generatePublicAlias("buyer")
   const createdAt = new Date().toISOString()
@@ -1456,6 +1460,28 @@ export async function getAcceptedOffersByUserId(userId: string, role: UserRole):
     return offers
   }
   return []
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BUYER-SIDE PRODUCT RESTRICTION
+// Cement is currently hidden from BUYERS (sellers can still select/quote it).
+// TO RE-ENABLE CEMENT FOR BUYERS: comment out the active line below and
+// uncomment the empty-array line. Nothing else needs to change.
+// (Also search the codebase for "CEMENT-HIDDEN" to restore public copy/SEO text.)
+// ─────────────────────────────────────────────────────────────────────────────
+export const BUYER_RESTRICTED_PRODUCTS: string[] = ["Cement"]
+// export const BUYER_RESTRICTED_PRODUCTS: string[] = []
+
+export function isBuyerRestrictedProduct(name?: string | null): boolean {
+  if (!name) return false
+  const n = name.trim().toLowerCase()
+  return BUYER_RESTRICTED_PRODUCTS.some(r => r.toLowerCase() === n)
+}
+
+/** Product list as buyers/public should see it (restricted products removed). */
+export async function getBuyerProducts() {
+  const all = await getProducts()
+  return all.filter(p => !isBuyerRestrictedProduct(p.name))
 }
 
 export async function getProducts(): Promise<{ id: string, name: string, sub_products?: string[], image_url?: string }[]> {

@@ -71,7 +71,8 @@ export async function sendWelcomeEmail(to: string, name: string) {
       </div>
       <div style="padding: 24px;">
         <h2>Hello ${name},</h2>
-        <p>Welcome to our platform! We're excited to have you on board. Now you can Buy/Sell 'Steel' & 'Cement' products in just a '2-step' process.</p>
+        <!-- CEMENT-HIDDEN: <p>Welcome to our platform! We're excited to have you on board. Now you can Buy/Sell 'Steel' & 'Cement' products in just a '2-step' process.</p> -->
+        <p>Welcome to our platform! We're excited to have you on board. Now you can Buy/Sell 'Steel' products in just a '2-step' process.</p>
         <p>If you have any questions, feel free to reach out to our support team.</p>
         
         <div style="margin: 24px 0; text-align: center;">

@@ -80,12 +80,15 @@ export async function POST(req: Request) {
 
       logger.info("Notifying buyer of new offer", { buyerId: buyer.id })
 
+      // Count offers once, up front: used by the email below and by the
+      // "3 offers → start bidding" prompt further down (was block-scoped before).
+      const allOffers = await getOffersByInquiryId(inquiryId);
+      const offerCount = allOffers.length;
+
       // Send Email if available
       if (buyer.email) {
         const verifiedEmails = getVerifiedNotificationEmails(buyer)
         const targetEmails = verifiedEmails.length > 0 ? verifiedEmails : [buyer.email]
-        const allOffers = await getOffersByInquiryId(inquiryId);
-        const offerCount = allOffers.length;
         const productName = inquiry.items[0]?.product || "Product";
         const emailPromises = targetEmails.map((email: string) =>
           notifyBuyerOfNewOfferEmail(email, inquiryId, productName, offerCount).catch(e =>

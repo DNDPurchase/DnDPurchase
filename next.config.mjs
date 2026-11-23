@@ -3,6 +3,23 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // WhatsApp template buttons (new-offer / offer-accepted for buyers) point at
+  // /dashboard/buyer/inquiries[...], which is not a real route. Send those taps
+  // to the real buyer pages instead of a 404.
+  async redirects() {
+    return [
+      {
+        source: '/dashboard/buyer/inquiries/:id',
+        destination: '/dashboard/offers?inquiryId=:id',
+        permanent: false,
+      },
+      {
+        source: '/dashboard/buyer/inquiries',
+        destination: '/dashboard/inquiries',
+        permanent: false,
+      },
+    ]
+  },
   devIndicators: {
     buildActivity: false,
     appIsrStatus: false,
